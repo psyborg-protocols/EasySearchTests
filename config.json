@@ -1,0 +1,11 @@
+//example! These would be the dirs and the prefixes of files that the latest version of would be fetched
+[
+  {
+    "directory": "BrandyWine/Datasets",
+    "filenamePrefix": "Cleaned_Sales_Data"
+  },
+  {
+    "directory": "AnotherFolder",
+    "filenamePrefix": "Report"
+  }
+]
