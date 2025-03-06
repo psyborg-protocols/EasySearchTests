@@ -54,15 +54,17 @@ function initializeAuth() {
 }
 
 // Sign in using a popup window
-function signIn() {
-    msalInstance.loginPopup({ scopes })
-        .then(response => {
-            handleLoginResponse(response.account);
-        })
-        .catch(error => {
-            console.error("Sign-in error:", error);
-        });
+async function signIn() {
+    try {
+        const response = await msalInstance.loginPopup({ scopes });
+        handleLoginResponse(response.account);
+        return response.account; // Ensure the caller can wait for authentication
+    } catch (error) {
+        console.error("Sign-in error:", error);
+        throw error;
+    }
 }
+
 
 // Sign out and clear the user session
 function signOut() {
