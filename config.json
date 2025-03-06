@@ -3,9 +3,5 @@
   {
     "directory": "BrandyWine/Datasets",
     "filenamePrefix": "Cleaned_Sales_Data"
-  },
-  {
-    "directory": "AnotherFolder",
-    "filenamePrefix": "Report"
   }
 ]
