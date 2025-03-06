@@ -22,7 +22,8 @@ async function loadConfig() {
  * @returns {Promise<object>} - The file metadata from Graph API.
  */
 async function fetchLatestFileMetadata(directory, filenamePrefix, token) {
-  const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${directory}:/children?$filter=startswith(name,'${filenamePrefix}')&$orderby=lastModifiedDateTime desc&$top=1`;
+  // TODO: this is the endpoint for Business accounts: const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${directory}:/children?$filter=startswith(name,'${filenamePrefix}')&$orderby=lastModifiedDateTime desc&$top=1`;
+  const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root/children?$filter=startswith(name,'${filenamePrefix}')&$orderby=lastModifiedDateTime desc&$top=1`;
   const response = await fetch(endpoint, {
     headers: {
       'Authorization': `Bearer ${token}`,
