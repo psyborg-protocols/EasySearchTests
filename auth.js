@@ -1,7 +1,7 @@
 // Microsoft Authentication Configuration
 const msalConfig = {
     auth: {
-        clientId: "YOUR_CLIENT_ID_HERE", // Replace with your Microsoft app registration client ID
+        clientId: "fd222d3b-4c6d-4968-a33e-a7c124caacad",
         authority: "https://login.microsoftonline.com/common",
         redirectUri: window.location.origin,
     },
@@ -17,7 +17,7 @@ let msalInstance;
 // MS Graph API scopes needed for accessing OneDrive files
 const scopes = [
     "User.Read",
-    "Files.Read"
+    "Files.Read.All"
 ];
 
 // User account information
