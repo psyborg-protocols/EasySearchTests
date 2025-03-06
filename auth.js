@@ -4,7 +4,7 @@
 const msalConfig = {
     auth: {
         clientId: "fd222d3b-4c6d-4968-a33e-a7c124caacad",
-        authority: "https://login.microsoftonline.com/cde644c0-38fe-42e2-a23f-1c5221e61d72",
+        authority: "https://login.microsoftonline.com/common",
         redirectUri: "https://psyborg-protocols.github.io/EasySearchTests/",
     },
     cache: {
