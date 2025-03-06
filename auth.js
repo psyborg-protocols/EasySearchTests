@@ -1,3 +1,5 @@
+// auth.js
+
 // Microsoft Authentication Configuration
 const msalConfig = {
     auth: {
@@ -11,37 +13,39 @@ const msalConfig = {
     }
 };
 
-// MSAL instance
-let msalInstance;
-
 // MS Graph API scopes needed for accessing OneDrive files
 const scopes = [
     "User.Read",
     "Files.Read.All"
 ];
 
-// User account information
+// Global variables for the MSAL instance and user account
+let msalInstance;
 let userAccount = null;
 
-// Initialize the MSAL auth module
+// Consolidated function to update UI and load OneDrive files after a successful login
+function handleLoginResponse(account) {
+    userAccount = account;
+    if (userAccount) {
+        UIrenderer.updateUIForLoggedInUser();
+    }
+}
+
+// Initialize the MSAL authentication module
 function initializeAuth() {
     msalInstance = new msal.PublicClientApplication(msalConfig);
-    
-    // Check if there's already a logged in user in session
+
+    // Check if there's an already logged-in user
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
-        userAccount = accounts[0];
-        updateUIForLoggedInUser();
-        loadOneDriveFiles(); // Load the files when we find an existing login
+        handleLoginResponse(accounts[0]);
     }
-    
-    // Handle redirect response if any
+
+    // Process any redirect response
     msalInstance.handleRedirectPromise()
         .then(response => {
             if (response) {
-                userAccount = response.account;
-                updateUIForLoggedInUser();
-                loadOneDriveFiles();
+                handleLoginResponse(response.account);
             }
         })
         .catch(error => {
@@ -49,37 +53,34 @@ function initializeAuth() {
         });
 }
 
-// Sign in function
+// Sign in using a popup window
 function signIn() {
     msalInstance.loginPopup({ scopes })
         .then(response => {
-            userAccount = response.account;
-            updateUIForLoggedInUser();
-            loadOneDriveFiles();
+            handleLoginResponse(response.account);
         })
         .catch(error => {
             console.error("Sign-in error:", error);
         });
 }
 
-// Sign out function
+// Sign out and clear the user session
 function signOut() {
     msalInstance.logout({
         onRedirectNavigate: () => {
-            // Don't navigate away, just clear the state
-            updateUIForLoggedOutUser();
-            return false;
+            UIrenderer.updateUIForLoggedOutUser();
+            return false; // Prevent redirect navigation
         }
     });
     userAccount = null;
 }
 
-// Get access token for MS Graph API calls
+// Acquire an access token for MS Graph API calls
 async function getAccessToken() {
     if (!userAccount) {
         throw new Error("User not logged in");
     }
-    
+
     try {
         const tokenResponse = await msalInstance.acquireTokenSilent({
             scopes,
@@ -87,38 +88,13 @@ async function getAccessToken() {
         });
         return tokenResponse.accessToken;
     } catch (error) {
-        // Silent token acquisition failed, try interactive
         console.log("Silent token acquisition failed, trying interactive method");
-        if (error instanceof msal.InteractionRequiredAuthError) {
-            try {
-                const tokenResponse = await msalInstance.acquireTokenPopup({ scopes });
-                return tokenResponse.accessToken;
-            } catch (err) {
-                console.error("Error acquiring token interactively:", err);
-                throw err;
-            }
-        } else {
-            console.error("Error acquiring token silently:", error);
-            throw error;
+        try {
+            const tokenResponse = await msalInstance.acquireTokenPopup({ scopes });
+            return tokenResponse.accessToken;
+        } catch (err) {
+            console.error("Error acquiring token interactively:", err);
+            throw err;
         }
     }
-}
-
-// Update UI after successful login
-function updateUIForLoggedInUser() {
-    document.getElementById('loginContainer').style.display = 'none';
-    document.getElementById('appContainer').style.display = 'block';
-    
-    // Display user name
-    const displayName = userAccount.name || userAccount.username || "User";
-    document.getElementById('userDisplayName').textContent = displayName;
-}
-
-// Update UI after logout
-function updateUIForLoggedOutUser() {
-    document.getElementById('appContainer').style.display = 'none';
-    document.getElementById('loginContainer').style.display = 'flex';
-    document.getElementById('fileListContainer').innerHTML = '';
-    document.getElementById('tableContainer').style.display = 'none';
-    document.getElementById('welcomeMessage').style.display = 'block';
 }

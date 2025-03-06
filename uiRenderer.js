@@ -58,7 +58,28 @@ function displayExcelData(results) {
     tableContainer.style.display = 'block';
   }
   
+// Update UI after successful login
+function updateUIForLoggedInUser() {
+    document.getElementById('loginContainer').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'block';
+    
+    // Display user name
+    const displayName = userAccount.name || userAccount.username || "User";
+    document.getElementById('userDisplayName').textContent = displayName;
+}
+
+// Update UI after logout
+function updateUIForLoggedOutUser() {
+    document.getElementById('appContainer').style.display = 'none';
+    document.getElementById('loginContainer').style.display = 'flex';
+    document.getElementById('fileListContainer').innerHTML = '';
+    document.getElementById('tableContainer').style.display = 'none';
+    document.getElementById('welcomeMessage').style.display = 'block';
+}
+
   // Expose function globally
-  window.ExcelUI = {
-    displayExcelData
+  window.UIrenderer = {
+    displayExcelData,
+    updateUIForLoggedInUser,
+    updateUIForLoggedOutUser
   };
