@@ -84,15 +84,21 @@ async function getAccessToken() {
     }
 
     try {
+        // Try to get token silently
         const tokenResponse = await msalInstance.acquireTokenSilent({
             scopes,
             account: userAccount
         });
         return tokenResponse.accessToken;
     } catch (error) {
-        console.log("Silent token acquisition failed, trying interactive method");
+        console.log("Silent token acquisition failed, forcing reauthentication...");
+        
+        // If silent token fails, force an interactive login
         try {
-            const tokenResponse = await msalInstance.acquireTokenPopup({ scopes });
+            const tokenResponse = await msalInstance.acquireTokenPopup({ 
+                scopes, 
+                forceRefresh: true 
+            });
             return tokenResponse.accessToken;
         } catch (err) {
             console.error("Error acquiring token interactively:", err);
