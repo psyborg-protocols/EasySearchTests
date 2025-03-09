@@ -1,57 +1,63 @@
-/**
- * Displays parsed Excel data as Bootstrap tables.
- * @param {Array} results - Array of objects containing dataframe data.
- */
-async function displayData(results) {
-  results.forEach(result => {
-    const { dataframe, destination, filenamePrefix, directory } = result;
+// Handle the Customer search dropdown and selection
+document.getElementById("customerSearch").addEventListener("input", async (e) => {
+  const query = e.target.value.trim();
+  if (!query) {
+    document.getElementById("customerDropdown").innerHTML = "";
+    return;
+  }
 
-    const container = document.querySelector(destination);
-    if (!container) {
-      console.warn(`Destination ${destination} not found in the DOM.`);
-      return;
-    }
+  const results = await searchCustomers(query);
+  const dropdown = document.getElementById("customerDropdown");
 
-    // Ensure you have at least header and some rows
-    if (!dataframe || dataframe.length < 1) {
-      console.warn(`Dataframe for ${filenamePrefix} is empty or invalid.`);
-      return;
-    }
+  dropdown.innerHTML = results
+    .map(name => `<div class="dropdown-item" onclick="selectCustomer('${name}')">${name}</div>`)
+    .join("");
+});
+ 
+// Handle Customer Selection
+async function selectCustomer(customerName) {
+  document.getElementById("customerSearch").value = customerName;
+  document.getElementById("customerDropdown").innerHTML = "";
 
-    const [header, ...rows] = dataframe;
+  const orderHistory = await getOrderHistory(customerName);
+  const tableBody = document.getElementById("orderHistoryTable");
 
-    // Convert rows into array of objects for Tabulator
-    const dataObjects = rows
-      .filter(row => Array.isArray(row) && row.length > 0)
-      .map(row => {
-        // Create an object with keys from header and values from row
-        // Ensure we only pair up to the minimum length of both arrays
-        const obj = {};
-        const minLength = Math.min(header.length, row.length);
-        
-        for (let i = 0; i < minLength; i++) {
-          if (header[i] !== undefined && header[i] !== null) {
-            obj[header[i]] = row[i];
-          }
-        }
-        
-        return obj;
-      });
-
-    // Tabulator initialization
-    new Tabulator(destination, {
-      data: dataObjects,
-      layout: "fitDataStretch",
-      pagination: "local",
-      paginationSize: 10,
-      movableColumns: true,
-      columns: header.map(col => ({ title: col, field: col })),
-    });
-
-    console.log(`Loaded ${filenamePrefix} from ${directory} into ${destination}`);
-  });
+  tableBody.innerHTML = orderHistory
+    .map(order => `
+      <tr>
+        <td>${order.Date}</td>
+        <td>${order.Product_Service}</td>
+        <td>${order.Memo_Description}
+        <td>${order.Quantity}</td>
+        <td>${order.Sales_Price}</td>
+      </tr>
+    `)
+    .join("");
 }
-  
+
+document.getElementById("productSearch").addEventListener("input", async (e) => {
+  const query = e.target.value.trim();
+  if (!query) {
+    document.getElementById("productTable").innerHTML = "";
+    return;
+  }
+
+  const products = await getMatchingProducts(query);
+  const tableBody = document.getElementById("productTable");
+
+  tableBody.innerHTML = products
+    .map(product => `
+      <tr>
+        <td>${product["Product ID"]}</td>
+        <td>${product.Inventory}</td>
+        <td>${product.Cost}</td>
+      </tr>
+    `)
+    .join("");
+});
+
+
+
 // Update UI after successful login
 function updateUIForLoggedInUser() {
     document.getElementById('loginContainer').style.display = 'none';

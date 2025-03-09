@@ -131,83 +131,92 @@ function parseExcelData(arrayBuffer) {
  */
 async function processFiles() {
   try {
-    // Check if getAccessToken is available
-    if (typeof getAccessToken !== 'function') {
-      throw new Error("Authentication module not properly loaded - getAccessToken function not found");
-    }
-    
-    const token = await getAccessToken(); // Provided by auth.js
-    if (!token) {
-      throw new Error("Failed to retrieve access token");
-    }
-    
+    const token = await getAccessToken();
+    if (!token) throw new Error("Failed to retrieve access token");
+
     const config = await loadConfig();
     if (!Array.isArray(config) || config.length === 0) {
       throw new Error("Invalid or empty configuration");
     }
-    
-    const results = [];
 
     for (const item of config) {
       try {
-        const { directory, filenamePrefix, destination } = item;
-        
-        if (!directory || !filenamePrefix || !destination) {
-          console.warn("Invalid config item, missing required properties:", item);
-          continue;
-        }
-        
-        console.log(`Processing: ${directory}/${filenamePrefix} -> ${destination}`);
+        const { directory, filenamePrefix } = item;
+
+        console.log(`Processing: ${directory}/${filenamePrefix}`);
         
         const metadataResponse = await fetchLatestFileMetadata(directory, filenamePrefix, token);
-        
         if (!metadataResponse.value || metadataResponse.value.length === 0) {
-          console.warn(`No matching file found in '${directory}' with prefix '${filenamePrefix}'`);
+          console.warn(`No matching file found in '${directory}'`);
           continue;
         }
-        
+
         const fileMetadata = metadataResponse.value[0];
         const downloadUrl = fileMetadata['@microsoft.graph.downloadUrl'];
-        
         if (!downloadUrl) {
-          console.error(`Download URL not found for file ${fileMetadata.name}`);
+          console.error(`Download URL not found for ${fileMetadata.name}`);
           continue;
         }
-        
+
         const excelBuffer = await downloadExcelFile(downloadUrl);
         const dataframe = parseExcelData(excelBuffer);
-        
-        if (!dataframe || !Array.isArray(dataframe) || dataframe.length < 2) {
-          console.warn(`Empty or invalid dataframe for ${fileMetadata.name}`);
+
+        if (!dataframe || dataframe.length < 2) {
+          console.warn(`Invalid dataframe for ${fileMetadata.name}`);
           continue;
         }
-        
-        results.push({
-          directory,
-          filenamePrefix,
-          fileMetadata,
+
+        // Store the parsed dataframe in global storage
+        window.dataStore[filenamePrefix] = {
           dataframe,
-          destination
-        });
-        
-        console.log(`Successfully processed ${fileMetadata.name}`);
-      } catch (itemError) {
-        console.error(`Error processing config item:`, item, itemError);
-        // Continue to next item instead of failing everything
+          metadata: fileMetadata
+        };
+
+        console.log(`Successfully stored ${fileMetadata.name} in memory.`);
+      } catch (error) {
+        console.error(`Error processing file:`, error);
       }
     }
-    
-    if (results.length === 0) {
-      console.warn("No files were successfully processed");
-    }
-    
-    return results;
   } catch (error) {
     console.error("Error processing files:", error);
-    throw error;
   }
 }
 
+// fuzzy search for a customer, will return the list to populate the selection dropdown
+async function searchCustomers(query) {
+  const ordersData = window.dataStore["orders"]?.dataframe || [];
+  if (ordersData.length === 0) return [];
+
+  const fuse = new Fuse(ordersData, {
+    keys: ["Customer"],
+    threshold: 0.3
+  });
+
+  return fuse.search(query).map(result => result.item.Customer);
+}
+
+// called after searchCustomers. displays the orders for a single customer
+async function getOrderHistory(customerName) {
+  const ordersData = window.dataStore["orders"]?.dataframe || [];
+  return ordersData.filter(order => order.Customer === customerName);
+}
+
+// fuzzy search for products - this will be passed to directly populate the productTable
+async function getMatchingProducts(query) {
+  const inventoryData = window.dataStore["DB"]?.dataframe || [];
+  if (inventoryData.length === 0) return [];
+
+  const fuse = new Fuse(inventoryData, {
+    keys: ["Item ID", "Description"],
+    threshold: 0.4
+  });
+
+  return fuse.search(query).map(result => result.item);
+}
+
+
+// Global storage for parsed data
+window.dataStore = {}; 
 // Export the functions for external use.
 window.dataLoader = {
   loadConfig,

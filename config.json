@@ -2,11 +2,13 @@
   {
     "directory": "BrandyWine/BWEasySearch/sample_csvs/inventory",
     "filenamePrefix": "DB",
-    "destination": "#inventory-table"
+    "destination": "#inventory-table",
+    "columns": ["PartNumber", "Description", "QtyOnHand", "QtyCommited"]
   },
   {
     "directory": "BrandyWine/BWEasySearch/sample_csvs/sales",
     "filenamePrefix": "orders",
-    "destination": "#orders-table"
+    "destination": "#orders-table",
+    "columns": ["Customer", "Date", "Product_Service", "Memo_Description", "Quantity", "Sales_Price", "Total_Amount"]
   }
 ]

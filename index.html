@@ -41,40 +41,84 @@
 
     <!-- App Container (Hidden until logged in) -->
     <div id="appContainer" class="container py-4" style="display:none;">
-        <nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow-sm mb-4">
-            <div class="container-fluid">
-                <span class="navbar-brand">Data Viewer</span>
-                <div>
-                    <span id="userDisplayName" class="me-3 text-muted"></span>
-                    <button id="signOutButton" class="btn btn-outline-secondary btn-sm">Sign Out</button>
+        <div class="card bg-white p-4 rounded shadow">
+            <div class="row">
+              <!-- Customer Column -->
+              <div class="col-md-4 mb-4 mb-md-0">
+                <h4>Customer</h4>
+                <div class="mb-3">
+                  <input type="text" id="customerSearch" class="form-control" placeholder="Search Customer...">
                 </div>
-            </div>
-        </nav>
-
-        <div class="row">
-            <!-- First Table Container -->
-            <div class="col-md-6 mb-4">
-                <div class="card shadow-sm">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Dataset One</h5>
-                    </div>
-                    <div class="card-body table-container" id="inventory-table">
-                        <!-- Table one will be loaded here -->
-                    </div>
+                <div id="customerDropdown" class="mb-3">
+                  <!-- Customer fuzzy search dropdown results go here -->
                 </div>
-            </div>
-
-            <!-- Second Table Container -->
-            <div class="col-md-6 mb-4">
-                <div class="card shadow-sm">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Dataset Two</h5>
-                    </div>
-                    <div class="card-body table-container" id="orders-table">
-                        <!-- Table two will be loaded here -->
-                    </div>
+                <h5>Order History</h5>
+                <div class="table-responsive" style="max-height: 300px;">
+                  <table class="table table-bordered table-striped">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                      </tr>
+                    </thead>
+                    <tbody id="orderHistoryTable">
+                      <!-- Order history rows will be injected here -->
+                    </tbody>
+                  </table>
                 </div>
+              </div>
+              
+              <!-- Product Column -->
+              <div class="col-md-4 mb-4 mb-md-0">
+                <h4>Product</h4>
+                <div class="mb-3">
+                  <input type="text" id="productSearch" class="form-control" placeholder="Search Product...">
+                </div>
+                <h5>Matching Products</h5>
+                <div class="table-responsive" style="max-height: 300px;">
+                  <table class="table table-bordered table-striped">
+                    <thead>
+                      <tr>
+                        <th>Product ID</th>
+                        <th>Inventory</th>
+                        <th>Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody id="productTable">
+                      <!-- Matching products rows will be injected here -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <!-- Pricing Column -->
+              <div class="col-md-4">
+                <h4>Pricing</h4>
+                <div class="d-flex align-items-center mb-3">
+                  <span class="me-2">B2B</span>
+                  <button id="toggleB2B" class="btn btn-secondary">Toggle</button>
+                  <span class="ms-2">B2C</span>
+                </div>
+                <h5>Prices</h5>
+                <div class="table-responsive" style="max-height: 300px;">
+                  <table class="table table-bordered table-striped">
+                    <thead>
+                      <tr>
+                        <th>Price</th>
+                      </tr>
+                    </thead>
+                    <tbody id="priceTable">
+                      <!-- Price rows will be injected here -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
             </div>
+          </div>
         </div>
     </div>
 
