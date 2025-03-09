@@ -84,7 +84,7 @@ async function processFiles() {
     const results = [];
 
     for (const item of config) {
-      const { directory, filenamePrefix } = item;
+      const { directory, filenamePrefix, destination } = item; // Added destination
       const metadataResponse = await fetchLatestFileMetadata(directory, filenamePrefix, token);
       
       if (metadataResponse.value && metadataResponse.value.length > 0) {
@@ -103,14 +103,15 @@ async function processFiles() {
           directory,
           filenamePrefix,
           fileMetadata,
-          dataframe
+          dataframe,
+          destination // Added to results
         });
       } else {
         console.warn(`No matching file found in '${directory}' with prefix '${filenamePrefix}'`);
       }
     }
     
-    return results;
+    return results; // Now results include destination info
   } catch (error) {
     console.error("Error processing files:", error);
     throw error;
