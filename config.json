@@ -2,11 +2,11 @@
   {
     "directory": "BrandyWine/BWEasySearch/sample_csvs/inventory",
     "filenamePrefix": "DB",
-    "destination": "#tableOneContainer"
+    "destination": "#inventory-table"
   },
   {
     "directory": "BrandyWine/BWEasySearch/sample_csvs/sales",
     "filenamePrefix": "orders",
-    "destination": "#tableTwoContainer"
+    "destination": "#orders-table"
   }
 ]

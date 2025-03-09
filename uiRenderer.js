@@ -3,31 +3,41 @@
  * @param {Array} results - Array of objects containing dataframe data.
  */
 async function displayData(results) {
-  results.forEach(({ dataframe, destination }) => {
+  results.forEach(result => {
+    const { dataframe, destination, filenamePrefix, directory } = result;
+
     const container = document.querySelector(destination);
     if (!container) {
-      console.warn(`Destination ${destination} not found.`);
+      console.warn(`Destination ${destination} not found in the DOM.`);
       return;
     }
 
-    // Destructure the dataframe into headers and rows
-    const [headers, ...rows] = dataframe;
-    const dataObjects = rows.map(row => 
-      Object.fromEntries(row.map((cell, idx) => [headers[idx], cell]))
-    );
+    // Ensure you have at least header and some rows
+    if (!dataframe || dataframe.length < 1) {
+      console.warn(`Dataframe for ${filenamePrefix} is empty or invalid.`);
+      return;
+    }
 
+    const [header, ...rows] = dataframe;
+
+    // Convert rows into array of objects for Tabulator
+    const dataObjects = rows
+      .filter(row => Array.isArray(row) && row.length === header.length)
+      .map(row => {
+        return Object.fromEntries(row.map((cell, idx) => [header[idx], cell]));
+      });
+
+    // Tabulator initialization
     new Tabulator(destination, {
-      data: dataObjects, // Use the correctly mapped data
-      layout: "fitData",
+      data: dataObjects,
+      layout: "fitDataStretch",
       pagination: "local",
       paginationSize: 10,
       movableColumns: true,
-      resizableRows: true,
-      columns: headers.map(header => ({
-        title: header,
-        field: header,
-      })),
+      columns: header.map(col => ({ title: col, field: col })),
     });
+
+    console.log(`Loaded ${filenamePrefix} from ${directory} into ${destination}`);
   });
 }
   

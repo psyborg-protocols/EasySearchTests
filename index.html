@@ -8,6 +8,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Tabulator CSS -->
+    <link href="https://unpkg.com/tabulator-tables/dist/css/tabulator.min.css" rel="stylesheet">
+    <!-- Tabulator JS -->
+    <script src="https://unpkg.com/tabulator-tables/dist/js/tabulator.min.js"></script>
     <style>
         #loginContainer {
             height: 100vh;
@@ -54,7 +58,7 @@
                     <div class="card-header">
                         <h5 class="card-title mb-0">Dataset One</h5>
                     </div>
-                    <div class="card-body table-container" id="tableOneContainer">
+                    <div class="card-body table-container" id="inventory-table">
                         <!-- Table one will be loaded here -->
                     </div>
                 </div>
@@ -66,7 +70,7 @@
                     <div class="card-header">
                         <h5 class="card-title mb-0">Dataset Two</h5>
                     </div>
-                    <div class="card-body table-container" id="tableTwoContainer">
+                    <div class="card-body table-container" id="orders-table">
                         <!-- Table two will be loaded here -->
                     </div>
                 </div>
