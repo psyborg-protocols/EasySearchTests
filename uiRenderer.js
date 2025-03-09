@@ -86,7 +86,6 @@ function updateUIForLoggedOutUser() {
 
 // Expose function globally
 window.UIrenderer = {
-  displayData,
   updateUIForLoggedInUser,
   updateUIForLoggedOutUser
 };
