@@ -74,6 +74,7 @@ function parseExcelData(arrayBuffer) {
  *        - filenamePrefix
  *        - fileMetadata (raw metadata from Graph API)
  *        - dataframe (parsed Excel data)
+ *        - destination (UI element to send tthe data to)
  *
  * @returns {Promise<object[]>} - Array of results for each config item.
  */

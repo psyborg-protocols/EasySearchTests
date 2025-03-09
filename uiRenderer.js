@@ -10,19 +10,20 @@ async function displayData(results) {
       return;
     }
 
+    // Destructure the dataframe into headers and rows
     const [headers, ...rows] = dataframe;
     const dataObjects = rows.map(row => 
-      Object.fromEntries(row.map((cell, idx) => [dataframe[0][idx], cell]))
+      Object.fromEntries(row.map((cell, idx) => [headers[idx], cell]))
     );
 
     new Tabulator(destination, {
-      data: dataframes,
+      data: dataObjects, // Use the correctly mapped data
       layout: "fitData",
       pagination: "local",
       paginationSize: 10,
       movableColumns: true,
       resizableRows: true,
-      columns: dataframe[0].map(header => ({
+      columns: headers.map(header => ({
         title: header,
         field: header,
       })),
