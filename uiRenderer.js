@@ -22,9 +22,20 @@ async function displayData(results) {
 
     // Convert rows into array of objects for Tabulator
     const dataObjects = rows
-      .filter(row => Array.isArray(row) && row.length === header.length)
+      .filter(row => Array.isArray(row) && row.length > 0)
       .map(row => {
-        return Object.fromEntries(row.map((cell, idx) => [header[idx], cell]));
+        // Create an object with keys from header and values from row
+        // Ensure we only pair up to the minimum length of both arrays
+        const obj = {};
+        const minLength = Math.min(header.length, row.length);
+        
+        for (let i = 0; i < minLength; i++) {
+          if (header[i] !== undefined && header[i] !== null) {
+            obj[header[i]] = row[i];
+          }
+        }
+        
+        return obj;
       });
 
     // Tabulator initialization
@@ -47,7 +58,7 @@ function updateUIForLoggedInUser() {
     document.getElementById('appContainer').style.display = 'block';
     
     // Display user name
-    const displayName = userAccount.name || userAccount.username || "User";
+    const displayName = userAccount?.name || userAccount?.username || "User";
     document.getElementById('userDisplayName').textContent = displayName;
 }
 
@@ -55,14 +66,21 @@ function updateUIForLoggedInUser() {
 function updateUIForLoggedOutUser() {
     document.getElementById('appContainer').style.display = 'none';
     document.getElementById('loginContainer').style.display = 'flex';
-    document.getElementById('fileListContainer').innerHTML = '';
-    document.getElementById('tableContainer').style.display = 'none';
-    document.getElementById('welcomeMessage').style.display = 'block';
+    
+    // Check if elements exist before manipulating them
+    const fileListContainer = document.getElementById('fileListContainer');
+    if (fileListContainer) fileListContainer.innerHTML = '';
+    
+    const tableContainer = document.getElementById('tableContainer');
+    if (tableContainer) tableContainer.style.display = 'none';
+    
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    if (welcomeMessage) welcomeMessage.style.display = 'block';
 }
 
-  // Expose function globally
-  window.UIrenderer = {
-    displayData,
-    updateUIForLoggedInUser,
-    updateUIForLoggedOutUser
-  };
+// Expose function globally
+window.UIrenderer = {
+  displayData,
+  updateUIForLoggedInUser,
+  updateUIForLoggedOutUser
+};
