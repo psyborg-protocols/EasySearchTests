@@ -1,6 +1,12 @@
 [
   {
-    "directory": "BrandyWine/Datasets",
-    "filenamePrefix": "Cleaned_Sales_Data"
+    "directory": "BrandyWine/BWEasySearch/sample_csvs/inventory",
+    "filenamePrefix": "DB",
+    "destination": "#tableOneContainer"
+  },
+  {
+    "directory": "BrandyWine/BWEasySearch/sample_csvs/sales",
+    "filenamePrefix": "orders",
+    "destination": "#tableTwoContainer"
   }
 ]

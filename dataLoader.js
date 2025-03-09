@@ -118,7 +118,7 @@ async function processFiles() {
 }
 
 // Export the functions for external use.
-window.ExcelFileModule = {
+window.dataLoader = {
   loadConfig,
   fetchLatestFileMetadata,
   downloadExcelFile,
