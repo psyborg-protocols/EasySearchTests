@@ -53,8 +53,11 @@
                 <div class="mb-3">
                   <input type="text" id="customerSearch" class="form-control" placeholder="Search Customer...">
                 </div>
-                <div id="customerDropdown" class="mb-3">
-                  <!-- Customer fuzzy search dropdown results go here -->
+                <div class="dropdown">
+                  <input type="text" id="customerSearch" class="form-control dropdown-toggle" placeholder="Search Customer..." data-bs-toggle="dropdown" aria-expanded="false">
+                  <ul id="customerDropdown" class="dropdown-menu">
+                    <!-- Dropdown items will be injected here as <li> elements -->
+                  </ul>
                 </div>
                 <h5>Order History</h5>
                 <div class="table-responsive" style="max-height: 300px;">

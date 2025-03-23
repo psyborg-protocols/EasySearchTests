@@ -3,20 +3,29 @@ document.getElementById("customerSearch").addEventListener("input", async (e) =>
   const query = e.target.value.trim();
   const dropdown = document.getElementById("customerDropdown");
 
+  // Clear dropdown if query is empty
   if (!query) {
     dropdown.innerHTML = "";
     return;
   }
 
   try {
+    // Perform fuzzy search for customers
     const results = await searchCustomers(query);
-    if (results.length > 0) {
-      console.log(`Customer search for "${query}" successful: found ${results.length} result(s).`);
+
+    // Remove duplicate entries
+    const uniqueResults = [...new Set(results)];
+
+    // Log the result count for debugging
+    if (uniqueResults.length > 0) {
+      console.log(`Customer search for "${query}" successful: found ${uniqueResults.length} unique result(s).`);
     } else {
       console.log(`Customer search for "${query}" returned no results.`);
     }
-    dropdown.innerHTML = results
-      .map(name => `<div class="dropdown-item" onclick="selectCustomer('${name}')">${name}</div>`)
+
+    // Populate the dropdown with <li> elements
+    dropdown.innerHTML = uniqueResults
+      .map(name => `<li><a class="dropdown-item" href="#" onclick="selectCustomer('${name}')">${name}</a></li>`)
       .join("");
   } catch (error) {
     console.error("Error performing customer search:", error);
