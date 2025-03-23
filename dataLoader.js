@@ -131,26 +131,34 @@ function parseExcelData(arrayBuffer) {
 async function processFiles() {
   try {
     const token = await getAccessToken();
-    if (!token) throw new Error("Failed to retrieve access token");
+    if (!token) {
+      console.error("Failed to retrieve access token");
+      return;
+    }
+    console.log("Access token retrieved:", token);
 
     const config = await loadConfig();
+    console.log("Loaded configuration:", config);
+    
     if (!Array.isArray(config) || config.length === 0) {
-      throw new Error("Invalid or empty configuration");
+      console.error("Invalid or empty configuration");
+      return;
     }
 
     for (const item of config) {
       try {
         const { directory, filenamePrefix } = item;
-
         console.log(`Processing: ${directory}/${filenamePrefix}`);
         
         const metadataResponse = await fetchLatestFileMetadata(directory, filenamePrefix, token);
         if (!metadataResponse.value || metadataResponse.value.length === 0) {
-          console.warn(`No matching file found in '${directory}'`);
+          console.warn(`No matching file found in '${directory}' for prefix '${filenamePrefix}'`);
           continue;
         }
 
         const fileMetadata = metadataResponse.value[0];
+        console.log("File metadata:", fileMetadata);
+
         const downloadUrl = fileMetadata['@microsoft.graph.downloadUrl'];
         if (!downloadUrl) {
           console.error(`Download URL not found for ${fileMetadata.name}`);
@@ -158,12 +166,19 @@ async function processFiles() {
         }
 
         const excelBuffer = await downloadExcelFile(downloadUrl);
+        console.log(`Downloaded Excel file (${fileMetadata.name}) with byteLength:`, excelBuffer.byteLength);
+
         const dataframe = parseExcelData(excelBuffer);
+        console.log(`Parsed dataframe for ${fileMetadata.name} with ${dataframe.length} rows`);
+        console.log("First five rows:", dataframe.slice(0, 5));
 
         if (!dataframe || dataframe.length < 2) {
-          console.warn(`Invalid dataframe for ${fileMetadata.name}`);
+          console.warn(`Invalid or empty dataframe for ${fileMetadata.name}`);
           continue;
         }
+        
+        // Optionally, log the header row or first few rows to verify structure.
+        console.log("Dataframe first row:", dataframe[0]);
 
         // Store the parsed dataframe in global storage
         window.dataStore[filenamePrefix] = {
@@ -173,7 +188,7 @@ async function processFiles() {
 
         console.log(`Successfully stored ${fileMetadata.name} in memory.`);
       } catch (error) {
-        console.error(`Error processing file:`, error);
+        console.error("Error processing file:", error);
       }
     }
   } catch (error) {
