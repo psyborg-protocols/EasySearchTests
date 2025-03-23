@@ -120,6 +120,7 @@ async function selectProduct(encodedPartNumber) {
       </tr>
     `;
   }
+}
 
 // Update UI after successful login
 function updateUIForLoggedInUser() {
