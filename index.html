@@ -93,17 +93,21 @@
               <!-- Product Column -->
               <div class="col-md-4 mb-4 mb-md-0">
                 <h4>Product</h4>
-                <div class="mb-3">
+                <div class="dropdown position-relative mb-3">
                   <input type="text" id="productSearch" class="form-control" placeholder="Search Product...">
+                  <ul id="productDropdown" class="dropdown-menu w-100">
+                    <!-- Dropdown items will be inserted here -->
+                  </ul>
                 </div>
                 <h5>Matching Products</h5>
                 <div class="table-responsive" style="max-height: 300px;">
                   <table class="table table-bordered table-striped">
                     <thead>
                       <tr>
-                        <th>Product ID</th>
-                        <th>Inventory</th>
-                        <th>Cost</th>
+                        <th>Product Id</th>
+                        <th>Description</th>
+                        <th>Qty Available</th>
+                        <th>Unit Cost</th>
                       </tr>
                     </thead>
                     <tbody id="productTable">

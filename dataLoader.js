@@ -215,17 +215,25 @@ async function getOrderHistory(customerName) {
   return ordersData.filter(order => order.Customer === customerName);
 }
 
-// fuzzy search for products - this will be passed to directly populate the productTable
+// fuzzy search for products - this will be used to populate the productTable
 async function getMatchingProducts(query) {
   const inventoryData = window.dataStore["DB"]?.dataframe || [];
   if (inventoryData.length === 0) return [];
 
   const fuse = new Fuse(inventoryData, {
-    keys: ["Item ID", "Description"],
+    keys: ["PartNumber", "Description"],
     threshold: 0.4
   });
 
-  return fuse.search(query).map(result => result.item);
+  return fuse.search(query).map(result => {
+    const item = result.item;
+    return {
+      PartNumber: item["PartNumber"],
+      Description: item["Description"],
+      QtyAvailable: parseFloat(item["QtyOnHand"]) - parseFloat(item["QtyCommited"]),
+      UnitCost: parseFloat(item["UnitCost"]).toFixed(2)
+    };
+  });
 }
 
 

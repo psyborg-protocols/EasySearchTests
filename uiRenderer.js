@@ -61,26 +61,65 @@ async function selectCustomer(customerName) {
 
 document.getElementById("productSearch").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
+  const dropdown = document.getElementById("productDropdown");
+
   if (!query) {
+    dropdown.innerHTML = "";
+    dropdown.classList.remove('show');
+    // Optionally, clear the product table when query is empty
     document.getElementById("productTable").innerHTML = "";
     return;
   }
 
-  const products = await getMatchingProducts(query);
-  const tableBody = document.getElementById("productTable");
-
-  tableBody.innerHTML = products
-    .map(product => `
-      <tr>
-        <td>${product["Product ID"]}</td>
-        <td>${product.Inventory}</td>
-        <td>${product.Cost}</td>
-      </tr>
-    `)
-    .join("");
+  try {
+    const products = await getMatchingProducts(query);
+    if (products.length > 0) {
+      dropdown.innerHTML = products
+        .map(product => `<li><a class="dropdown-item" href="#" onclick="selectProduct('${encodeURIComponent(product["PartNumber"])}')">${product["PartNumber"]} - ${product["Description"]}</a></li>`)
+        .join("");
+      dropdown.classList.add('show');
+    } else {
+      dropdown.innerHTML = "";
+      dropdown.classList.remove('show');
+    }
+  } catch (error) {
+    console.error("Error performing product search:", error);
+    dropdown.classList.remove('show');
+  }
 });
 
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dropdown')) {
+    document.getElementById("productDropdown").classList.remove('show');
+  }
+});
 
+async function selectProduct(encodedPartNumber) {
+  // Decode the PartNumber in case it contains special characters
+  const partNumber = decodeURIComponent(encodedPartNumber);
+  
+  // Update the product search input with the selected PartNumber
+  document.getElementById("productSearch").value = partNumber;
+  document.getElementById("productDropdown").innerHTML = "";
+  document.getElementById("productDropdown").classList.remove('show');
+  
+  // Retrieve all matching products (or you could filter from a global store)
+  const products = await getMatchingProducts(partNumber);
+  
+  // Filter to the one that matches exactly the selected PartNumber (assuming PartNumber is unique)
+  const selectedProduct = products.find(product => product["PartNumber"] === partNumber);
+  
+  if (selectedProduct) {
+    // Render the selected product in the table
+    document.getElementById("productTable").innerHTML = `
+      <tr>
+        <td>${selectedProduct["PartNumber"] || ""}</td>
+        <td>${selectedProduct["Description"] || ""}</td>
+        <td>${selectedProduct["qtyAvailable"]}</td>
+        <td>${selectedProduct["UnitCost"] || ""}</td>
+      </tr>
+    `;
+  }
 
 // Update UI after successful login
 function updateUIForLoggedInUser() {
