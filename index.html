@@ -6,8 +6,9 @@
     <title>Data Viewer App</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
+    <!-- Fonts/Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&display=swap">
     <style>
         body {
             background: url('background.jpg') no-repeat center center fixed;
@@ -23,15 +24,25 @@
             max-height: 500px;
             overflow-y: auto;
         }
+        .app-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700; /* Bold for emphasis */
+            font-size: 2.5rem; /* Slightly larger for an elegant presence */
+            letter-spacing: 1px; /* Gentle letter-spacing for classiness */
+            color: #2D2A32; /* Deep charcoal color for elegance */
+            margin-bottom: 1rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2); /* Soft shadow for depth */
+        }
     </style>
 </head>
 <body>
+  <h1 class="app-title text-center my-4">BrandyWise</h1>
     <div id="userDisplayName" style="position: absolute; top: 10px; right: 10px; font-weight: bold;"></div>  
-  <!-- Login Container -->
+    <!-- Login Container -->
     <div id="loginContainer">
         <div class="card shadow" style="max-width: 400px; width: 100%; margin-top: 30px;">
             <div class="card-body text-center p-5">
-                <h2 class="mb-4">Data Viewer</h2>
+                <h2 class="mb-4">Welcome!</h2>
                 <p class="text-muted mb-4">Sign in with your Microsoft account</p>
                 <button id="signInButton" class="btn btn-primary">
                     <i class="fab fa-microsoft me-2"></i>Sign in with Microsoft
@@ -50,8 +61,8 @@
               <!-- Customer Column -->
               <div class="col-md-4 mb-4 mb-md-0">
                 <h4>Customer</h4>
-                <div class="dropdown position-relative">
-                  <input type="text" id="customerSearch" class="form-control" placeholder="Search Customer...">
+                <div class="dropdown position-relative mb-3">
+                  <input type="text" id="customerSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
                   <ul id="customerDropdown" class="dropdown-menu w-100">
                     <!-- Dropdown items go here -->
                   </ul>
