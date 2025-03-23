@@ -3,12 +3,14 @@
     "directory": "BrandyWine/BWEasySearch/sample_csvs/inventory",
     "filenamePrefix": "DB",
     "destination": "#inventory-table",
-    "columns": ["PartNumber", "Description", "QtyOnHand", "QtyCommited", "UnitCost"]
+    "columns": ["PartNumber", "Description", "QtyOnHand", "QtyCommited", "UnitCost"],
+    "skipRows": 0
   },
   {
     "directory": "BrandyWine/BWEasySearch/sample_csvs/sales",
     "filenamePrefix": "orders",
     "destination": "#orders-table",
-    "columns": ["Customer", "Date", "Product_Service", "Memo_Description", "Quantity", "Sales_Price", "Total_Amount"]
+    "columns": ["Customer", "Date", "Product_Service", "Memo_Description", "Quantity", "Sales_Price", "Total_Amount"],
+    "skipRows": 4
   }
 ]

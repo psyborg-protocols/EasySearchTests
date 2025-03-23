@@ -79,7 +79,7 @@ async function downloadExcelFile(downloadUrl) {
  * @param {ArrayBuffer} arrayBuffer - The ArrayBuffer of the Excel file.
  * @returns {Array[]} - The parsed data (dataframe).
  */
-function parseExcelData(arrayBuffer) {
+function parseExcelData(arrayBuffer, skipRows = 0) {
   try {
     if (!arrayBuffer || arrayBuffer.byteLength === 0) {
       throw new Error("Empty or invalid ArrayBuffer provided");
@@ -107,7 +107,8 @@ function parseExcelData(arrayBuffer) {
     
     return XLSX.utils.sheet_to_json(worksheet, { 
       defval: "",
-      blankrows: false
+      blankrows: false,
+      range: skipRows
     });
   } catch (error) {
     console.error("Error parsing Excel data:", error);
@@ -139,7 +140,7 @@ async function processFiles() {
 
     const config = await loadConfig();
     console.log("Loaded configuration:", config);
-    
+
     if (!Array.isArray(config) || config.length === 0) {
       console.error("Invalid or empty configuration");
       return;
@@ -149,7 +150,7 @@ async function processFiles() {
       try {
         const { directory, filenamePrefix } = item;
         console.log(`Processing: ${directory}/${filenamePrefix}`);
-        
+
         const metadataResponse = await fetchLatestFileMetadata(directory, filenamePrefix, token);
         if (!metadataResponse.value || metadataResponse.value.length === 0) {
           console.warn(`No matching file found in '${directory}' for prefix '${filenamePrefix}'`);
@@ -170,21 +171,23 @@ async function processFiles() {
 
         const dataframe = parseExcelData(excelBuffer);
         console.log(`Parsed dataframe for ${fileMetadata.name} with ${dataframe.length} rows`);
-        console.log("First five rows:", dataframe.slice(0, 5));
 
         if (!dataframe || dataframe.length < 2) {
           console.warn(`Invalid or empty dataframe for ${fileMetadata.name}`);
           continue;
         }
-        
-        // Optionally, log the header row or first few rows to verify structure.
-        console.log("Dataframe first row:", dataframe[0]);
 
-        // Store the parsed dataframe in global storage
         window.dataStore[filenamePrefix] = {
           dataframe,
           metadata: fileMetadata
         };
+
+        // --- STORE IN SESSION STORAGE HERE ---
+        if (filenamePrefix === "DB") {
+          sessionStorage.setItem("DBData", JSON.stringify(dataframe));
+        } else if (filenamePrefix === "orders") {
+          sessionStorage.setItem("ordersData", JSON.stringify(dataframe));
+        }
 
         console.log(`Successfully stored ${fileMetadata.name} in memory.`);
       } catch (error) {

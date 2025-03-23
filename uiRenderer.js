@@ -49,7 +49,7 @@ async function selectCustomer(customerName) {
   tableBody.innerHTML = orderHistory
     .map(order => `
       <tr>
-        <td>${order.Date}</td>
+        <td>${new Date(order.Date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
         <td>${order.Product_Service}</td>
         <td>${order.Memo_Description}</td>
         <td>${order.Quantity}</td>
@@ -115,7 +115,7 @@ async function selectProduct(encodedPartNumber) {
       <tr>
         <td>${selectedProduct["PartNumber"] || ""}</td>
         <td>${selectedProduct["Description"] || ""}</td>
-        <td>${selectedProduct["qtyAvailable"]}</td>
+        <td>${selectedProduct["QtyAvailable"]}</td>
         <td>${selectedProduct["UnitCost"] || ""}</td>
       </tr>
     `;
