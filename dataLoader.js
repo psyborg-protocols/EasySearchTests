@@ -106,7 +106,6 @@ function parseExcelData(arrayBuffer) {
     const worksheet = workbook.Sheets[firstSheetName];
     
     return XLSX.utils.sheet_to_json(worksheet, { 
-      header: 1,
       defval: "",
       blankrows: false
     });
