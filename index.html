@@ -9,6 +9,10 @@
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        body {
+            background: url('background.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
         #loginContainer {
             height: 100vh;
             display: flex;
@@ -65,7 +69,11 @@
                       </tr>
                     </thead>
                     <tbody id="orderHistoryTable">
-                      <!-- Order history rows will be injected here -->
+                      <tr>
+                        <td colspan="5" class="text-muted fst-italic">
+                          search for a customer to display order history
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>

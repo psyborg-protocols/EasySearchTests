@@ -1,18 +1,28 @@
 // Handle the Customer search dropdown and selection
 document.getElementById("customerSearch").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
+  const dropdown = document.getElementById("customerDropdown");
+
   if (!query) {
-    document.getElementById("customerDropdown").innerHTML = "";
+    dropdown.innerHTML = "";
     return;
   }
 
-  const results = await searchCustomers(query);
-  const dropdown = document.getElementById("customerDropdown");
-
-  dropdown.innerHTML = results
-    .map(name => `<div class="dropdown-item" onclick="selectCustomer('${name}')">${name}</div>`)
-    .join("");
+  try {
+    const results = await searchCustomers(query);
+    if (results.length > 0) {
+      console.log(`Customer search for "${query}" successful: found ${results.length} result(s).`);
+    } else {
+      console.log(`Customer search for "${query}" returned no results.`);
+    }
+    dropdown.innerHTML = results
+      .map(name => `<div class="dropdown-item" onclick="selectCustomer('${name}')">${name}</div>`)
+      .join("");
+  } catch (error) {
+    console.error("Error performing customer search:", error);
+  }
 });
+
  
 // Handle Customer Selection
 async function selectCustomer(customerName) {
