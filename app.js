@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', async function () {
   
       try {
         const results = await dataLoader.processFiles(); // Fetch Excel data
-        UIrenderer.displayData(results); // Render tables in UI
       } catch (error) {
         console.error("Failed to load Excel data:", error);
       }

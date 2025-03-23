@@ -27,7 +27,7 @@ async function selectCustomer(customerName) {
       <tr>
         <td>${order.Date}</td>
         <td>${order.Product_Service}</td>
-        <td>${order.Memo_Description}
+        <td>${order.Memo_Description}</td>
         <td>${order.Quantity}</td>
         <td>${order.Sales_Price}</td>
       </tr>
