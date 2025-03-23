@@ -3,32 +3,37 @@ document.getElementById("customerSearch").addEventListener("input", async (e) =>
   const query = e.target.value.trim();
   const dropdown = document.getElementById("customerDropdown");
 
-  // Clear dropdown if query is empty
   if (!query) {
     dropdown.innerHTML = "";
+    dropdown.classList.remove('show');
     return;
   }
 
   try {
-    // Perform fuzzy search for customers
     const results = await searchCustomers(query);
-
-    // Remove duplicate entries
     const uniqueResults = [...new Set(results)];
 
-    // Log the result count for debugging
     if (uniqueResults.length > 0) {
-      console.log(`Customer search for "${query}" successful: found ${uniqueResults.length} unique result(s).`);
+      dropdown.innerHTML = uniqueResults
+        .map(name => `<li><a class="dropdown-item" href="#" onclick="selectCustomer('${name}')">${name}</a></li>`)
+        .join("");
+      
+      // Manually show the dropdown
+      dropdown.classList.add('show');
     } else {
-      console.log(`Customer search for "${query}" returned no results.`);
+      dropdown.innerHTML = "";
+      dropdown.classList.remove('show');
     }
-
-    // Populate the dropdown with <li> elements
-    dropdown.innerHTML = uniqueResults
-      .map(name => `<li><a class="dropdown-item" href="#" onclick="selectCustomer('${name}')">${name}</a></li>`)
-      .join("");
   } catch (error) {
     console.error("Error performing customer search:", error);
+    dropdown.classList.remove('show');
+  }
+});
+
+// Hide dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dropdown')) {
+    document.getElementById("customerDropdown").classList.remove('show');
   }
 });
 
