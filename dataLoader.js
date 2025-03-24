@@ -220,22 +220,40 @@ async function getOrderHistory(customerName) {
 
 // fuzzy search for products - this will be used to populate the productTable
 async function getMatchingProducts(query) {
+  console.log(`[getMatchingProducts] Query initiated: "${query}"`);
+
   const inventoryData = window.dataStore["DB"]?.dataframe || [];
-  if (inventoryData.length === 0) return [];
+  
+  if (inventoryData.length === 0) {
+    console.warn("[getMatchingProducts] Warning: Inventory data not loaded yet.");
+    return [];
+  }
+
+  console.log(`[getMatchingProducts] Inventory data available. Total items: ${inventoryData.length}`);
 
   const fuse = new Fuse(inventoryData, {
     keys: ["PartNumber", "Description"],
     threshold: 0.4
   });
 
-  return fuse.search(query).map(result => {
+  const results = fuse.search(query);
+
+  console.log(`[getMatchingProducts] Search results count: ${results.length}`);
+  results.forEach((result, index) => {
+    console.log(`[getMatchingProducts] Result #${index + 1}:`, result.item);
+  });
+
+  return results.map(result => {
     const item = result.item;
-    return {
+    const qtyAvailable = parseFloat(item["QtyOnHand"]) - parseFloat(item["QtyCommited"]);
+    const formattedItem = {
       PartNumber: item["PartNumber"],
       Description: item["Description"],
-      QtyAvailable: parseFloat(item["QtyOnHand"]) - parseFloat(item["QtyCommited"]),
+      QtyAvailable: qtyAvailable,
       UnitCost: parseFloat(item["UnitCost"]).toFixed(2)
     };
+    console.log(`[getMatchingProducts] Formatted item:`, formattedItem);
+    return formattedItem;
   });
 }
 

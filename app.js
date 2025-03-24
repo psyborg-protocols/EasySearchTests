@@ -1,25 +1,30 @@
 document.addEventListener('DOMContentLoaded', async function () {
   initializeAuth();
 
-  // Load cached data from sessionStorage if available
   const cachedDB = sessionStorage.getItem("DBData");
   const cachedOrders = sessionStorage.getItem("ordersData");
 
   if (cachedDB && cachedOrders) {
     window.dataStore["DB"] = { dataframe: JSON.parse(cachedDB) };
     window.dataStore["orders"] = { dataframe: JSON.parse(cachedOrders) };
-    console.log("Data loaded from sessionStorage cache.");
+    console.log("[DOMContentLoaded] Data loaded from sessionStorage cache.", {
+      DB: window.dataStore["DB"],
+      orders: window.dataStore["orders"]
+    });
+  } else {
+    console.warn("[DOMContentLoaded] Cached data not found in sessionStorage.");
   }
 
   document.getElementById('signInButton').addEventListener('click', async () => {
     await signIn();
-
-    // Fetch fresh data upon sign-in regardless, to refresh cache
+    console.log("[signInButton] Sign-in successful, processing fresh data...");
     await dataLoader.processFiles();
+    console.log("[signInButton] Data processing completed after sign-in.");
   });
 
   document.getElementById('signOutButton').addEventListener('click', () => {
-    sessionStorage.clear(); // clear cache on sign-out
+    sessionStorage.clear();
+    console.log("[signOutButton] Session storage cleared, signing out.");
     signOut();
   });
 });

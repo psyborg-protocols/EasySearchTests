@@ -63,62 +63,76 @@ document.getElementById("productSearch").addEventListener("input", async (e) => 
   const query = e.target.value.trim();
   const dropdown = document.getElementById("productDropdown");
 
+  console.log(`[productSearch input] Query changed: "${query}"`);
+
   if (!query) {
+    console.log("[productSearch input] Empty query detected, clearing dropdown and table.");
     dropdown.innerHTML = "";
     dropdown.classList.remove('show');
-    // Optionally, clear the product table when query is empty
     document.getElementById("productTable").innerHTML = "";
     return;
   }
 
   try {
     const products = await getMatchingProducts(query);
+    console.log(`[productSearch input] Matching products received:`, products);
+
     if (products.length > 0) {
       dropdown.innerHTML = products
-        .map(product => `<li><a class="dropdown-item" href="#" onclick="selectProduct('${encodeURIComponent(product["PartNumber"])}')">${product["PartNumber"]} - ${product["Description"]}</a></li>`)
+        .map(product => `
+          <li>
+            <a class="dropdown-item" href="#"
+               onclick="event.stopPropagation(); selectProduct('${encodeURIComponent(product["PartNumber"])}');">
+              ${product["PartNumber"]} - ${product["Description"]}
+            </a>
+          </li>`)
         .join("");
       dropdown.classList.add('show');
+      console.log(`[productSearch input] Dropdown populated and shown.`);
     } else {
+      console.log(`[productSearch input] No products found for query: "${query}"`);
       dropdown.innerHTML = "";
       dropdown.classList.remove('show');
     }
   } catch (error) {
-    console.error("Error performing product search:", error);
+    console.error("[productSearch input] Error performing product search:", error);
     dropdown.classList.remove('show');
   }
 });
 
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.dropdown')) {
-    document.getElementById("productDropdown").classList.remove('show');
-  }
-});
-
 async function selectProduct(encodedPartNumber) {
-  // Decode the PartNumber in case it contains special characters
   const partNumber = decodeURIComponent(encodedPartNumber);
-  
-  // Update the product search input with the selected PartNumber
+  console.log(`[selectProduct] Product selected: "${partNumber}"`);
+
   document.getElementById("productSearch").value = partNumber;
-  document.getElementById("productDropdown").innerHTML = "";
-  document.getElementById("productDropdown").classList.remove('show');
-  
-  // Retrieve all matching products (or you could filter from a global store)
-  const products = await getMatchingProducts(partNumber);
-  
-  // Filter to the one that matches exactly the selected PartNumber (assuming PartNumber is unique)
-  const selectedProduct = products.find(product => product["PartNumber"] === partNumber);
-  
-  if (selectedProduct) {
-    // Render the selected product in the table
-    document.getElementById("productTable").innerHTML = `
-      <tr>
-        <td>${selectedProduct["PartNumber"] || ""}</td>
-        <td>${selectedProduct["Description"] || ""}</td>
-        <td>${selectedProduct["QtyAvailable"]}</td>
-        <td>${selectedProduct["UnitCost"] || ""}</td>
-      </tr>
-    `;
+  const dropdown = document.getElementById("productDropdown");
+  dropdown.innerHTML = "";
+  dropdown.classList.remove('show');
+
+  console.log(`[selectProduct] Dropdown cleared.`);
+
+  try {
+    const products = await getMatchingProducts(partNumber);
+    console.log(`[selectProduct] Retrieved products for exact match:`, products);
+
+    const selectedProduct = products.find(product => product["PartNumber"] === partNumber);
+    
+    if (selectedProduct) {
+      document.getElementById("productTable").innerHTML = `
+        <tr>
+          <td>${selectedProduct["PartNumber"]}</td>
+          <td>${selectedProduct["Description"]}</td>
+          <td>${selectedProduct["QtyAvailable"]}</td>
+          <td>${selectedProduct["UnitCost"]}</td>
+        </tr>`;
+      console.log(`[selectProduct] Selected product displayed in table:`, selectedProduct);
+    } else {
+      document.getElementById("productTable").innerHTML = `
+        <tr><td colspan="4" class="text-muted fst-italic">No matching product details found.</td></tr>`;
+      console.warn(`[selectProduct] No exact match found for product: "${partNumber}"`);
+    }
+  } catch (error) {
+    console.error(`[selectProduct] Error retrieving product details for "${partNumber}":`, error);
   }
 }
 
