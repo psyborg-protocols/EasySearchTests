@@ -245,7 +245,7 @@ async function getMatchingProducts(query) {
 
   return results.map(result => {
     const item = result.item;
-    const qtyAvailable = parseFloat(item["QtyOnHand"]) - parseFloat(item["QtyCommited"]);
+    const qtyAvailable = parseFloat(item["QtyOnHand"]) - parseFloat(item["QtyCommitted"]);
     const formattedItem = {
       PartNumber: item["PartNumber"],
       Description: item["Description"],

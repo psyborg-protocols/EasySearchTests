@@ -69,14 +69,55 @@ async function signIn() {
 
 // Sign out and clear the user session
 function signOut() {
-    msalInstance.logout({
-        onRedirectNavigate: () => {
+    if (msalInstance) {
+      const accounts = msalInstance.getAllAccounts();
+  
+      if (accounts.length > 0) {
+        // Explicitly remove accounts from MSAL cache
+        accounts.forEach(account => {
+          msalInstance.logoutPopup({
+            account: account,
+            postLogoutRedirectUri: msalConfig.auth.redirectUri,
+            mainWindowRedirectUri: msalConfig.auth.redirectUri
+          }).then(() => {
+            console.log(`[signOut] Successfully logged out: ${account.username}`);
+            clearMSALStorage();
             UIrenderer.updateUIForLoggedOutUser();
-            return false; // Prevent redirect navigation
-        }
-    });
+          }).catch(error => {
+            console.error('[signOut] Error logging out via popup:', error);
+          });
+        });
+      } else {
+        console.log('[signOut] No accounts found to log out.');
+        clearMSALStorage();
+        UIrenderer.updateUIForLoggedOutUser();
+      }
+    } else {
+      console.warn("[signOut] MSAL instance was not initialized.");
+    }
+  
     userAccount = null;
-}
+  }
+  
+  function clearMSALStorage() {
+    console.log("[clearMSALStorage] Clearing MSAL caches and storages.");
+  
+    // Clears both sessionStorage and localStorage used by MSAL
+    sessionStorage.clear();
+    localStorage.clear();
+  
+    // Double-check for any MSAL-specific keys that might linger
+    Object.keys(sessionStorage)
+      .filter(key => key.includes('msal'))
+      .forEach(key => sessionStorage.removeItem(key));
+  
+    Object.keys(localStorage)
+      .filter(key => key.includes('msal'))
+      .forEach(key => localStorage.removeItem(key));
+  
+    console.log("[clearMSALStorage] All MSAL storage cleared.");
+  }
+  
 
 // Acquire an access token for MS Graph API calls
 async function getAccessToken() {
