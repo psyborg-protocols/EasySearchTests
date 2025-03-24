@@ -101,7 +101,7 @@ document.getElementById("productSearch").addEventListener("input", async (e) => 
 });
 
 async function selectProduct(encodedPartNumber) {
-  const partNumber = decodeURIComponent(encodedPartNumber);
+  const partNumber = decodeURIComponent(encodedPartNumber).toString().trim();
   console.log(`[selectProduct] Product selected: "${partNumber}"`);
 
   document.getElementById("productSearch").value = partNumber;
@@ -112,20 +112,32 @@ async function selectProduct(encodedPartNumber) {
   console.log(`[selectProduct] Dropdown cleared.`);
 
   try {
-    const products = await getMatchingProducts(partNumber);
-    console.log(`[selectProduct] Retrieved products for exact match:`, products);
+    const inventoryData = window.dataStore["DB"]?.dataframe || [];
 
-    const selectedProduct = products.find(product => product["PartNumber"] === partNumber);
-    
+    const selectedProduct = inventoryData.find(
+      item => String(item["PartNumber"]).trim() === partNumber
+    );
+
     if (selectedProduct) {
+      const qtyOnHand = parseFloat(selectedProduct["QtyOnHand"]) || 0;
+      const qtyCommitted = parseFloat(selectedProduct["QtyCommitted"]) || 0;
+
+      const formattedProduct = {
+        PartNumber: selectedProduct["PartNumber"],
+        Description: selectedProduct["Description"],
+        QtyAvailable: qtyOnHand - qtyCommitted,
+        UnitCost: parseFloat(selectedProduct["UnitCost"]).toFixed(2)
+      };
+
       document.getElementById("productTable").innerHTML = `
         <tr>
-          <td>${selectedProduct["PartNumber"]}</td>
-          <td>${selectedProduct["Description"]}</td>
-          <td>${selectedProduct["QtyAvailable"]}</td>
-          <td>${selectedProduct["UnitCost"]}</td>
+          <td>${formattedProduct["PartNumber"]}</td>
+          <td>${formattedProduct["Description"]}</td>
+          <td>${formattedProduct["QtyAvailable"]}</td>
+          <td>${formattedProduct["UnitCost"]}</td>
         </tr>`;
-      console.log(`[selectProduct] Selected product displayed in table:`, selectedProduct);
+
+      console.log(`[selectProduct] Selected product displayed in table:`, formattedProduct);
     } else {
       document.getElementById("productTable").innerHTML = `
         <tr><td colspan="4" class="text-muted fst-italic">No matching product details found.</td></tr>`;
@@ -135,6 +147,7 @@ async function selectProduct(encodedPartNumber) {
     console.error(`[selectProduct] Error retrieving product details for "${partNumber}":`, error);
   }
 }
+
 
 // Update UI after successful login
 function updateUIForLoggedInUser() {
