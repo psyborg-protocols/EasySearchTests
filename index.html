@@ -57,7 +57,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-  <h1 class="app-title text-center my-4">BrandyWise</h1>
+  <h1 class="app-title text-center my-3">BrandyWise</h1>
     <div id="userDisplayName" style="position: absolute; top: 10px; right: 10px; font-weight: bold;"></div>  
     <!-- Login Container -->
     <div id="loginContainer">
@@ -113,10 +113,12 @@
               
               <!-- Product Column -->
               <div class="col-md-4 mb-4 mb-md-0">
+                <div class="d-flex align-items-center">
                 <h4>Product</h4>
-                <div class="form-check form-switch d-flex align-items-center my-2">
-                  <label class="form-check-label" for="filterOrdersToggle">Filter Orders</label>
-                  <input class="form-check-input me-2" type="checkbox" id="filterOrdersToggle">
+                  <div class="form-check form-switch d-flex align-items-center my-2">
+                    <label class="form-check-label" style="margin-left: auto" for="filterOrdersToggle">Filter Orders</label>
+                    <input class="form-check-input ms-2" type="checkbox" id="filterOrdersToggle">
+                  </div>
                 </div>
                 <div class="dropdown position-relative mb-3">
                   <input type="text" id="productSearch" class="form-control" placeholder="Search Product...">
