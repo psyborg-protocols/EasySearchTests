@@ -1,3 +1,6 @@
+// Global variable to store the current customer's full order history
+window.currentOrderHistory = null;
+
 // Handle the Customer search dropdown and selection
 document.getElementById("customerSearch").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
@@ -37,6 +40,39 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Helper function to update the order table based on filter state and selected product
+function updateOrderTable() {
+  const orderHistory = window.currentOrderHistory;
+  if (!orderHistory) return; // No customer selected
+
+  const filterToggle = document.getElementById("filterOrdersToggle").checked;
+  const productValue = document.getElementById("productSearch").value.trim();
+  let filteredOrders = orderHistory;
+
+  // If the toggle is on and a product has been selected, filter orders
+  if (filterToggle && productValue) {
+    filteredOrders = orderHistory.filter(order => order.Product_Service === productValue);
+  }
+
+  const tableBody = document.getElementById("orderHistoryTable");
+  if (filteredOrders.length > 0) {
+    tableBody.innerHTML = filteredOrders
+      .map(order => `
+        <tr>
+          <td>${new Date(order.Date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+          <td>${order.Product_Service}</td>
+          <td>${order.Memo_Description}</td>
+          <td>${order.Quantity}</td>
+          <td>${order.Sales_Price}</td>
+        </tr>
+      `)
+      .join("");
+  } else {
+    tableBody.innerHTML = `<tr><td colspan="5" class="text-muted fst-italic">
+      No orders found${filterToggle ? " for product " + productValue : ""}.
+    </td></tr>`;
+  }
+}
  
 // Handle Customer Selection
 async function selectCustomer(customerName) {
@@ -44,23 +80,23 @@ async function selectCustomer(customerName) {
   document.getElementById("customerDropdown").innerHTML = "";
 
   const orderHistory = await getOrderHistory(customerName);
-  // Sort orders by ascending date
-  orderHistory.sort((a, b) => new Date(a.Date) - new Date(b.Date));
-  
-  const tableBody = document.getElementById("orderHistoryTable");
+  // Save full order history for later filtering
+  window.currentOrderHistory = orderHistory;
 
-  tableBody.innerHTML = orderHistory
-    .map(order => `
-      <tr>
-        <td>${new Date(order.Date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
-        <td>${order.Product_Service}</td>
-        <td>${order.Memo_Description}</td>
-        <td>${order.Quantity}</td>
-        <td>${order.Sales_Price}</td>
-      </tr>
-    `)
-    .join("");
+  // Optionally, you can also store the current customer name
+  window.currentCustomer = customerName;
+
+  // Sort orders by ascending date if needed
+  orderHistory.sort((a, b) => new Date(a.Date) - new Date(b.Date));
+
+  // Render orders (this will apply filtering if the toggle is on)
+  updateOrderTable();
 }
+
+// Add an event listener for changes on the filter toggle switch
+document.getElementById("filterOrdersToggle").addEventListener("change", () => {
+  updateOrderTable();
+});
 
 document.getElementById("productSearch").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
@@ -105,18 +141,13 @@ document.getElementById("productSearch").addEventListener("input", async (e) => 
 
 async function selectProduct(encodedPartNumber) {
   const partNumber = decodeURIComponent(encodedPartNumber).toString().trim();
-  console.log(`[selectProduct] Product selected: "${partNumber}"`);
-
   document.getElementById("productSearch").value = partNumber;
   const dropdown = document.getElementById("productDropdown");
   dropdown.innerHTML = "";
   dropdown.classList.remove('show');
 
-  console.log(`[selectProduct] Dropdown cleared.`);
-
   try {
     const inventoryData = window.dataStore["DB"]?.dataframe || [];
-
     const selectedProduct = inventoryData.find(
       item => String(item["PartNumber"]).trim() === partNumber
     );
@@ -140,11 +171,15 @@ async function selectProduct(encodedPartNumber) {
           <td>$${formattedProduct["UnitCost"]}</td>
         </tr>`;
 
-      console.log(`[selectProduct] Selected product displayed in table:`, formattedProduct);
+      // After selecting a product, if a customer is already selected, update order filtering
+      if (window.currentOrderHistory) {
+        updateOrderTable();
+      }
     } else {
       document.getElementById("productTable").innerHTML = `
-        <tr><td colspan="4" class="text-muted fst-italic">No matching product details found.</td></tr>`;
-      console.warn(`[selectProduct] No exact match found for product: "${partNumber}"`);
+        <tr><td colspan="4" class="text-muted fst-italic">
+          No matching product details found.
+        </td></tr>`;
     }
   } catch (error) {
     console.error(`[selectProduct] Error retrieving product details for "${partNumber}":`, error);
