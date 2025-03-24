@@ -49,9 +49,14 @@ function updateOrderTable() {
   const productValue = document.getElementById("productSearch").value.trim();
   let filteredOrders = orderHistory;
 
-  // If the toggle is on and a product has been selected, filter orders
+  // If the toggle is on and a product has been selected, filter orders.
   if (filterToggle && productValue) {
-    filteredOrders = orderHistory.filter(order => order.Product_Service === productValue);
+    console.log("Filtering orders for product:", productValue);
+    filteredOrders = orderHistory.filter(order => {
+      const orderProduct = String(order.Product_Service).trim();
+      console.log("Comparing order product:", orderProduct, "to selected product:", productValue);
+      return orderProduct === productValue;
+    });
   }
 
   const tableBody = document.getElementById("orderHistoryTable");
@@ -69,7 +74,7 @@ function updateOrderTable() {
       .join("");
   } else {
     tableBody.innerHTML = `<tr><td colspan="5" class="text-muted fst-italic">
-      No orders found${filterToggle ? " for product " + productValue : ""}.
+      No orders found for product ${productValue}.
     </td></tr>`;
   }
 }
