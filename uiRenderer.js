@@ -44,6 +44,9 @@ async function selectCustomer(customerName) {
   document.getElementById("customerDropdown").innerHTML = "";
 
   const orderHistory = await getOrderHistory(customerName);
+  // Sort orders by ascending date
+  orderHistory.sort((a, b) => new Date(a.Date) - new Date(b.Date));
+  
   const tableBody = document.getElementById("orderHistoryTable");
 
   tableBody.innerHTML = orderHistory
@@ -134,7 +137,7 @@ async function selectProduct(encodedPartNumber) {
           <td>${formattedProduct["PartNumber"]}</td>
           <td>${formattedProduct["Description"]}</td>
           <td>${formattedProduct["QtyAvailable"]}</td>
-          <td>${formattedProduct["UnitCost"]}</td>
+          <td>$${formattedProduct["UnitCost"]}</td>
         </tr>`;
 
       console.log(`[selectProduct] Selected product displayed in table:`, formattedProduct);

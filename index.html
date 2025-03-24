@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Viewer App</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <!-- Fonts/Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&display=swap">
@@ -33,7 +31,30 @@
             margin-bottom: 1rem;
             text-shadow: 0 1px 2px rgba(0,0,0,0.2); /* Soft shadow for depth */
         }
+        .form-check-input:checked {
+            background-color: #5a67d8; /* Modern purple tone */
+            border-color: #5a67d8;
+        }
+
+        .form-check-input {
+            cursor: pointer;
+            width: 2.5em;
+            height: 1.25em;
+            transition: background-color 0.25s ease, border-color 0.25s ease;
+            box-shadow: none;
+        }
+
+        .form-check-label {
+            user-select: none;
+            font-weight: 500;
+            color: #495057;
+        }
+        .dropdown-item {
+            white-space: wrap !important;
+        }
     </style>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
   <h1 class="app-title text-center my-4">BrandyWise</h1>
@@ -93,6 +114,10 @@
               <!-- Product Column -->
               <div class="col-md-4 mb-4 mb-md-0">
                 <h4>Product</h4>
+                <div class="form-check form-switch d-flex align-items-center my-2">
+                  <label class="form-check-label" for="filterOrdersToggle">Filter Orders</label>
+                  <input class="form-check-input me-2" type="checkbox" id="filterOrdersToggle">
+                </div>
                 <div class="dropdown position-relative mb-3">
                   <input type="text" id="productSearch" class="form-control" placeholder="Search Product...">
                   <ul id="productDropdown" class="dropdown-menu w-100">
