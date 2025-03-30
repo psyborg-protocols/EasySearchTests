@@ -6,9 +6,9 @@ document.addEventListener('DOMContentLoaded', async function () {
   const cachedPricing = sessionStorage.getItem("PricingData");
 
   if (cachedDB && cachedOrders) {
-    window.dataStore["DBData"] = { dataframe: JSON.parse(cachedDB) };
-    window.dataStore["ordersData"] = { dataframe: JSON.parse(cachedOrders) };
-    window.dataStore["PricingData"] = { dataframe: JSON.parse(cachedPricing) };
+    window.dataStore["DB"] = { dataframe: JSON.parse(cachedDB) };
+    window.dataStore["orders"] = { dataframe: JSON.parse(cachedOrders) };
+    window.dataStore["Pricing"] = { dataframe: JSON.parse(cachedPricing) };
     console.log("[DOMContentLoaded] Data loaded from sessionStorage cache.", {
       DB: window.dataStore["DB"],
       orders: window.dataStore["orders"],

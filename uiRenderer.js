@@ -42,40 +42,29 @@ document.addEventListener('click', (e) => {
 
 // Helper function to update the pricing table based on pricing toggle and selected product
 function updatePricingTable(partNumber) {
-  // Get pricing data from the pricing file (loaded using the config entry)
   const pricingData = window.dataStore["Pricing"]?.dataframe || [];
-  // Find the row where the Product matches the selected part number
   const pricingEntry = pricingData.find(row => String(row["Product"]).trim() === partNumber);
-  // Check toggle state: checked means B2C (DISTR prices), unchecked means B2B (USER prices)
   const isB2C = document.getElementById("pricingToggle").checked;
-  let tableHTML = "";
   
+  let tableHTML = "";
+
   if (pricingEntry) {
-    // Choose the proper pricing columns based on toggle state
     const priceFB = isB2C ? pricingEntry["DISTR_FB"] : pricingEntry["USER_FB"];
     const priceHB = isB2C ? pricingEntry["DISTR_HB"] : pricingEntry["USER_HB"];
     const priceLTB = isB2C ? pricingEntry["DISTR_LTB"] : pricingEntry["USER_LTB"];
     
     tableHTML = `
     <tr>
-      <td><strong>Units Per Box:</strong> ${pricingEntry["UnitsPerBox"]}</td>
-    </tr>
-    <tr>
-      <td><strong>Full Box:</strong> $${priceFB}</td>
-    </tr>
-    <tr>
-      <td><strong>Half Box:</strong> $${priceHB}</td>
-    </tr>
-    <tr>
-      <td><strong>Less Than Box:</strong> $${priceLTB}</td>
+      <td>${pricingEntry["UnitsPerBox"]}</td>
+      <td>$${priceFB}</td>
+      <td>$${priceHB}</td>
+      <td>$${priceLTB}</td>
     </tr>
     `;
   } else {
-    // No pricing data found for the product
-    tableHTML = `<tr><td class="text-muted fst-italic">No pricing data available for product ${partNumber}</td></tr>`;
+    tableHTML = `<tr><td colspan="4" class="text-muted fst-italic">No pricing data available for product ${partNumber}</td></tr>`;
   }
   
-  // Update the pricing table element in the UI
   document.getElementById("priceTable").innerHTML = tableHTML;
 }
 
