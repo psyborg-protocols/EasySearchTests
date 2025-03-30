@@ -101,22 +101,39 @@ function updateOrderTable() {
   const tableBody = document.getElementById("orderHistoryTable");
   if (filteredOrders.length > 0) {
     tableBody.innerHTML = filteredOrders
-      .map(order => `
-        <tr>
-          <td>${new Date(order.Date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
-          <td>${order.Product_Service}</td>
-          <td>${order.Memo_Description}</td>
-          <td>${order.Quantity}</td>
-          <td>$${order.Sales_Price}</td>
-        </tr>
-      `)
-      .join("");
+    .map(order => `
+      <tr class="order-row" data-product="${order.Product_Service}" onclick="orderRowClicked(this)">
+        <td>${new Date(order.Date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+        <td>${order.Product_Service}</td>
+        <td>${order.Memo_Description}</td>
+        <td>${order.Quantity}</td>
+        <td>$${order.Sales_Price}</td>
+      </tr>
+    `)
+    .join("");
   } else {
     tableBody.innerHTML = `<tr><td colspan="5" class="text-muted fst-italic">
       No orders found for product ${productValue}.
     </td></tr>`;
   }
 }
+
+function orderRowClicked(rowElement) {
+  // Remove any existing highlight from order rows
+  document.querySelectorAll("#orderHistoryTable tr").forEach(tr => tr.classList.remove("selected-row"));
+  
+  // Highlight the clicked row
+  rowElement.classList.add("selected-row");
+  
+  // Retrieve the product from the row's data attribute
+  const product = rowElement.getAttribute("data-product").trim();
+  
+  // Set the product search input to the product and trigger search
+  document.getElementById("productSearch").value = product;
+  // Call selectProduct to update the product details and pricing info
+  selectProduct(encodeURIComponent(product));
+}
+
  
 // Handle Customer Selection
 async function selectCustomer(customerName) {
