@@ -188,7 +188,7 @@ async function processFiles() {
           sessionStorage.setItem("ordersData", JSON.stringify(dataframe));
         } else if (filenamePrefix === "Pricing") {
           sessionStorage.setItem("PricingData", JSON.stringify(dataframe));
-
+        }
         console.log(`Successfully stored ${fileMetadata.name} in memory.`);
       } catch (error) {
         console.error("Error processing file:", error);
