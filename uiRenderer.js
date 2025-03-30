@@ -102,7 +102,7 @@ function updateOrderTable() {
   if (filteredOrders.length > 0) {
     tableBody.innerHTML = filteredOrders
     .map(order => `
-      <tr class="order-row" data-product="${order.Product_Service}" onclick="orderRowClicked(this)">
+      <tr class="order-row" data-product="${order.Product_Service}" onclick="UIrenderer.orderRowClicked(this)">
         <td>${new Date(order.Date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
         <td>${order.Product_Service}</td>
         <td>${order.Memo_Description}</td>
@@ -288,5 +288,6 @@ function updateUIForLoggedOutUser() {
 // Expose function globally
 window.UIrenderer = {
   updateUIForLoggedInUser,
-  updateUIForLoggedOutUser
+  updateUIForLoggedOutUser,
+  orderRowClicked
 };
