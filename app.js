@@ -3,13 +3,16 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   const cachedDB = sessionStorage.getItem("DBData");
   const cachedOrders = sessionStorage.getItem("ordersData");
+  const cachedPricing = sessionStorage.getItem("PricingData");
 
   if (cachedDB && cachedOrders) {
     window.dataStore["DB"] = { dataframe: JSON.parse(cachedDB) };
     window.dataStore["orders"] = { dataframe: JSON.parse(cachedOrders) };
+    window.dataStore["Pricing"] = { dataframe: JSON.parse(cachedPricing) };
     console.log("[DOMContentLoaded] Data loaded from sessionStorage cache.", {
       DB: window.dataStore["DB"],
-      orders: window.dataStore["orders"]
+      orders: window.dataStore["orders"],
+      Pricing: window.dataStore["Pricing"]
     });
   } else {
     console.warn("[DOMContentLoaded] Cached data not found in sessionStorage.");

@@ -40,6 +40,45 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Helper function to update the pricing table based on pricing toggle and selected product
+function updatePricingTable(partNumber) {
+  // Get pricing data from the pricing file (loaded using the config entry)
+  const pricingData = window.dataStore["Pricing"]?.dataframe || [];
+  // Find the row where the Product matches the selected part number
+  const pricingEntry = pricingData.find(row => String(row["Product"]).trim() === partNumber);
+  // Check toggle state: checked means B2C (DISTR prices), unchecked means B2B (USER prices)
+  const isB2C = document.getElementById("pricingToggle").checked;
+  let tableHTML = "";
+  
+  if (pricingEntry) {
+    // Choose the proper pricing columns based on toggle state
+    const priceFB = isB2C ? pricingEntry["DISTR_FB"] : pricingEntry["USER_FB"];
+    const priceHB = isB2C ? pricingEntry["DISTR_HB"] : pricingEntry["USER_HB"];
+    const priceLTB = isB2C ? pricingEntry["DISTR_LTB"] : pricingEntry["USER_LTB"];
+    
+    tableHTML = `
+      <tr>
+        <td>Units Per Box: ${pricingEntry["UnitsPerBox"]}</td>
+      </tr>
+      <tr>
+        <td>${isB2C ? "DISTR_FB" : "USER_FB"}: ${priceFB}</td>
+      </tr>
+      <tr>
+        <td>${isB2C ? "DISTR_HB" : "USER_HB"}: ${priceHB}</td>
+      </tr>
+      <tr>
+        <td>${isB2C ? "DISTR_LTB" : "USER_LTB"}: ${priceLTB}</td>
+      </tr>
+    `;
+  } else {
+    // No pricing data found for the product
+    tableHTML = `<tr><td class="text-muted fst-italic">No pricing data available for product ${partNumber}</td></tr>`;
+  }
+  
+  // Update the pricing table element in the UI
+  document.getElementById("priceTable").innerHTML = tableHTML;
+}
+
 // Helper function to update the order table based on filter state and selected product
 function updateOrderTable() {
   const orderHistory = window.currentOrderHistory;
@@ -68,7 +107,7 @@ function updateOrderTable() {
           <td>${order.Product_Service}</td>
           <td>${order.Memo_Description}</td>
           <td>${order.Quantity}</td>
-          <td>${order.Sales_Price}</td>
+          <td>$${order.Sales_Price}</td>
         </tr>
       `)
       .join("");
@@ -160,7 +199,6 @@ async function selectProduct(encodedPartNumber) {
     if (selectedProduct) {
       const qtyOnHand = parseFloat(selectedProduct["QtyOnHand"]) || 0;
       const qtyCommitted = parseFloat(selectedProduct["QtyCommitted"]) || 0;
-
       const formattedProduct = {
         PartNumber: selectedProduct["PartNumber"],
         Description: selectedProduct["Description"],
@@ -176,6 +214,11 @@ async function selectProduct(encodedPartNumber) {
           <td>$${formattedProduct["UnitCost"]}</td>
         </tr>`;
 
+      // Store the current product for later reference
+      window.currentProduct = partNumber;
+      // Update the pricing table with the selected product’s pricing info
+      updatePricingTable(partNumber);
+
       // After selecting a product, if a customer is already selected, update order filtering
       if (window.currentOrderHistory) {
         updateOrderTable();
@@ -185,12 +228,19 @@ async function selectProduct(encodedPartNumber) {
         <tr><td colspan="4" class="text-muted fst-italic">
           No matching product details found.
         </td></tr>`;
+      // Also clear the pricing table if no product is found
+      document.getElementById("priceTable").innerHTML = "";
     }
   } catch (error) {
     console.error(`[selectProduct] Error retrieving product details for "${partNumber}":`, error);
   }
 }
 
+document.getElementById("pricingToggle").addEventListener("change", () => {
+  if (window.currentProduct) {
+    updatePricingTable(window.currentProduct);
+  }
+});
 
 // Update UI after successful login
 function updateUIForLoggedInUser() {

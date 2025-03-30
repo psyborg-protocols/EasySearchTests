@@ -125,7 +125,6 @@ function parseExcelData(arrayBuffer, skipRows = 0) {
  *        - filenamePrefix
  *        - fileMetadata (raw metadata from Graph API)
  *        - dataframe (parsed Excel data)
- *        - destination (UI element to send the data to)
  *
  * @returns {Promise<object[]>} - Array of results for each config item.
  */
@@ -187,7 +186,8 @@ async function processFiles() {
           sessionStorage.setItem("DBData", JSON.stringify(dataframe));
         } else if (filenamePrefix === "orders") {
           sessionStorage.setItem("ordersData", JSON.stringify(dataframe));
-        }
+        } else if (filenamePrefix === "Pricing") {
+          sessionStorage.setItem("PricingData", JSON.stringify(dataframe));
 
         console.log(`Successfully stored ${fileMetadata.name} in memory.`);
       } catch (error) {

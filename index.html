@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Viewer App</title>
-    <!-- Fonts/Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&display=swap">
     <style>
@@ -38,8 +37,8 @@
 
         .form-check-input {
             cursor: pointer;
-            width: 2.5em;
-            height: 1.25em;
+            width: 2.5em; /* Keep original filter toggle size */
+            height: 1.25em; /* Keep original filter toggle size */
             transition: background-color 0.25s ease, border-color 0.25s ease;
             box-shadow: none;
         }
@@ -52,14 +51,84 @@
         .dropdown-item {
             white-space: wrap !important;
         }
+
+        /* --- NEW TOGGLE STYLES START --- */
+        .toggle-container {
+          position: relative;
+          width: 86px;
+          height: 24px;
+          /* mb-3 class will be added via HTML wrapper */
+        }
+
+        .toggle-checkbox {
+          display: none;
+        }
+
+        .toggle-label {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background-color: #e0e0e0;
+          border-radius: 20px;
+          padding: 0 10px;
+          width: 100%;
+          height: 100%;
+          cursor: pointer;
+          font-weight: 600;
+          user-select: none;
+          transition: background-color 0.3s ease;
+          font-size: 14px;
+          color: #aaa;
+        }
+
+        .toggle-label span {
+          z-index: 2;
+          width: 40%;
+          text-align: center;
+          transition: color 0.3s ease;
+        }
+
+        .toggle-switch {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 44px; /* Width of the switch itself */
+          height: 20px;
+          background-color: white;
+          border-radius: 12px;
+          transition: left 0.3s ease;
+          z-index: 1;
+        }
+
+        /* Toggle switch position */
+        .toggle-checkbox:checked + .toggle-label .toggle-switch {
+          left: 40px; /* Adjust if needed based on width */
+        }
+
+        /* Text color logic */
+        .toggle-checkbox:not(:checked) + .toggle-label .b2b {
+          color: #1f2937; /* dark blue-gray */
+        }
+
+        .toggle-checkbox:not(:checked) + .toggle-label .b2c {
+          color: #aaa;
+        }
+
+        .toggle-checkbox:checked + .toggle-label .b2b {
+          color: #aaa;
+        }
+
+        .toggle-checkbox:checked + .toggle-label .b2c {
+          color: #1f2937;
+        }
+        /* --- NEW TOGGLE STYLES END --- */
+
     </style>
-    <!-- Bootstrap CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
   <h1 class="app-title text-center my-3">BrandyWise</h1>
-    <div id="userDisplayName" style="position: absolute; top: 10px; right: 10px; font-weight: bold;"></div>  
-    <!-- Login Container -->
+    <div id="userDisplayName" style="position: absolute; top: 10px; right: 10px; font-weight: bold;"></div>
     <div id="loginContainer">
         <div class="card shadow" style="max-width: 400px; width: 100%; margin-top: 30px;">
             <div class="card-body text-center p-5">
@@ -72,21 +141,20 @@
         </div>
     </div>
 
-    <!-- App Container (Hidden until logged in) -->
     <div id="appContainer" class="container py-4" style="display:none; margin-top: 30px;">
       <button id="signOutButton" class="btn btn-outline-secondary position-absolute top-0 start-0 m-3">
         <i class="fas fa-sign-out-alt"></i> Sign Out
-      </button>  
+      </button>
       <div class="card bg-white p-4 rounded shadow">
             <div class="row">
-              <!-- Customer Column -->
               <div class="col-md-4 mb-4 mb-md-0">
-                <h4>Customer</h4>
+                <div class="d-flex align-items-center">
+                  <h4>Customer</h4>
+                </div>
                 <div class="dropdown position-relative mb-3">
                   <input type="text" id="customerSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
                   <ul id="customerDropdown" class="dropdown-menu w-100">
-                    <!-- Dropdown items go here -->
-                  </ul>
+                    </ul>
                 </div>
                 <h5>Order History</h5>
                 <div class="table-responsive" style="max-height: 300px;">
@@ -110,12 +178,11 @@
                   </table>
                 </div>
               </div>
-              
-              <!-- Product Column -->
+
               <div class="col-md-4 mb-4 mb-md-0">
                 <div class="d-flex align-items-center">
                 <h4>Product</h4>
-                  <div class="form-check form-switch d-flex align-items-center my-2" style="margin-left: auto">
+                  <div class="form-check form-switch d-flex align-items-center my-2" style="position: relative; top: -2px; margin-left: auto">
                     <label class="form-check-label" for="filterOrdersToggle">Filter Orders</label>
                     <input class="form-check-input ms-2" type="checkbox" id="filterOrdersToggle">
                   </div>
@@ -123,18 +190,17 @@
                 <div class="dropdown position-relative mb-3">
                   <input type="text" id="productSearch" class="form-control" placeholder="Search Product...">
                   <ul id="productDropdown" class="dropdown-menu w-100">
-                    <!-- Dropdown items will be inserted here -->
-                  </ul>
+                    </ul>
                 </div>
                 <h5>Matching Products</h5>
                 <div class="table-responsive" style="max-height: 300px;">
                   <table class="table table-bordered table-striped">
                     <thead>
                       <tr>
-                        <th>Product Id</th>
+                        <th>Product</th>
                         <th>Description</th>
-                        <th>Qty Available</th>
-                        <th>Unit Cost</th>
+                        <th>QtyAvailable</th>
+                        <th>UnitCost</th>
                       </tr>
                     </thead>
                     <tbody id="productTable">
@@ -147,14 +213,18 @@
                   </table>
                 </div>
               </div>
-              
-              <!-- Pricing Column -->
-              <div class="col-md-4">
-                <h4>Pricing</h4>
-                <div class="d-flex align-items-center mb-3">
-                  <span class="me-2">B2B</span>
-                  <button id="toggleB2B" class="btn btn-secondary">Toggle</button>
-                  <span class="ms-2">B2C</span>
+
+              <div class="col-md-4 mb-4 mb-md-0">
+                <div class="d-flex align-items-center">
+                  <h4>Pricing</h4>
+                </div>
+                <div class="toggle-container mb-3 mt-1">
+                  <input type="checkbox" class="toggle-checkbox" id="pricingToggle">
+                  <label for="pricingToggle" class="toggle-label">
+                    <div class="toggle-switch"></div>
+                    <span class="b2b">B2B</span>
+                    <span class="b2c">B2C</span>
+                  </label>
                 </div>
                 <h5>Prices</h5>
                 <div class="table-responsive" style="max-height: 300px;">
@@ -165,26 +235,20 @@
                       </tr>
                     </thead>
                     <tbody id="priceTable">
-                      <!-- Price rows will be injected here -->
-                    </tbody>
+                      </tbody>
                   </table>
                 </div>
               </div>
-              
+
             </div>
           </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS Bundle -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <!-- MSAL for Authentication -->
     <script src="https://alcdn.msauth.net/browser/2.32.0/js/msal-browser.min.js"></script>
-    <!-- XLSX.js for Excel parsing -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-    <!-- Fuse.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6"></script>
-    <!-- App Scripts -->
     <script src="auth.js"></script>
     <script src="dataLoader.js"></script>
     <script src="uiRenderer.js"></script>
