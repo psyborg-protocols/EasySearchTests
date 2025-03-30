@@ -51,8 +51,6 @@
         .dropdown-item {
             white-space: wrap !important;
         }
-
-        /* --- NEW TOGGLE STYLES START --- */
         .toggle-container {
           position: relative;
           width: 86px;
@@ -121,8 +119,10 @@
         .toggle-checkbox:checked + .toggle-label .b2c {
           color: #1f2937;
         }
-        /* --- NEW TOGGLE STYLES END --- */
-
+        /* Remove blinking caret for everything except inputs, textareas, and contenteditable elements */
+        *:not(input):not(textarea):not([contenteditable]) {
+            caret-color: transparent;
+        }
     </style>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
 </head>

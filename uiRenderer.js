@@ -61,13 +61,13 @@ function updatePricingTable(partNumber) {
       <td><strong>Units Per Box:</strong> ${pricingEntry["UnitsPerBox"]}</td>
     </tr>
     <tr>
-      <td><strong>Full Box:</strong> ${priceFB}</td>
+      <td><strong>Full Box:</strong> $${priceFB}</td>
     </tr>
     <tr>
-      <td><strong>Half Box:</strong> ${priceHB}</td>
+      <td><strong>Half Box:</strong> $${priceHB}</td>
     </tr>
     <tr>
-      <td><strong>Less Than Box:</strong> ${priceLTB}</td>
+      <td><strong>Less Than Box:</strong> $${priceLTB}</td>
     </tr>
     `;
   } else {
