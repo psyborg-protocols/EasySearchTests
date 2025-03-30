@@ -57,18 +57,18 @@ function updatePricingTable(partNumber) {
     const priceLTB = isB2C ? pricingEntry["DISTR_LTB"] : pricingEntry["USER_LTB"];
     
     tableHTML = `
-      <tr>
-        <td>Units Per Box: ${pricingEntry["UnitsPerBox"]}</td>
-      </tr>
-      <tr>
-        <td>${isB2C ? "DISTR_FB" : "USER_FB"}: ${priceFB}</td>
-      </tr>
-      <tr>
-        <td>${isB2C ? "DISTR_HB" : "USER_HB"}: ${priceHB}</td>
-      </tr>
-      <tr>
-        <td>${isB2C ? "DISTR_LTB" : "USER_LTB"}: ${priceLTB}</td>
-      </tr>
+    <tr>
+      <td><strong>Units Per Box:</strong> ${pricingEntry["UnitsPerBox"]}</td>
+    </tr>
+    <tr>
+      <td><strong>Full Box:</strong> ${priceFB}</td>
+    </tr>
+    <tr>
+      <td><strong>Half Box:</strong> ${priceHB}</td>
+    </tr>
+    <tr>
+      <td><strong>Less Than Box:</strong> ${priceLTB}</td>
+    </tr>
     `;
   } else {
     // No pricing data found for the product
