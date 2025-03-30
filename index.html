@@ -128,17 +128,19 @@
             caret-color: auto !important;
         }
         /* Style for clickable order rows */
+        .order-row:hover td {
+            background-color: #f0f0f0 !important;
+        }
+
+        /* Selected effect on order-row cells */
+        .order-row.selected-row td {
+            background-color: #e0e0e0 !important;
+        }
+
+        /* Pointer cursor for clickable rows */
         .order-row {
-          cursor: pointer !important;
-          transition: background-color 0.3s ease !important;
-        }
-
-        .order-row:hover {
-          background-color: #f0f0f0 !important; /* subtle hover effect */
-        }
-
-        .order-row.selected-row {
-          background-color: #e0e0e0 !important; /* subtle highlight when selected */
+            cursor: pointer !important;
+            transition: background-color 0.3s ease !important;
         }
     </style>
 </head>
