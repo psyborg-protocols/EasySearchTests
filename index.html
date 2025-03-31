@@ -1,281 +1,276 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Viewer App</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&display=swap">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: url('background.jpg') no-repeat center center fixed;
-            background-size: cover;
-        }
-        #loginContainer {
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .table-container {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        .app-title {
-            font-family: 'Playfair Display', serif;
-            font-weight: 700; /* Bold for emphasis */
-            font-size: 2.5rem; /* Slightly larger for an elegant presence */
-            letter-spacing: 1px; /* Gentle letter-spacing for classiness */
-            color: #2D2A32; /* Deep charcoal color for elegance */
-            margin-bottom: 1rem;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.2); /* Soft shadow for depth */
-        }
-        .form-check-input:checked {
-            background-color: #5a67d8; /* Modern purple tone */
-            border-color: #5a67d8;
-        }
-
-        .form-check-input {
-            cursor: pointer;
-            width: 2.5em; /* Keep original filter toggle size */
-            height: 1.25em; /* Keep original filter toggle size */
-            transition: background-color 0.25s ease, border-color 0.25s ease;
-            box-shadow: none;
-        }
-
-        .form-check-label {
-            user-select: none;
-            font-weight: 500;
-            color: #495057;
-        }
-        .dropdown-item {
-            white-space: wrap !important;
-        }
-        .toggle-container {
-          position: relative;
-          width: 86px;
-          height: 24px;
-          /* mb-3 class will be added via HTML wrapper */
-        }
-
-        .toggle-checkbox {
-          display: none;
-        }
-
-        .toggle-label {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          background-color: #e0e0e0;
-          border-radius: 20px;
-          padding: 0 10px;
-          width: 100%;
-          height: 100%;
-          cursor: pointer;
-          font-weight: 600;
-          user-select: none;
-          transition: background-color 0.3s ease;
-          font-size: 14px;
-          color: #aaa;
-        }
-
-        .toggle-label span {
-          z-index: 2;
-          width: 40%;
-          text-align: center;
-          transition: color 0.3s ease;
-        }
-
-        .toggle-switch {
-          position: absolute;
-          top: 2px;
-          left: 2px;
-          width: 44px; /* Width of the switch itself */
-          height: 20px;
-          background-color: white;
-          border-radius: 12px;
-          transition: left 0.3s ease;
-          z-index: 1;
-        }
-
-        /* Toggle switch position */
-        .toggle-checkbox:checked + .toggle-label .toggle-switch {
-          left: 40px; /* Adjust if needed based on width */
-        }
-
-        /* Text color logic */
-        .toggle-checkbox:not(:checked) + .toggle-label .b2b {
-          color: #1f2937; /* dark blue-gray */
-        }
-
-        .toggle-checkbox:not(:checked) + .toggle-label .b2c {
-          color: #aaa;
-        }
-
-        .toggle-checkbox:checked + .toggle-label .b2b {
-          color: #aaa;
-        }
-
-        .toggle-checkbox:checked + .toggle-label .b2c {
-          color: #1f2937;
-        }
-        /* Remove blinking caret for everything except inputs, textareas, and contenteditable elements */
-        *:not(input):not(textarea):not([contenteditable]) {
-            caret-color: transparent;
-        }
-        input, textarea, [contenteditable] {
-            caret-color: auto !important;
-        }
-        /* Style for clickable order rows */
-        .order-row:hover td {
-            background-color: #f0f0f0 !important;
-        }
-
-        /* Selected effect on order-row cells */
-        .order-row.selected-row td {
-            background-color: #7f9db0 !important;
-        }
-
-        /* Pointer cursor for clickable rows */
-        .order-row {
-            cursor: pointer !important;
-            transition: background-color 0.3s ease !important;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Viewer App</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&display=swap">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: url('background.jpg') no-repeat center center fixed;
+      background-size: cover;
+    }
+    #loginContainer {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .table-container {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .app-title {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 2.5rem;
+      letter-spacing: 1px;
+      color: #2D2A32;
+      margin-bottom: 1rem;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .form-check-input:checked {
+      background-color: #5a67d8;
+      border-color: #5a67d8;
+    }
+    .form-check-input {
+      cursor: pointer;
+      width: 2.5em;
+      height: 1.25em;
+      transition: background-color 0.25s ease, border-color 0.25s ease;
+      box-shadow: none;
+    }
+    .form-check-label {
+      user-select: none;
+      font-weight: 500;
+      color: #495057;
+    }
+    .dropdown-item {
+      white-space: wrap !important;
+    }
+    .toggle-container {
+      position: relative;
+      width: 86px;
+      height: 24px;
+    }
+    .toggle-checkbox {
+      display: none;
+    }
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: #e0e0e0;
+      border-radius: 20px;
+      padding: 0 10px;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      font-weight: 600;
+      user-select: none;
+      transition: background-color 0.3s ease;
+      font-size: 14px;
+      color: #aaa;
+    }
+    .toggle-label span {
+      z-index: 2;
+      width: 40%;
+      text-align: center;
+      transition: color 0.3s ease;
+    }
+    .toggle-switch {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 44px;
+      height: 20px;
+      background-color: white;
+      border-radius: 12px;
+      transition: left 0.3s ease;
+      z-index: 1;
+    }
+    .toggle-checkbox:checked + .toggle-label .toggle-switch {
+      left: 40px;
+    }
+    .toggle-checkbox:not(:checked) + .toggle-label .b2b {
+      color: #1f2937;
+    }
+    .toggle-checkbox:not(:checked) + .toggle-label .b2c {
+      color: #aaa;
+    }
+    .toggle-checkbox:checked + .toggle-label .b2b {
+      color: #aaa;
+    }
+    .toggle-checkbox:checked + .toggle-label .b2c {
+      color: #1f2937;
+    }
+    *:not(input):not(textarea):not([contenteditable]) {
+      caret-color: transparent;
+    }
+    input, textarea, [contenteditable] {
+      caret-color: auto !important;
+    }
+    .order-row:hover td {
+      background-color: #f0f0f0 !important;
+    }
+    .order-row.selected-row td {
+      background-color: #7f9db0 !important;
+    }
+    .order-row {
+      cursor: pointer !important;
+      transition: background-color 0.3s ease !important;
+    }
+  </style>
 </head>
 <body>
   <h1 class="app-title text-center my-3">BrandyWise</h1>
-    <button id="userDisplayName" class="btn btn-outline-secondary position-absolute top-0 end-0 m-3"></button>
-    <div id="loginContainer">
-        <div class="card shadow" style="max-width: 400px; width: 100%; margin-top: 30px;">
-            <div class="card-body text-center p-5">
-                <h2 class="mb-4">Welcome!</h2>
-                <p class="text-muted mb-4">Sign in with your Microsoft account</p>
-                <button id="signInButton" class="btn btn-primary">
-                    <i class="fab fa-microsoft me-2"></i>Sign in with Microsoft
-                </button>
-            </div>
-        </div>
+  <button id="userDisplayName" class="btn btn-outline-secondary position-absolute top-0 end-0 m-3"></button>
+
+  <!-- Login Container -->
+  <div id="loginContainer">
+    <div class="card shadow" style="max-width: 400px; width: 100%; margin-top: 30px;">
+      <div class="card-body text-center p-5">
+        <h2 class="mb-4">Welcome!</h2>
+        <p class="text-muted mb-4">Sign in with your Microsoft account</p>
+        <button id="signInButton" class="btn btn-primary">
+          <i class="fab fa-microsoft me-2"></i>Sign in with Microsoft
+        </button>
+      </div>
     </div>
+  </div>
 
-    <div id="appContainer" class="container py-4" style="display:none; margin-top: 30px;">
-      <button id="signOutButton" class="btn btn-outline-secondary position-absolute top-0 start-0 m-3">
-        <i class="fas fa-sign-out-alt"></i> Sign Out
-      </button>
-      <div class="card bg-white p-4 rounded shadow">
-            <div class="row">
-              <div class="col-md-4 mb-4 mb-md-0">
-                <div class="d-flex align-items-center">
-                  <h4>Customer</h4>
-                </div>
-                <div class="dropdown position-relative mb-3">
-                  <input type="text" id="customerSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
-                  <ul id="customerDropdown" class="dropdown-menu w-100">
-                    </ul>
-                </div>
-                <h5>Order History</h5>
-                <div class="table-responsive" style="max-height: 300px;">
-                  <table class="table table-bordered table-striped">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Product</th>
-                        <th>Description</th>
-                        <th>Qty</th>
-                        <th>Price</th>
-                      </tr>
-                    </thead>
-                    <tbody id="orderHistoryTable">
-                      <tr>
-                        <td colspan="5" class="text-muted fst-italic">
-                          search for a customer to display order history
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div class="col-md-4 mb-4 mb-md-0">
-                <div class="d-flex align-items-center">
-                <h4>Product</h4>
-                  <div class="form-check form-switch d-flex align-items-center my-2" style="position: relative; top: -2px; margin-left: auto">
-                    <label class="form-check-label" for="filterOrdersToggle">Filter Orders</label>
-                    <input class="form-check-input ms-2" type="checkbox" id="filterOrdersToggle">
-                  </div>
-                </div>
-                <div class="dropdown position-relative mb-3">
-                  <input type="text" id="productSearch" class="form-control" placeholder="Search Product...">
-                  <ul id="productDropdown" class="dropdown-menu w-100">
-                    </ul>
-                </div>
-                <h5>Matching Products</h5>
-                <div class="table-responsive" style="max-height: 300px;">
-                  <table class="table table-bordered table-striped">
-                    <thead>
-                      <tr>
-                        <th>Product</th>
-                        <th>Description</th>
-                        <th>QtyAvailable</th>
-                        <th>UnitCost</th>
-                      </tr>
-                    </thead>
-                    <tbody id="productTable">
-                      <tr>
-                        <td colspan="5" class="text-muted fst-italic">
-                          search for a product
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div class="col-md-4 mb-4 mb-md-0">
-                <div class="d-flex align-items-center">
-                  <h4>Pricing</h4>
-                </div>
-                <div class="toggle-container mb-3 mt-1">
-                  <input type="checkbox" class="toggle-checkbox" id="pricingToggle">
-                  <label for="pricingToggle" class="toggle-label">
-                    <div class="toggle-switch"></div>
-                    <span class="b2b">B2C</span>
-                    <span class="b2c">B2B</span>
-                  </label>
-                </div>
-                <h5>Prices</h5>
-                <div class="table-responsive" style="max-height: 300px;">
-                  <table class="table table-bordered table-striped">
-                    <thead>
-                      <tr>
-                        <th>Units Per Box</th>
-                        <th>Full Box Price</th>
-                        <th>Half Box Price</th>
-                        <th>Less Than Box Price</th>
-                      </tr>
-                    </thead>
-                    <tbody id="priceTable">
-                      <td colspan="5" class="text-muted fst-italic">
-                        select a product
-                      </td>  
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-            </div>
+  <!-- App Container -->
+  <div id="appContainer" class="container py-4" style="display:none; margin-top: 30px;">
+    <button id="signOutButton" class="btn btn-outline-secondary position-absolute top-0 start-0 m-3">
+      <i class="fas fa-sign-out-alt"></i> Sign Out
+    </button>
+    <div class="card bg-white p-4 rounded shadow">
+      <!-- Titles Row -->
+      <div class="row">
+        <div class="col-md-4 d-flex justify-content-between align-items-center">
+          <h4>Customer</h4>
+        </div>
+        <div class="col-md-4 d-flex justify-content-between align-items-center">
+          <h4>Product</h4>
+          <div class="form-check form-switch">
+            <label class="form-check-label" for="filterOrdersToggle">Filter Orders</label>
+            <input class="form-check-input" type="checkbox" id="filterOrdersToggle">
           </div>
         </div>
-    </div>
+        <div class="col-md-4 d-flex justify-content-between align-items-center">
+          <h4>Pricing</h4>
+        </div>
+      </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="https://alcdn.msauth.net/browser/2.32.0/js/msal-browser.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6"></script>
-    <script src="auth.js"></script>
-    <script src="dataLoader.js"></script>
-    <script src="uiRenderer.js"></script>
-    <script src="app.js"></script>
+      <!-- Dropdown Inputs Row -->
+      <div class="row mt-3">
+        <div class="col-md-4">
+          <input type="text" id="customerSearch" class="form-control mb-2" placeholder="Search Customer..." autocomplete="off">
+        </div>
+        <div class="col-md-4">
+          <input type="text" id="productSearch" class="form-control mb-2" placeholder="Search Product...">
+        </div>
+        <div class="col-md-4">
+          <div class="toggle-container">
+            <input type="checkbox" class="toggle-checkbox" id="pricingToggle">
+            <label for="pricingToggle" class="toggle-label">
+              <div class="toggle-switch"></div>
+              <span class="b2b">B2C</span>
+              <span class="b2c">B2B</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subtitles Row -->
+      <div class="row mt-3">
+        <div class="col-md-4">
+          <h5>Order History</h5>
+        </div>
+        <div class="col-md-4">
+          <h5>Matching Products</h5>
+        </div>
+        <div class="col-md-4">
+          <h5>Prices</h5>
+        </div>
+      </div>
+
+      <!-- Tables Row -->
+      <div class="row">
+        <div class="col-md-4 table-responsive" style="max-height: 300px;">
+          <table class="table table-bordered table-striped">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Description</th>
+                <th>Qty</th>
+                <th>Price</th>
+              </tr>
+            </thead>
+            <tbody id="orderHistoryTable">
+              <tr>
+                <td colspan="5" class="text-muted fst-italic">
+                  search for a customer to display order history
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="col-md-4 table-responsive" style="max-height: 300px;">
+          <table class="table table-bordered table-striped">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Description</th>
+                <th>QtyAvailable</th>
+                <th>UnitCost</th>
+              </tr>
+            </thead>
+            <tbody id="productTable">
+              <tr>
+                <td colspan="4" class="text-muted fst-italic">
+                  search for a product
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="col-md-4 table-responsive" style="max-height: 300px;">
+          <table class="table table-bordered table-striped">
+            <thead>
+              <tr>
+                <th>Units Per Box</th>
+                <th>Full Box Price</th>
+                <th>Half Box Price</th>
+                <th>Less Than Box Price</th>
+              </tr>
+            </thead>
+            <tbody id="priceTable">
+              <tr>
+                <td colspan="4" class="text-muted fst-italic">
+                  select a product
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script src="https://alcdn.msauth.net/browser/2.32.0/js/msal-browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6"></script>
+  <script src="auth.js"></script>
+  <script src="dataLoader.js"></script>
+  <script src="uiRenderer.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
