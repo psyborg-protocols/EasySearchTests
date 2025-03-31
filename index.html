@@ -167,10 +167,16 @@
       <!-- Dropdown Inputs Row -->
       <div class="row mt-3">
         <div class="col-md-4">
-          <input type="text" id="customerSearch" class="form-control mb-2" placeholder="Search Customer..." autocomplete="off">
+          <div class="dropdown position-relative mb-3">
+            <input type="text" id="customerSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
+            <ul id="customerDropdown" class="dropdown-menu w-100"></ul>
+          </div>
         </div>
         <div class="col-md-4">
-          <input type="text" id="productSearch" class="form-control mb-2" placeholder="Search Product...">
+          <div class="dropdown position-relative mb-3">
+            <input type="text" id="productSearch" class="form-control" placeholder="Search Product...">
+            <ul id="productDropdown" class="dropdown-menu w-100"></ul>
+          </div>
         </div>
         <div class="col-md-4">
           <div class="toggle-container">
