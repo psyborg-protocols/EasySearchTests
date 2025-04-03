@@ -5,16 +5,16 @@ document.addEventListener('DOMContentLoaded', async function () {
   try {
     // Retrieve cached datasets from IndexedDB
     const cachedDB = await idbUtil.getDataset("DBData");
-    const cachedOrders = await idbUtil.getDataset("ordersData");
+    const cachedSales = await idbUtil.getDataset("SalesData");
     const cachedPricing = await idbUtil.getDataset("PricingData");
 
-    if (cachedDB && cachedOrders && cachedPricing) {
+    if (cachedDB && cachedSales && cachedPricing) {
       window.dataStore["DB"] = { dataframe: cachedDB };
-      window.dataStore["orders"] = { dataframe: cachedOrders };
+      window.dataStore["Sales"] = { dataframe: cachedSales };
       window.dataStore["Pricing"] = { dataframe: cachedPricing };
       console.log("[DOMContentLoaded] Data loaded from IndexedDB cache.", {
         DB: window.dataStore["DB"],
-        orders: window.dataStore["orders"],
+        Sales: window.dataStore["Sales"],
         Pricing: window.dataStore["Pricing"]
       });
     } else {

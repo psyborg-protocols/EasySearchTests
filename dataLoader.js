@@ -199,7 +199,7 @@ async function processFiles() {
         if (filenamePrefix === "DB") {
           storageKey = "DBData";
         } else if (filenamePrefix === "Sales") {
-          storageKey = "ordersData";
+          storageKey = "SalesData";
         } else if (filenamePrefix === "Pricing") {
           storageKey = "PricingData";
         }
@@ -221,10 +221,10 @@ async function processFiles() {
 
 // fuzzy search for a customer, will return the list to populate the selection dropdown
 async function searchCustomers(query) {
-  const ordersData = window.dataStore["orders"]?.dataframe || [];
-  if (ordersData.length === 0) return [];
+  const SalesData = window.dataStore["Sales"]?.dataframe || [];
+  if (SalesData.length === 0) return [];
 
-  const fuse = new Fuse(ordersData, {
+  const fuse = new Fuse(SalesData, {
     keys: ["Customer"],
     threshold: 0.3
   });
@@ -234,8 +234,8 @@ async function searchCustomers(query) {
 
 // called after searchCustomers. displays the orders for a single customer
 async function getOrderHistory(customerName) {
-  const ordersData = window.dataStore["orders"]?.dataframe || [];
-  return ordersData.filter(order => order.Customer === customerName);
+  const SalesData = window.dataStore["Sales"]?.dataframe || [];
+  return SalesData.filter(sale => sale.Customer === customerName);
 }
 
 // fuzzy search for products - this will be used to populate the productTable
