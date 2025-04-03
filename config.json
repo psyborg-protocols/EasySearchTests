@@ -6,9 +6,9 @@
     "skipRows": 0
   },
   {
-    "directory": "BrandyWine/BWEasySearch/sample_csvs/sales",
-    "filenamePrefix": "orders",
-    "columns": ["Customer", "Date", "Product_Service", "Memo_Description", "Quantity", "Sales_Price", "Total_Amount"],
+    "directory": "Brandywine Collaborate Team Site Folder/Customers, Orders/Collaborate sales Reports/2025",
+    "filenamePrefix": "Sales",
+    "columns": ["Customer", "Date", "Transaction Type", "Num", "Product_Service", "Memo_Description", "Qty", "Sales_Price", "Total_Amount"],
     "skipRows": 4
   },
   {

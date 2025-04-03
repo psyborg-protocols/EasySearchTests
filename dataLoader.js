@@ -1,3 +1,8 @@
+const DISALLOWED_PRODUCTS = [
+  "", "Credit Card Fees", "Cost of Goods Sold", "Freight", "Health Insurance",
+  "Misc", "PmntDiscount_Bank Service Charges", "Testing-Bio", "Testing-Endo"
+];
+
 /**
  * Loads the configuration JSON file from the same directory.
  * The config file should be an array of objects, each containing:
@@ -82,33 +87,29 @@ async function downloadExcelFile(downloadUrl) {
  * @param {ArrayBuffer} arrayBuffer - The ArrayBuffer of the Excel file.
  * @returns {Array[]} - The parsed data (dataframe).
  */
-function parseExcelData(arrayBuffer, skipRows = 0) {
+function parseExcelData(arrayBuffer, skipRows = 0, columns = null) {
   try {
     if (!arrayBuffer || arrayBuffer.byteLength === 0) {
       throw new Error("Empty or invalid ArrayBuffer provided");
     }
-    
-    // Ensure XLSX is loaded
+
     if (typeof XLSX === 'undefined') {
       throw new Error("XLSX library not loaded");
     }
-    
+
     const data = new Uint8Array(arrayBuffer);
-    const workbook = XLSX.read(data, { 
+    const workbook = XLSX.read(data, {
       type: 'array',
       cellDates: true,
       cellFormula: false,
       cellStyles: false
     });
-    
-    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-      throw new Error("No sheets found in the workbook");
-    }
-    
+
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
-    
-    return XLSX.utils.sheet_to_json(worksheet, { 
+
+    return XLSX.utils.sheet_to_json(worksheet, {
+      header: columns || 1,  // use columns if provided, else use first row
       defval: "",
       blankrows: false,
       range: skipRows
@@ -171,7 +172,7 @@ async function processFiles() {
         const excelBuffer = await downloadExcelFile(downloadUrl);
         console.log(`Downloaded Excel file (${fileMetadata.name}) with byteLength:`, excelBuffer.byteLength);
 
-        const dataframe = parseExcelData(excelBuffer);
+        const dataframe = parseExcelData(excelBuffer, item.skipRows, item.columns);
         console.log(`Parsed dataframe for ${fileMetadata.name} with ${dataframe.length} rows`);
 
         if (!dataframe || dataframe.length < 2) {
@@ -179,15 +180,23 @@ async function processFiles() {
           continue;
         }
 
+        let processedData = dataframe;
+
+        // Check if the current file is the Sales file
+        if (item.filenamePrefix === "Sales") {
+          processedData = fillDownColumn(dataframe, "Customer");
+          processedData = filterOutValues(processedData, "Product/Service", DISALLOWED_PRODUCTS);
+        }
+
         window.dataStore[filenamePrefix] = {
-          dataframe,
+          dataframe: processedData,
           metadata: fileMetadata
         };
 
         // --- STORE IN SESSION STORAGE HERE ---
         if (filenamePrefix === "DB") {
           sessionStorage.setItem("DBData", JSON.stringify(dataframe));
-        } else if (filenamePrefix === "orders") {
+        } else if (filenamePrefix === "Sales") {
           sessionStorage.setItem("ordersData", JSON.stringify(dataframe));
         } else if (filenamePrefix === "Pricing") {
           sessionStorage.setItem("PricingData", JSON.stringify(dataframe));
@@ -257,6 +266,37 @@ async function getMatchingProducts(query) {
     };
     console.log(`[getMatchingProducts] Formatted item:`, formattedItem);
     return formattedItem;
+  });
+}
+
+/**
+ * Fills down missing values in a specified column by copying the last non-empty value.
+ * This is useful for handling merged cells that appear as empty in subsequent rows.
+ *
+ * @param {Array<Object>} data - The array of data objects (rows) parsed from the Excel file.
+ * @param {string} column - The column name where missing values should be filled down.
+ * @returns {Array<Object>} A new array of data objects with the column filled down.
+ */
+function fillDownColumn(data, column) {
+  let lastValue = "";
+  // Return a new array while processing each row
+  return data.map(row => {
+    // Check if the current row has a non-empty value for the column
+    if (row[column] && row[column].toString().trim() !== "") {
+      lastValue = row[column];
+    } else {
+      // Create a new row object to avoid mutating the original, if needed
+      row = { ...row, [column]: lastValue };
+    }
+    return row;
+  });
+}
+
+function filterOutValues(data, column, disallowedValues) {
+  return data.filter(row => {
+    const value = row[column];
+    if (value == null || String(value).trim() === "") return false;
+    return !disallowedValues.includes(String(value).trim());
   });
 }
 
