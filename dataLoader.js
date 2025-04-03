@@ -139,11 +139,8 @@ async function processFiles() {
       console.error("Failed to retrieve access token");
       return;
     }
-    console.log("Access token retrieved:", token);
 
     const config = await loadConfig();
-    console.log("Loaded configuration:", config);
-
     if (!Array.isArray(config) || config.length === 0) {
       console.error("Invalid or empty configuration");
       return;
@@ -152,63 +149,54 @@ async function processFiles() {
     for (const item of config) {
       try {
         const { directory, filenamePrefix } = item;
-        console.log(`Processing: ${directory}/${filenamePrefix}`);
+        const storageKey = (filenamePrefix === "DB") ? "DBData"
+                          : (filenamePrefix === "Sales") ? "SalesData"
+                          : (filenamePrefix === "Pricing") ? "PricingData" : null;
+        if (!storageKey) continue;
 
+        // Fetch latest metadata from SharePoint
         const metadataResponse = await fetchLatestFileMetadata(directory, filenamePrefix, token);
         if (!metadataResponse.value || metadataResponse.value.length === 0) {
           console.warn(`No matching file found in '${directory}' for prefix '${filenamePrefix}'`);
           continue;
         }
+        const latestMetadata = metadataResponse.value[0];
 
-        const fileMetadata = metadataResponse.value[0];
-        console.log("File metadata:", fileMetadata);
-
-        const downloadUrl = fileMetadata['@microsoft.graph.downloadUrl'];
-        if (!downloadUrl) {
-          console.error(`Download URL not found for ${fileMetadata.name}`);
-          continue;
+        // Check the cache
+        const cachedData = await idbUtil.getDataset(storageKey);
+        if (cachedData &&
+            cachedData.metadata &&
+            cachedData.metadata.lastModifiedDateTime === latestMetadata.lastModifiedDateTime) {
+          console.log(`Cache for ${filenamePrefix} is up-to-date. Using cached data.`);
+          window.dataStore[filenamePrefix] = cachedData;
+          continue; // Skip re-downloading
         }
 
+        // Download and process the file if cache is missing or outdated
+        const downloadUrl = latestMetadata['@microsoft.graph.downloadUrl'];
+        if (!downloadUrl) {
+          console.error(`Download URL not found for ${latestMetadata.name}`);
+          continue;
+        }
         const excelBuffer = await downloadExcelFile(downloadUrl);
-        console.log(`Downloaded Excel file (${fileMetadata.name}) with byteLength:`, excelBuffer.byteLength);
-
         const dataframe = parseExcelData(excelBuffer, item.skipRows, item.columns);
-        console.log(`Parsed dataframe for ${fileMetadata.name} with ${dataframe.length} rows`);
-
         if (!dataframe || dataframe.length < 2) {
-          console.warn(`Invalid or empty dataframe for ${fileMetadata.name}`);
+          console.warn(`Invalid or empty dataframe for ${latestMetadata.name}`);
           continue;
         }
 
         let processedData = dataframe;
-
-        // Process Sales file: fill down Customer and filter out disallowed Product_Service rows.
-        if (item.filenamePrefix === "Sales") {
+        if (filenamePrefix === "Sales") {
           processedData = fillDownColumn(dataframe, "Customer");
           processedData = filterOutValues(processedData, "Product_Service", DISALLOWED_PRODUCTS);
         }
 
-        // Store processed data in the global dataStore.
-        window.dataStore[filenamePrefix] = {
-          dataframe: processedData,
-          metadata: fileMetadata
-        };
+        // Build the object containing both data and metadata
+        const storedData = { dataframe: processedData, metadata: latestMetadata };
+        window.dataStore[filenamePrefix] = storedData;
+        await idbUtil.setDataset(storageKey, storedData);
+        console.log(`Successfully stored ${latestMetadata.name} in IndexedDB under key ${storageKey}.`);
 
-        // Determine the key to store the data in IndexedDB.
-        let storageKey;
-        if (filenamePrefix === "DB") {
-          storageKey = "DBData";
-        } else if (filenamePrefix === "Sales") {
-          storageKey = "SalesData";
-        } else if (filenamePrefix === "Pricing") {
-          storageKey = "PricingData";
-        }
-
-        // Store the processed data in IndexedDB using our idbUtil module.
-        if (storageKey) {
-          await idbUtil.setDataset(storageKey, processedData);
-          console.log(`Successfully stored ${fileMetadata.name} in IndexedDB under key ${storageKey}.`);
-        }
       } catch (error) {
         console.error("Error processing file:", error);
       }

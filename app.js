@@ -32,12 +32,6 @@ document.addEventListener('DOMContentLoaded', async function () {
   });
 
   document.getElementById('signOutButton').addEventListener('click', async () => {
-    try {
-      await idbUtil.clearDatasets();
-      console.log("[signOutButton] IndexedDB cleared, signing out.");
-    } catch (error) {
-      console.error("Error clearing IndexedDB:", error);
-    }
     signOut();
   });
 });
