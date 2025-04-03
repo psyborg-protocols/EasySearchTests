@@ -153,9 +153,25 @@ async function processFiles() {
       try {
         const { directory, filenamePrefix } = item;
         console.log(`Processing: ${directory}/${filenamePrefix}`);
-    
-        // ... your existing code to fetch metadata and download the file ...
-    
+
+        const metadataResponse = await fetchLatestFileMetadata(directory, filenamePrefix, token);
+        if (!metadataResponse.value || metadataResponse.value.length === 0) {
+          console.warn(`No matching file found in '${directory}' for prefix '${filenamePrefix}'`);
+          continue;
+        }
+
+        const fileMetadata = metadataResponse.value[0];
+        console.log("File metadata:", fileMetadata);
+
+        const downloadUrl = fileMetadata['@microsoft.graph.downloadUrl'];
+        if (!downloadUrl) {
+          console.error(`Download URL not found for ${fileMetadata.name}`);
+          continue;
+        }
+
+        const excelBuffer = await downloadExcelFile(downloadUrl);
+        console.log(`Downloaded Excel file (${fileMetadata.name}) with byteLength:`, excelBuffer.byteLength);
+
         const dataframe = parseExcelData(excelBuffer, item.skipRows, item.columns);
         console.log(`Parsed dataframe for ${fileMetadata.name} with ${dataframe.length} rows`);
     
