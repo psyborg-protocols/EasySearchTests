@@ -187,6 +187,10 @@ async function processFiles() {
         console.error("Error processing file:", error);
       }
     }
+  } catch (error) {
+    console.error("Error processing files:", error);
+  }
+}
 
 // fuzzy search for a customer, will return the list to populate the selection dropdown
 async function searchCustomers(query) {
