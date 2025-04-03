@@ -182,10 +182,10 @@ async function processFiles() {
 
         let processedData = dataframe;
 
-        // Process Sales file: fill down Customer and filter out disallowed Product/Service rows.
+        // Process Sales file: fill down Customer and filter out disallowed Product_Service rows.
         if (item.filenamePrefix === "Sales") {
           processedData = fillDownColumn(dataframe, "Customer");
-          processedData = filterOutValues(processedData, "Product/Service", DISALLOWED_PRODUCTS);
+          processedData = filterOutValues(processedData, "Product_Service", DISALLOWED_PRODUCTS);
         }
 
         // Store processed data in the global dataStore.
