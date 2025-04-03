@@ -1,20 +1,20 @@
 [
   {
-    "directory": "BrandyWine/BWEasySearch/sample_csvs/inventory",
+    "directory": "Brandywine Collaborate Team Site Folder/Inventory",
     "filenamePrefix": "DB",
-    "columns": ["PartNumber", "Description", "QtyOnHand", "QtyCommited", "UnitCost"],
-    "skipRows": 0
+    "columns": ["PartNumber", "Description", "Active", "QtyOnHand", "ReOrder Level", "QtyCommited", "QtyOnOrder",	"FullBoxQty", "UnitCost"],
+    "skipRows": 1
   },
   {
     "directory": "Brandywine Collaborate Team Site Folder/Customers, Orders/Collaborate sales Reports/2025",
     "filenamePrefix": "Sales",
-    "columns": ["Customer", "Date", "Transaction Type", "Num", "Product_Service", "Memo_Description", "Qty", "Sales_Price", "Total_Amount"],
-    "skipRows": 4
+    "columns": ["Customer", "Date", "Transaction Type", "Num", "Product_Service", "Memo_Description", "Quantity", "Sales_Price", "Total_Amount"],
+    "skipRows": 5
   },
   {
-    "directory": "BrandyWine/BWEasySearch/sample_csvs/pricing",
+    "directory": "BrandyWise",
     "filenamePrefix": "Pricing",
     "columns": ["Product", "Note", "UnitsPerBox", "USER_FB", "USER_HB", "USER_LTB", "DISTR_FB", "DISTR_HB", "DISTR_LTB"]    ,
-    "skipRows": 0
+    "skipRows": 1
   }
 ]
