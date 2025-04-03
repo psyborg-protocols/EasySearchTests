@@ -27,13 +27,16 @@ async function loadConfig() {
  * @returns {Promise<object>} - The file metadata from Graph API.
  */
 async function fetchLatestFileMetadata(directory, filenamePrefix, token) {
+  // Replace these with your SharePoint site and drive IDs
+  const siteId = "brandywinematerialsllc.sharepoint.com,07a1465e-a31a-4437-aca2-0efe61b7f2c6,4b1abd1c-08c6-4574-b350-654376a1e954";
+  const driveId = "b!XkahBxqjN0Ssog7-Ybfyxhy9GkvGCHRFs1BlQ3ah6VTHnmI16yPPQofBa949Ai-j";
+
   // Encode URL components to handle special characters
   const encodedDirectory = encodeURIComponent(directory);
   const encodedPrefix = encodeURIComponent(filenamePrefix);
-  
-  // This is the endpoint for Business accounts
-  const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodedDirectory}:/children?$filter=startswith(name,'${encodedPrefix}')&$orderby=lastModifiedDateTime desc&$top=1`;
-  
+
+  const endpoint = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${encodedDirectory}:/children?$filter=startswith(name,'${encodedPrefix}')&$orderby=lastModifiedDateTime desc&$top=1`;
+
   try {
     const response = await fetch(endpoint, {
       headers: {
@@ -41,11 +44,11 @@ async function fetchLatestFileMetadata(directory, filenamePrefix, token) {
         'Content-Type': 'application/json'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch metadata: ${response.status} ${response.statusText}`);
     }
-    
+
     return response.json();
   } catch (error) {
     console.error(`Error fetching metadata for ${directory} with prefix ${filenamePrefix}:`, error);

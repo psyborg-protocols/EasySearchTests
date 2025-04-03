@@ -3,8 +3,8 @@
 // Microsoft Authentication Configuration
 const msalConfig = {
     auth: {
-        clientId: "fd222d3b-4c6d-4968-a33e-a7c124caacad",
-        authority: "https://login.microsoftonline.com/consumers",
+        clientId: "26f834bc-3365-486c-95ff-1a45a24488b5",
+        authority: "https://login.microsoftonline.com/b4b6e20e-14bd-4419-bf0a-c7d2c948c513",
         redirectUri: "https://psyborg-protocols.github.io/EasySearchTests/",
     },
     cache: {
@@ -16,8 +16,8 @@ const msalConfig = {
 // MS Graph API scopes needed for accessing OneDrive files
 const scopes = [
     "User.Read",
-    // TODO: this is for business accounts "Files.Read.All"
-    "Files.Read"
+    "Files.Read.All",
+    "Sites.Read.All"
 ];
 
 // Global variables for the MSAL instance and user account
