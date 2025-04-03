@@ -153,63 +153,40 @@ async function processFiles() {
       try {
         const { directory, filenamePrefix } = item;
         console.log(`Processing: ${directory}/${filenamePrefix}`);
-
-        const metadataResponse = await fetchLatestFileMetadata(directory, filenamePrefix, token);
-        if (!metadataResponse.value || metadataResponse.value.length === 0) {
-          console.warn(`No matching file found in '${directory}' for prefix '${filenamePrefix}'`);
-          continue;
-        }
-
-        const fileMetadata = metadataResponse.value[0];
-        console.log("File metadata:", fileMetadata);
-
-        const downloadUrl = fileMetadata['@microsoft.graph.downloadUrl'];
-        if (!downloadUrl) {
-          console.error(`Download URL not found for ${fileMetadata.name}`);
-          continue;
-        }
-
-        const excelBuffer = await downloadExcelFile(downloadUrl);
-        console.log(`Downloaded Excel file (${fileMetadata.name}) with byteLength:`, excelBuffer.byteLength);
-
+    
+        // ... your existing code to fetch metadata and download the file ...
+    
         const dataframe = parseExcelData(excelBuffer, item.skipRows, item.columns);
         console.log(`Parsed dataframe for ${fileMetadata.name} with ${dataframe.length} rows`);
-
+    
         if (!dataframe || dataframe.length < 2) {
           console.warn(`Invalid or empty dataframe for ${fileMetadata.name}`);
           continue;
         }
-
-        let processedData = dataframe;
-
-        // Check if the current file is the Sales file
-        if (item.filenamePrefix === "Sales") {
-          processedData = fillDownColumn(dataframe, "Customer");
-          processedData = filterOutValues(processedData, "Product/Service", DISALLOWED_PRODUCTS);
-        }
-
-        window.dataStore[filenamePrefix] = {
-          dataframe: processedData,
-          metadata: fileMetadata
-        };
-
-        // --- STORE IN SESSION STORAGE HERE ---
+    
+        // Determine storage key and update window.dataStore accordingly.
+        let storageKey;
         if (filenamePrefix === "DB") {
-          sessionStorage.setItem("DBData", JSON.stringify(dataframe));
+          storageKey = "DBData";
+          window.dataStore["DB"] = { dataframe, metadata: fileMetadata };
         } else if (filenamePrefix === "Sales") {
-          sessionStorage.setItem("ordersData", JSON.stringify(dataframe));
+          // Sales file is used for orders data.
+          storageKey = "ordersData";
+          window.dataStore["orders"] = { dataframe, metadata: fileMetadata };
         } else if (filenamePrefix === "Pricing") {
-          sessionStorage.setItem("PricingData", JSON.stringify(dataframe));
+          storageKey = "PricingData";
+          window.dataStore["Pricing"] = { dataframe, metadata: fileMetadata };
         }
-        console.log(`Successfully stored ${fileMetadata.name} in memory.`);
+    
+        // Store the processed dataframe in IndexedDB if storageKey is set.
+        if (storageKey) {
+          await idbUtil.setDataset(storageKey, dataframe);
+          console.log(`Successfully stored ${fileMetadata.name} in IndexedDB under ${storageKey}.`);
+        }
       } catch (error) {
         console.error("Error processing file:", error);
       }
     }
-  } catch (error) {
-    console.error("Error processing files:", error);
-  }
-}
 
 // fuzzy search for a customer, will return the list to populate the selection dropdown
 async function searchCustomers(query) {
