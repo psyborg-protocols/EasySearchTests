@@ -174,30 +174,40 @@ async function processFiles() {
 
         const dataframe = parseExcelData(excelBuffer, item.skipRows, item.columns);
         console.log(`Parsed dataframe for ${fileMetadata.name} with ${dataframe.length} rows`);
-    
+
         if (!dataframe || dataframe.length < 2) {
           console.warn(`Invalid or empty dataframe for ${fileMetadata.name}`);
           continue;
         }
-    
-        // Determine storage key and update window.dataStore accordingly.
+
+        let processedData = dataframe;
+
+        // Process Sales file: fill down Customer and filter out disallowed Product/Service rows.
+        if (item.filenamePrefix === "Sales") {
+          processedData = fillDownColumn(dataframe, "Customer");
+          processedData = filterOutValues(processedData, "Product/Service", DISALLOWED_PRODUCTS);
+        }
+
+        // Store processed data in the global dataStore.
+        window.dataStore[filenamePrefix] = {
+          dataframe: processedData,
+          metadata: fileMetadata
+        };
+
+        // Determine the key to store the data in IndexedDB.
         let storageKey;
         if (filenamePrefix === "DB") {
           storageKey = "DBData";
-          window.dataStore["DB"] = { dataframe, metadata: fileMetadata };
         } else if (filenamePrefix === "Sales") {
-          // Sales file is used for orders data.
           storageKey = "ordersData";
-          window.dataStore["orders"] = { dataframe, metadata: fileMetadata };
         } else if (filenamePrefix === "Pricing") {
           storageKey = "PricingData";
-          window.dataStore["Pricing"] = { dataframe, metadata: fileMetadata };
         }
-    
-        // Store the processed dataframe in IndexedDB if storageKey is set.
+
+        // Store the processed data in IndexedDB using our idbUtil module.
         if (storageKey) {
-          await idbUtil.setDataset(storageKey, dataframe);
-          console.log(`Successfully stored ${fileMetadata.name} in IndexedDB under ${storageKey}.`);
+          await idbUtil.setDataset(storageKey, processedData);
+          console.log(`Successfully stored ${fileMetadata.name} in IndexedDB under key ${storageKey}.`);
         }
       } catch (error) {
         console.error("Error processing file:", error);
@@ -207,6 +217,7 @@ async function processFiles() {
     console.error("Error processing files:", error);
   }
 }
+
 
 // fuzzy search for a customer, will return the list to populate the selection dropdown
 async function searchCustomers(query) {
