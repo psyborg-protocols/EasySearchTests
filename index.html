@@ -7,6 +7,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&display=swap">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
   <style>
     body {
       background: url('background.jpg') no-repeat center center fixed;
@@ -201,7 +202,13 @@
           <h5>Order History</h5>
         </div>
         <div class="col-md-4">
-          <h5>Matching Products</h5>
+          <h5 class="d-flex align-items-center gap-2">
+            Matching Products
+            <i id="genericBulb" class="fas fa-lightbulb text-warning"
+               data-bs-toggle="tooltip"
+               title="Generic replacement found"
+               style="cursor: pointer; display: none;"></i>
+          </h5>
         </div>
         <div class="col-md-4">
           <h5>Prices</h5>

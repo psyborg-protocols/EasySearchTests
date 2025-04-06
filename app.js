@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const cachedDB = await idbUtil.getDataset("DBData");
     const cachedSales = await idbUtil.getDataset("SalesData");
     const cachedPricing = await idbUtil.getDataset("PricingData");
+    const cachedEquivs = await idbUtil.getDataset("EquivalentsData");
 
     if (cachedDB && cachedSales && cachedPricing) {
       window.dataStore["DB"] = cachedDB;
@@ -19,6 +20,12 @@ document.addEventListener('DOMContentLoaded', async function () {
       });
     } else {
       console.warn("[DOMContentLoaded] Cached data not found in IndexedDB.");
+    }
+
+    // Load cached equivalents data if available
+    if (cachedEquivs && cachedEquivs.metadata) {
+      window.dataStore["Equivalents"] = cachedEquivs.dataframe;
+      console.log("[DOMContentLoaded] Equivalents loaded from IndexedDB cache.", window.dataStore["Equivalents"]);
     }
   } catch (error) {
     console.error("Error loading datasets from IndexedDB:", error);

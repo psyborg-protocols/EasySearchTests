@@ -16,5 +16,13 @@
     "filenamePrefix": "Pricing",
     "columns": ["Product", "Note", "UnitsPerBox", "USER_FB", "USER_HB", "USER_LTB", "DISTR_FB", "DISTR_HB", "DISTR_LTB"]    ,
     "skipRows": 1
+  },
+  {
+    "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
+    "filenamePrefix": "Quote Maker and Calculator",
+    "columns": ["BT Part #", "Nordson EFD Part #", "Medmix Sulzer Part #"],
+    "skipRows": 1,
+    "sheetName": "BT Master 2025",
+    "range": "A:A, M:N"
   }
 ]

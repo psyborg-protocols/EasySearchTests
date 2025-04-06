@@ -87,14 +87,10 @@ async function downloadExcelFile(downloadUrl) {
  * @param {ArrayBuffer} arrayBuffer - The ArrayBuffer of the Excel file.
  * @returns {Array[]} - The parsed data (dataframe).
  */
-function parseExcelData(arrayBuffer, skipRows = 0, columns = null) {
+function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = null, rangeOverride = null) {
   try {
     if (!arrayBuffer || arrayBuffer.byteLength === 0) {
       throw new Error("Empty or invalid ArrayBuffer provided");
-    }
-
-    if (typeof XLSX === 'undefined') {
-      throw new Error("XLSX library not loaded");
     }
 
     const data = new Uint8Array(arrayBuffer);
@@ -105,20 +101,32 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null) {
       cellStyles: false
     });
 
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
+    const sheetToUse = sheetName && workbook.Sheets[sheetName]
+      ? sheetName
+      : workbook.SheetNames[0];
 
-    return XLSX.utils.sheet_to_json(worksheet, {
-      header: columns || 1,  // use columns if provided, else use first row
+    const worksheet = workbook.Sheets[sheetToUse];
+    if (!worksheet) throw new Error(`Sheet "${sheetToUse}" not found.`);
+
+    const options = {
+      header: columns || 1,
       defval: "",
-      blankrows: false,
-      range: skipRows
-    });
+      blankrows: false
+    };
+
+    if (rangeOverride) {
+      options.range = rangeOverride;
+    } else if (skipRows > 0) {
+      options.range = skipRows;
+    }
+
+    return XLSX.utils.sheet_to_json(worksheet, options);
   } catch (error) {
     console.error("Error parsing Excel data:", error);
     throw error;
   }
 }
+
 
 /**
  * Processes all configuration items:
@@ -150,8 +158,10 @@ async function processFiles() {
       try {
         const { directory, filenamePrefix } = item;
         const storageKey = (filenamePrefix === "DB") ? "DBData"
-                          : (filenamePrefix === "Sales") ? "SalesData"
-                          : (filenamePrefix === "Pricing") ? "PricingData" : null;
+                : (filenamePrefix === "Sales") ? "SalesData"
+                : (filenamePrefix === "Pricing") ? "PricingData"
+                : (filenamePrefix === "Quote Maker and Calculator") ? "EquivalentsData"
+                : null;
         if (!storageKey) continue;
 
         // Fetch latest metadata from SharePoint
@@ -179,7 +189,7 @@ async function processFiles() {
           continue;
         }
         const excelBuffer = await downloadExcelFile(downloadUrl);
-        const dataframe = parseExcelData(excelBuffer, item.skipRows, item.columns);
+        const dataframe = parseExcelData(excelBuffer, item.skipRows, item.columns, item.sheetName, item.range);
         if (!dataframe || dataframe.length < 2) {
           console.warn(`Invalid or empty dataframe for ${latestMetadata.name}`);
           continue;
@@ -189,6 +199,20 @@ async function processFiles() {
         if (filenamePrefix === "Sales") {
           processedData = fillDownColumn(dataframe, "Customer");
           processedData = filterOutValues(processedData, "Product_Service", DISALLOWED_PRODUCTS);
+        }
+
+        if (filenamePrefix === "Quote Maker and Calculator") {
+          const equivalentsMap = normalizeGenericMatches(dataframe);        
+          // Build the object containing both data and metadata
+          const storedData = { dataframe: equivalentsMap, metadata: latestMetadata };
+        
+          // Save to window.dataStore
+          window.dataStore["Equivalents"] = equivalentsMap;
+        
+          // Cache it in IndexedDB
+          await idbUtil.setDataset(storageKey, storedData);
+          console.log("[Equivalents] Loaded, normalized, and cached brand → generic mapping.");
+          continue;  // Now we break out after caching
         }
 
         // Build the object containing both data and metadata
@@ -204,6 +228,23 @@ async function processFiles() {
   } catch (error) {
     console.error("Error processing files:", error);
   }
+}
+
+/// Normalizes the generic matches from the "Quote Maker and Calculator" sheet
+function normalizeGenericMatches(data) {
+  const map = {};
+  for (const row of data) {
+    const generic = row["BT Part #"]?.trim();
+    if (!generic) continue;
+
+    for (const col of ["Nordson EFD Part #", "Medmix Sulzer Part #"]) {
+      const values = (row[col] || "").split(",").map(val => val.trim()).filter(Boolean);
+      for (const branded of values) {
+        map[branded] = generic;
+      }
+    }
+  }
+  return map;
 }
 
 

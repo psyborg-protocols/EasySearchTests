@@ -225,6 +225,21 @@ async function selectProduct(encodedPartNumber) {
       // Update the pricing table with the selected product’s pricing info
       updatePricingTable(partNumber);
 
+      const equivalentsMap = window.dataStore["Equivalents"] || {};
+      const generic = equivalentsMap[partNumber];
+      const bulbIcon = document.getElementById("genericBulb");
+      
+      // Show the bulb icon if a generic replacement is found
+      if (generic) {
+        bulbIcon.setAttribute("data-bs-original-title", `Generic replacement found: ${generic}`);
+        bulbIcon.style.display = "inline-block";
+        bulbIcon.classList.add("animate__animated", "animate__tada");
+        bulbIcon.onclick = () => selectProduct(encodeURIComponent(generic));
+      } else {
+        bulbIcon.style.display = "none";
+        bulbIcon.onclick = null;
+      }
+
       // After selecting a product, if a customer is already selected, update order filtering
       if (window.currentOrderHistory) {
         updateOrderTable();
