@@ -9,9 +9,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     const cachedPricing = await idbUtil.getDataset("PricingData");
 
     if (cachedDB && cachedSales && cachedPricing) {
-      window.dataStore["DB"] = { dataframe: cachedDB };
-      window.dataStore["Sales"] = { dataframe: cachedSales };
-      window.dataStore["Pricing"] = { dataframe: cachedPricing };
+      window.dataStore["DB"] = cachedDB;
+      window.dataStore["Sales"] = cachedSales;
+      window.dataStore["Pricing"] = cachedPricing;
       console.log("[DOMContentLoaded] Data loaded from IndexedDB cache.", {
         DB: window.dataStore["DB"],
         Sales: window.dataStore["Sales"],
