@@ -231,14 +231,14 @@ async function selectProduct(encodedPartNumber) {
       
       // Show the bulb icon if a generic replacement is found
       if (generic) {
-        bulbIcon.style.display = "inline-block";
-
-        // Remove and re-add the animation classes to re-trigger
-        bulbIcon.classList.remove("animate__animated", "animate__tada");
-        void bulbIcon.offsetWidth;  // Trigger reflow
-        bulbIcon.classList.add("animate__animated", "animate__tada");
-        
         bulbIcon.setAttribute("data-bs-original-title", `Generic replacement found: ${generic}`);
+        bulbIcon.style.display = "inline-block";
+        
+        // Reset animation to re-trigger every time
+        bulbIcon.classList.remove("animate__animated", "animate__bounceIn");
+        void bulbIcon.offsetWidth;  // Force reflow
+        bulbIcon.classList.add("animate__animated", "animate__bounceIn");
+        
         bulbIcon.onclick = () => selectProduct(encodeURIComponent(generic));
       } else {
         bulbIcon.style.display = "none";
