@@ -20,9 +20,8 @@
   {
     "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
     "filenamePrefix": "Quote Maker and Calculator",
-    "columns": ["BT Part #", "Nordson EFD Part #", "Medmix Sulzer Part #"],
+    "columns": ["BT Part #", "2024 LTB Cost",	"2024 FB Cost",	"2024 Pallet  Cost",	"Box Qty",	"Pallet Qty",	"MOQ",	"Comments",	"BM Part #",	"Product Type",	"BM Old Part #",	"TAH Part #", "Nordson EFD Part #", "Medmix Sulzer Part #"],
     "skipRows": 1,
-    "sheetName": "BT Master 2025",
-    "range": "A:A, M:M, N:N"
+    "sheetName": "BT Master 2025"
   }
 ]

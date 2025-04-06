@@ -82,6 +82,7 @@ async function downloadExcelFile(downloadUrl) {
 
 /**
  * Parses the Excel file ArrayBuffer using SheetJS (XLSX) and returns the data as an array-of-arrays.
+ * The first row is assumed to be the header.
  *
  * @param {ArrayBuffer} arrayBuffer - The ArrayBuffer of the Excel file.
  * @param {number} skipRows - Number of rows to skip at the start of the sheet.
@@ -96,7 +97,6 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       throw new Error("Empty or invalid ArrayBuffer provided");
     }
 
-    console.debug("[parseExcelData] Starting to parse Excel data.");
     const data = new Uint8Array(arrayBuffer);
     const workbook = XLSX.read(data, {
       type: 'array',
@@ -104,8 +104,6 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       cellFormula: false,
       cellStyles: false
     });
-
-    console.debug("[parseExcelData] Workbook loaded. SheetNames:", workbook.SheetNames);
 
     // Determine which sheet to use
     const sheetToUse = sheetName && workbook.Sheets[sheetName]
@@ -127,10 +125,8 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
 
     if (rangeOverride) {
       options.range = rangeOverride;
-      console.debug("[parseExcelData] Using range override:", rangeOverride);
     } else if (skipRows > 0) {
       options.range = skipRows;
-      console.debug("[parseExcelData] Skipping first", skipRows, "rows.");
     }
 
     const parsedData = XLSX.utils.sheet_to_json(worksheet, options);
