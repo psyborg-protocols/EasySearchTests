@@ -166,6 +166,25 @@
       transform: scale(1.15);
       box-shadow: 0 0 12px 4px rgba(255, 223, 0, 0.6);
     }
+    .generic-slide-text {
+      position: absolute;
+      left: 30px;
+      top: 2px;
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: 0.9rem;
+      color: #6c757d;
+      opacity: 0;
+      transform: translateX(-10px);
+      transition: all 0.4s ease;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    #genericContainer:hover .generic-slide-text {
+      opacity: 1;
+      transform: translateX(0);
+}
   </style>
 </head>
 <body>
@@ -242,10 +261,10 @@
         <div class="col-md-4">
           <h5 class="d-flex align-items-center gap-2">
             Matching Products
-            <i id="genericBulb" class="fas fa-lightbulb text-warning"
-               data-bs-toggle="tooltip"
-               title="Generic replacement found"
-               style="cursor: pointer; display: none; margin-left: auto;"></i>
+            <div id="genericContainer" class="position-relative" style="display: none; margin-left: auto;">
+              <i id="genericBulb" class="fas fa-lightbulb text-warning" style="cursor: pointer;"></i>
+              <div id="genericSlideText" class="generic-slide-text fst-italic">Generic: XYZ123</div>
+            </div>
           </h5>
         </div>
         <div class="col-md-4">

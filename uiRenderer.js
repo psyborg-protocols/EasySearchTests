@@ -228,24 +228,26 @@ async function selectProduct(encodedPartNumber) {
       const equivalentsMap = window.dataStore["Equivalents"] || {};
       const generic = equivalentsMap[partNumber];
       const bulbIcon = document.getElementById("genericBulb");
+      const container = document.getElementById("genericContainer");
+      const slideText = document.getElementById("genericSlideText");
       
-      // Show the bulb icon if a generic replacement is found
       if (generic) {
-        bulbIcon.setAttribute("data-bs-original-title", `Generic replacement found: ${generic}`);
-
-        // Reset and show
-        bulbIcon.style.display = "inline-block";
-        bulbIcon.classList.remove("animate__animated", "animate__heartBeat", "glow-effect");
+        // Set the slide-out text with the generic replacement value
+        slideText.textContent = `Generic: ${generic}`;
+        container.style.display = "inline-block";
+      
+        // Reset and animate the lightbulb icon with bounceIn and glow
+        bulbIcon.classList.remove("animate__animated", "animate__bounceIn", "glow-effect");
         void bulbIcon.offsetWidth;
-        bulbIcon.classList.add("animate__animated", "animate__heartBeat", "glow-effect");
-        
-        // Remove glow after 2 seconds
+        bulbIcon.classList.add("animate__animated", "animate__bounceIn", "glow-effect");
+      
+        // Remove the glow after 2 seconds
         setTimeout(() => bulbIcon.classList.remove("glow-effect"), 2000);
-        
-        // Click → switch to generic
+      
+        // Set click handler to select the generic product when clicked
         bulbIcon.onclick = () => selectProduct(encodeURIComponent(generic));
       } else {
-        bulbIcon.style.display = "none";
+        container.style.display = "none";
         bulbIcon.onclick = null;
       }
 
