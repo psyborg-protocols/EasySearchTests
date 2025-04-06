@@ -82,9 +82,12 @@ async function downloadExcelFile(downloadUrl) {
 
 /**
  * Parses the Excel file ArrayBuffer using SheetJS (XLSX) and returns the data as an array-of-arrays.
- * The first row is assumed to be the header.
  *
  * @param {ArrayBuffer} arrayBuffer - The ArrayBuffer of the Excel file.
+ * @param {number} skipRows - Number of rows to skip at the start of the sheet.
+ * @param {Array} columns - Optional array of column names to use as headers.
+ * @param {string} sheetName - Optional name of the sheet to parse.
+ * @param {string} rangeOverride - Optional range to override the default parsing range.
  * @returns {Array[]} - The parsed data (dataframe).
  */
 function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = null, rangeOverride = null) {
@@ -93,6 +96,7 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       throw new Error("Empty or invalid ArrayBuffer provided");
     }
 
+    console.debug("[parseExcelData] Starting to parse Excel data.");
     const data = new Uint8Array(arrayBuffer);
     const workbook = XLSX.read(data, {
       type: 'array',
@@ -101,13 +105,20 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       cellStyles: false
     });
 
+    console.debug("[parseExcelData] Workbook loaded. SheetNames:", workbook.SheetNames);
+
+    // Determine which sheet to use
     const sheetToUse = sheetName && workbook.Sheets[sheetName]
       ? sheetName
       : workbook.SheetNames[0];
 
+    console.debug("[parseExcelData] Using sheet:", sheetToUse);
     const worksheet = workbook.Sheets[sheetToUse];
-    if (!worksheet) throw new Error(`Sheet "${sheetToUse}" not found.`);
+    if (!worksheet) {
+      throw new Error(`Sheet "${sheetToUse}" not found.`);
+    }
 
+    // Set up options for SheetJS
     const options = {
       header: columns || 1,
       defval: "",
@@ -116,11 +127,15 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
 
     if (rangeOverride) {
       options.range = rangeOverride;
+      console.debug("[parseExcelData] Using range override:", rangeOverride);
     } else if (skipRows > 0) {
       options.range = skipRows;
+      console.debug("[parseExcelData] Skipping first", skipRows, "rows.");
     }
 
-    return XLSX.utils.sheet_to_json(worksheet, options);
+    const parsedData = XLSX.utils.sheet_to_json(worksheet, options);
+    console.debug("[parseExcelData] Parsed data:", parsedData);
+    return parsedData;
   } catch (error) {
     console.error("Error parsing Excel data:", error);
     throw error;
