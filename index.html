@@ -158,6 +158,14 @@
       animation: softGlow 2s ease-out forwards;
       border-radius: 50%;
     }
+    #genericBulb {
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    #genericBulb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 0 12px 4px rgba(255, 223, 0, 0.6);
+    }
   </style>
 </head>
 <body>
@@ -321,5 +329,8 @@
   <script src="dataLoader.js"></script>
   <script src="uiRenderer.js"></script>
   <script src="app.js"></script>
+  <script>document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+    new bootstrap.Tooltip(el);
+  });</script>
 </body>
 </html>
