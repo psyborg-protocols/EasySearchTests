@@ -245,11 +245,12 @@ async function processFiles() {
 function normalizeGenericMatches(data) {
   const map = {};
   for (const row of data) {
-    const generic = row["BT Part #"]?.trim();
+    const generic = String(row["BT Part #"] || "").trim();
     if (!generic) continue;
 
     for (const col of ["Nordson EFD Part #", "Medmix Sulzer Part #"]) {
-      const values = (row[col] || "").split(",").map(val => val.trim()).filter(Boolean);
+      const raw = String(row[col] || "");
+      const values = raw.split(",").map(val => val.trim()).filter(Boolean);
       for (const branded of values) {
         map[branded] = generic;
       }
