@@ -235,9 +235,9 @@ async function selectProduct(encodedPartNumber) {
         bulbIcon.style.display = "inline-block";
         
         // Reset animation to re-trigger every time
-        bulbIcon.classList.remove("animate__animated", "animate__bounceIn");
+        bulbIcon.classList.remove("animate__animated", "animate__zoomIn", "animate__delay-1s");
         void bulbIcon.offsetWidth;  // Force reflow
-        bulbIcon.classList.add("animate__animated", "animate__bounceIn");
+        bulbIcon.classList.add("animate__animated", "animate__zoomIn", "animate__delay-1s");
         
         bulbIcon.onclick = () => selectProduct(encodeURIComponent(generic));
       } else {
