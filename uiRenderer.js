@@ -137,7 +137,7 @@ async function selectCustomer(customerName) {
   window.currentCustomer = customerName;
 
   // Sort orders by ascending date if needed
-  orderHistory.sort((a, b) => new Date(a.Date) - new Date(b.Date));
+  orderHistory.sort((a, b) => new Date(b.Date) - new Date(a.Date));
 
   // Render orders (this will apply filtering if the toggle is on)
   updateOrderTable();
