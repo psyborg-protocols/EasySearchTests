@@ -23,6 +23,6 @@
     "columns": ["BT Part #", "Nordson EFD Part #", "Medmix Sulzer Part #"],
     "skipRows": 1,
     "sheetName": "BT Master 2025",
-    "range": "A:A, M:N"
+    "range": "A:A, M:M, N:N"
   }
 ]
