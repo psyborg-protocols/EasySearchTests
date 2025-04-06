@@ -231,15 +231,25 @@ async function selectProduct(encodedPartNumber) {
       
       // Show the bulb icon if a generic replacement is found
       if (generic) {
-        bulbIcon.setAttribute("data-bs-original-title", `Generic replacement found: ${generic}`);
-        bulbIcon.style.display = "inline-block";
-        
-        // Reset animation to re-trigger every time
-        bulbIcon.classList.remove("animate__animated", "animate__zoomIn", "animate__delay-1s");
-        void bulbIcon.offsetWidth;  // Force reflow
-        bulbIcon.classList.add("animate__animated", "animate__zoomIn", "animate__delay-1s");
-        
-        bulbIcon.onclick = () => selectProduct(encodeURIComponent(generic));
+        bulbIcon.style.display = "none"; // Start hidden
+      
+        // Remove previous classes (if any)
+        bulbIcon.classList.remove("animate__animated", "animate__heartBeat", "glow-effect");
+      
+        // Use a delay to trigger bounceIn after 0.5s
+        setTimeout(() => {
+          bulbIcon.setAttribute("data-bs-original-title", `Generic replacement found: ${generic}`);
+          bulbIcon.style.display = "inline-block";
+      
+          // Reflow to ensure animation triggers
+          void bulbIcon.offsetWidth;
+          bulbIcon.classList.add("animate__animated", "animate__heartBeat", "glow-effect");
+      
+          // Remove glow after 2 seconds
+          setTimeout(() => bulbIcon.classList.remove("glow-effect"), 2000);
+      
+          bulbIcon.onclick = () => selectProduct(encodeURIComponent(generic));
+        }, 500);
       } else {
         bulbIcon.style.display = "none";
         bulbIcon.onclick = null;

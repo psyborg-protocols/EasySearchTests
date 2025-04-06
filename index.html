@@ -142,6 +142,22 @@
       backdrop-filter: blur(4px);
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
+    @keyframes softGlow {
+      0% {
+        box-shadow: 0 0 0px rgba(255, 223, 0, 0.0);
+      }
+      50% {
+        box-shadow: 0 0 10px rgba(255, 223, 0, 0.6);
+      }
+      100% {
+        box-shadow: 0 0 0px rgba(255, 223, 0, 0.0);
+      }
+    }
+
+    .glow-effect {
+      animation: softGlow 2s ease-out forwards;
+      border-radius: 50%;
+    }
   </style>
 </head>
 <body>
