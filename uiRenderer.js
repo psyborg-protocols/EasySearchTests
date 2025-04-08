@@ -33,10 +33,13 @@ document.getElementById("customerSearch").addEventListener("input", async (e) =>
   }
 });
 
-// Hide dropdown when clicking outside
+// Hide dropdowns when clicking outside
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.dropdown')) {
+  if (!e.target.closest('#customerSearch') && !e.target.closest('#customerDropdown')) {
     document.getElementById("customerDropdown").classList.remove('show');
+  }
+  if (!e.target.closest('#productSearch') && !e.target.closest('#productDropdown')) {
+    document.getElementById("productDropdown").classList.remove('show');
   }
 });
 
@@ -225,40 +228,45 @@ async function selectProduct(encodedPartNumber) {
       // Update the pricing table with the selected product’s pricing info
       updatePricingTable(partNumber);
 
+      // Retrieve the replacements mapping for this product
       const equivalentsMap = window.dataStore["Equivalents"] || {};
-      const generic = equivalentsMap[partNumber];
+      const replacements = equivalentsMap[partNumber];
       const bulbIcon = document.getElementById("genericBulb");
       const container = document.getElementById("genericContainer");
       const slideText = document.getElementById("genericSlideText");
       
-      if (generic) {
-        // Set the slide-out text with the generic replacement value.
-        slideText.textContent = `Generic Replacement Found: ${generic}`;
+      if (replacements && replacements.length > 0) {
+        // Show the general message instead of a specific replacement
+        slideText.textContent = "Replacements found";
         container.style.display = "inline-block";
         
-        // Ensure the slide text is initially off-screen (to the right) and hidden.
+        // Set initial animation states
         slideText.style.opacity = '0';
         slideText.style.transform = 'translateY(-50%) translateX(20px)';
-        
-        // Force a reflow so that the browser acknowledges the initial state.
-        void slideText.offsetWidth; 
-      
-        // Trigger the slide-out animation to slide leftwards into place.
+        void slideText.offsetWidth; // Force reflow for transition
         setTimeout(() => {
           slideText.style.opacity = '1';
           slideText.style.transform = 'translateY(-50%) translateX(0)';
-        }, 10);  // a short delay ensures the transition fires
-      
-        // Reset and animate the lightbulb icon with bounceIn and glow.
+        }, 10);
+
+        // Animate the lightbulb icon
         bulbIcon.classList.remove("animate__animated", "animate__heartBeat", "glow-effect");
         void bulbIcon.offsetWidth;
         bulbIcon.classList.add("animate__animated", "animate__heartBeat", "glow-effect");
-        
-        // Remove the glow after 2 seconds.
         setTimeout(() => bulbIcon.classList.remove("glow-effect"), 2000);
-      
-        // Set click handler to select the generic product when clicked.
-        bulbIcon.onclick = () => selectProduct(encodeURIComponent(generic));
+        
+        // Set click handler to drop all available replacements into the dropdown
+        bulbIcon.onclick = () => {
+          // Create dropdown items for each replacement
+          dropdown.innerHTML = replacements.map(repl =>
+            `<li>
+              <a class="dropdown-item" href="#"
+                 onclick="event.stopPropagation(); selectProduct('${encodeURIComponent(repl)}');">
+                ${repl}
+              </a>
+            </li>`).join("");
+          dropdown.classList.add("show");
+        };
       } else {
         container.style.display = "none";
         bulbIcon.onclick = null;
@@ -270,9 +278,11 @@ async function selectProduct(encodedPartNumber) {
       }
     } else {
       document.getElementById("productTable").innerHTML = `
-        <tr><td colspan="4" class="text-muted fst-italic">
-          No matching product details found.
-        </td></tr>`;
+        <tr>
+          <td colspan="4" class="text-muted fst-italic">
+            No matching product details found.
+          </td>
+        </tr>`;
       // Also clear the pricing table if no product is found
       document.getElementById("priceTable").innerHTML = "";
     }
@@ -280,6 +290,7 @@ async function selectProduct(encodedPartNumber) {
     console.error(`[selectProduct] Error retrieving product details for "${partNumber}":`, error);
   }
 }
+
 
 document.getElementById("pricingToggle").addEventListener("change", () => {
   if (window.currentProduct) {
