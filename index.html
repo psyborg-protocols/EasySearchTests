@@ -168,23 +168,23 @@
     }
     .generic-slide-text {
       position: absolute;
-      left: 30px;
-      top: 2px;
+      right: calc(100% + 5px); /* positions it just to the left of the container */
+      top: 50%;
+      transform: translateY(-50%) translateX(-20px); /* start further left */
       font-family: 'Playfair Display', serif;
       font-style: italic;
       font-size: 0.9rem;
       color: #6c757d;
       opacity: 0;
-      transform: translateX(-10px);
-      transition: all 0.4s ease;
+      transition: transform 0.4s ease, opacity 0.4s ease;
       white-space: nowrap;
       pointer-events: none;
     }
 
     #genericContainer:hover .generic-slide-text {
       opacity: 1;
-      transform: translateX(0);
-}
+      transform: translateY(-50%) translateX(0); /* slide into place */
+    }
   </style>
 </head>
 <body>

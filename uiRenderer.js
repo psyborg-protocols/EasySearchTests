@@ -233,13 +233,13 @@ async function selectProduct(encodedPartNumber) {
       
       if (generic) {
         // Set the slide-out text with the generic replacement value
-        slideText.textContent = `Generic: ${generic}`;
+        slideText.textContent = `Generic Replacement Found: ${generic}`;
         container.style.display = "inline-block";
       
         // Reset and animate the lightbulb icon with bounceIn and glow
-        bulbIcon.classList.remove("animate__animated", "animate__bounceIn", "glow-effect");
+        bulbIcon.classList.remove("animate__animated", "animate__heartBeat", "glow-effect");
         void bulbIcon.offsetWidth;
-        bulbIcon.classList.add("animate__animated", "animate__bounceIn", "glow-effect");
+        bulbIcon.classList.add("animate__animated", "animate__heartBeat", "glow-effect");
       
         // Remove the glow after 2 seconds
         setTimeout(() => bulbIcon.classList.remove("glow-effect"), 2000);
