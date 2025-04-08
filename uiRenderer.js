@@ -256,7 +256,9 @@ async function selectProduct(encodedPartNumber) {
         setTimeout(() => bulbIcon.classList.remove("glow-effect"), 2000);
         
         // Set click handler to drop all available replacements into the dropdown
-        bulbIcon.onclick = () => {
+        bulbIcon.onclick = (e) => {
+          e.stopPropagation();  // Prevents the document's click event from hiding the dropdown immediately
+          
           // Create dropdown items for each replacement
           dropdown.innerHTML = replacements.map(repl =>
             `<li>
