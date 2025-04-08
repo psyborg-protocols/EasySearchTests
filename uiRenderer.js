@@ -232,19 +232,32 @@ async function selectProduct(encodedPartNumber) {
       const slideText = document.getElementById("genericSlideText");
       
       if (generic) {
-        // Set the slide-out text with the generic replacement value
+        // Set the slide-out text with the generic replacement value.
         slideText.textContent = `Generic Replacement Found: ${generic}`;
         container.style.display = "inline-block";
+        
+        // Ensure the slide text is initially off-screen (to the right) and hidden.
+        slideText.style.opacity = '0';
+        slideText.style.transform = 'translateY(-50%) translateX(20px)';
+        
+        // Force a reflow so that the browser acknowledges the initial state.
+        void slideText.offsetWidth; 
       
-        // Reset and animate the lightbulb icon with bounceIn and glow
+        // Trigger the slide-out animation to slide leftwards into place.
+        setTimeout(() => {
+          slideText.style.opacity = '1';
+          slideText.style.transform = 'translateY(-50%) translateX(0)';
+        }, 10);  // a short delay ensures the transition fires
+      
+        // Reset and animate the lightbulb icon with bounceIn and glow.
         bulbIcon.classList.remove("animate__animated", "animate__heartBeat", "glow-effect");
         void bulbIcon.offsetWidth;
         bulbIcon.classList.add("animate__animated", "animate__heartBeat", "glow-effect");
-      
-        // Remove the glow after 2 seconds
+        
+        // Remove the glow after 2 seconds.
         setTimeout(() => bulbIcon.classList.remove("glow-effect"), 2000);
       
-        // Set click handler to select the generic product when clicked
+        // Set click handler to select the generic product when clicked.
         bulbIcon.onclick = () => selectProduct(encodeURIComponent(generic));
       } else {
         container.style.display = "none";
