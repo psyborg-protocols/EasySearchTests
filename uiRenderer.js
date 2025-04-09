@@ -193,57 +193,118 @@ document.getElementById("productSearch").addEventListener("input", async (e) => 
 });
 
 async function selectProduct(encodedPartNumber) {
-  const partNumber = decodeURIComponent(encodedPartNumber).trim();
+  const partNumber = decodeURIComponent(encodedPartNumber).toString().trim();
   document.getElementById("productSearch").value = partNumber;
+  const dropdown = document.getElementById("productDropdown");
+  dropdown.innerHTML = "";
+  dropdown.classList.remove('show');
 
-  const inventoryData = window.dataStore["DB"]?.dataframe || [];
-  const selectedProduct = inventoryData.find(
-    item => String(item["PartNumber"]).trim() === partNumber
-  );
+  try {
+    const inventoryData = window.dataStore["DB"]?.dataframe || [];
+    const selectedProduct = inventoryData.find(
+      item => String(item["PartNumber"]).trim() === partNumber
+    );
 
-  if (selectedProduct) {
-    const qtyOnHand = parseFloat(selectedProduct["QtyOnHand"]) || 0;
-    const qtyCommitted = parseFloat(selectedProduct["QtyCommited"]) || 0;
-    const qtyAvailable = qtyOnHand - qtyCommitted;
-    const reorderLevel = parseFloat(selectedProduct["ReOrder Level"]) || 0;
-    const qtyOnOrder = parseFloat(selectedProduct["QtyOnOrder"]) || 0;
+    if (selectedProduct) {
+      const qtyOnHand = parseFloat(selectedProduct["QtyOnHand"]) || 0;
+      const qtyCommitted = parseFloat(selectedProduct["QtyCommited"]) || 0;
+      const qtyAvailable = qtyOnHand - qtyCommitted;
+      const reorderLevel = parseFloat(selectedProduct["ReOrder Level"]) || 0;
+      const qtyOnOrder = parseFloat(selectedProduct["QtyOnOrder"]) || 0;
+  
+      let qtyAvailableCellContent = `${qtyAvailable}`;
+  
+      if (qtyAvailable < reorderLevel && qtyOnOrder > 0) {
+        qtyAvailableCellContent += `
+          <i class="fas fa-truck text-secondary ms-2"
+            data-bs-toggle="tooltip" 
+            data-bs-placement="top" 
+            title="Qty On Order: ${qtyOnOrder}">
+          </i>`;
+      }
+  
+      document.getElementById("productTable").innerHTML = `
+        <tr>
+          <td>${selectedProduct["PartNumber"]}</td>
+          <td>${selectedProduct["Description"]}</td>
+          <td>${qtyAvailableCellContent}</td>
+          <td>$${parseFloat(selectedProduct["UnitCost"]).toFixed(2)}</td>
+        </tr>`;
 
-    let qtyAvailableCellContent = `${qtyAvailable}`;
+      // Initialize tooltips (necessary if dynamically adding tooltips)
+      document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        new bootstrap.Tooltip(el);
+      });
 
-    if (qtyAvailable < reorderLevel && qtyOnOrder > 0) {
-      qtyAvailableCellContent += `
-        <i class="fas fa-truck text-secondary ms-2"
-          data-bs-toggle="tooltip" 
-          data-bs-placement="top" 
-          title="Qty On Order: ${qtyOnOrder}">
-        </i>`;
+      // Store the current product for later reference
+      window.currentProduct = partNumber;
+      // Update the pricing table with the selected product’s pricing info
+      updatePricingTable(partNumber);
+
+      // Retrieve the replacements mapping for this product
+      const equivalentsMap = window.dataStore["Equivalents"] || {};
+      const replacements = equivalentsMap[partNumber];
+      const bulbIcon = document.getElementById("genericBulb");
+      const container = document.getElementById("genericContainer");
+      const slideText = document.getElementById("genericSlideText");
+      
+      if (replacements && replacements.length > 0) {
+        // Show the general message instead of a specific replacement
+        slideText.textContent = "Replacements found";
+        container.style.display = "inline-block";
+        
+        // Set initial animation states
+        slideText.style.opacity = '0';
+        slideText.style.transform = 'translateY(-50%) translateX(20px)';
+        void slideText.offsetWidth; // Force reflow for transition
+        setTimeout(() => {
+          slideText.style.opacity = '1';
+          slideText.style.transform = 'translateY(-50%) translateX(0)';
+        }, 10);
+
+        // Animate the lightbulb icon
+        bulbIcon.classList.remove("animate__animated", "animate__heartBeat", "glow-effect");
+        void bulbIcon.offsetWidth;
+        bulbIcon.classList.add("animate__animated", "animate__heartBeat", "glow-effect");
+        setTimeout(() => bulbIcon.classList.remove("glow-effect"), 2000);
+        
+        // Set click handler to drop all available replacements into the dropdown
+        bulbIcon.onclick = (e) => {
+          e.stopPropagation();  // Prevents the document's click event from hiding the dropdown immediately
+          
+          // Create dropdown items for each replacement
+          dropdown.innerHTML = replacements.map(repl =>
+            `<li>
+              <a class="dropdown-item" href="#"
+                 onclick="event.stopPropagation(); selectProduct('${encodeURIComponent(repl)}');">
+                ${repl}
+              </a>
+            </li>`).join("");
+          dropdown.classList.add("show");
+        };
+      } else {
+        container.style.display = "none";
+        bulbIcon.onclick = null;
+      }
+
+      // After selecting a product, if a customer is already selected, update order filtering
+      if (window.currentOrderHistory) {
+        updateOrderTable();
+      }
+    } else {
+      document.getElementById("productTable").innerHTML = `
+        <tr>
+          <td colspan="4" class="text-muted fst-italic">
+            No matching product details found.
+          </td>
+        </tr>`;
+      // Also clear the pricing table if no product is found
+      document.getElementById("priceTable").innerHTML = "";
     }
-
-    document.getElementById("productTable").innerHTML = `
-      <tr>
-        <td>${selectedProduct["PartNumber"]}</td>
-        <td>${selectedProduct["Description"]}</td>
-        <td>${qtyAvailableCellContent}</td>
-        <td>$${parseFloat(selectedProduct["UnitCost"]).toFixed(2)}</td>
-      </tr>`;
-
-    // Initialize tooltips (necessary if dynamically adding tooltips)
-    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-      new bootstrap.Tooltip(el);
-    });
-
-    updatePricingTable(partNumber);
-    window.currentProduct = partNumber;
-    if (window.currentOrderHistory) {
-      updateOrderTable();
-    }
-  } else {
-    document.getElementById("productTable").innerHTML = `
-      <tr><td colspan="4" class="text-muted fst-italic">No matching product details found.</td></tr>`;
-    document.getElementById("priceTable").innerHTML = "";
+  } catch (error) {
+    console.error(`[selectProduct] Error retrieving product details for "${partNumber}":`, error);
   }
 }
-
 
 
 document.getElementById("pricingToggle").addEventListener("change", () => {
