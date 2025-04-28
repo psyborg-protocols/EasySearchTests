@@ -48,7 +48,7 @@
   {
     "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
     "filenamePrefix": "Quote Maker and Calculator",
-    "columns": ["Product", "Note", "New product #", "Units per Box", "New 2022 Cost", "BLANK", "USER FB", "USER FB PROFIT", "USER HB", "USER OLD LTB", "USER LTB", "BLANK2" "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
+    "columns": ["Product", "Note", "New product #", "Units per Box", "New 2022 Cost", "BLANK", "USER FB", "USER FB PROFIT", "USER HB", "USER OLD LTB", "USER LTB", "BLANK2", "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
     "skipRows": 6,
     "sheetName": "Sulzer Mixpac Dispensers",
     "dataKey": "Pricing"
