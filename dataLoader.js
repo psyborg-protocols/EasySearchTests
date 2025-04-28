@@ -88,10 +88,9 @@ async function downloadExcelFile(downloadUrl) {
  * @param {number} skipRows - Number of rows to skip at the start of the sheet.
  * @param {Array} columns - Optional array of column names to use as headers.
  * @param {string} sheetName - Optional name of the sheet to parse.
- * @param {string} rangeOverride - Optional range to override the default parsing range.
  * @returns {Array[]} - The parsed data (dataframe).
  */
-function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = null, rangeOverride = null) {
+function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = null) {
   try {
     if (!arrayBuffer || arrayBuffer.byteLength === 0) {
       throw new Error("Empty or invalid ArrayBuffer provided");
@@ -105,7 +104,7 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       cellStyles: false
     });
 
-    // Determine which sheet to use
+    // Determine sheet
     const sheetToUse = sheetName && workbook.Sheets[sheetName]
       ? sheetName
       : workbook.SheetNames[0];
@@ -116,22 +115,29 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       throw new Error(`Sheet "${sheetToUse}" not found.`);
     }
 
-    // Set up options for SheetJS
-    const options = {
-      header: columns || 1,
+    // Parse sheet using header:1 to get raw arrays
+    let parsedData = XLSX.utils.sheet_to_json(worksheet, {
+      header: 1,
       defval: "",
       blankrows: false
-    };
+    });
 
-    if (rangeOverride) {
-      options.range = rangeOverride;
-    } else if (skipRows > 0) {
-      options.range = skipRows;
+    // Slice to skip the initial rows
+    parsedData = parsedData.slice(skipRows);
+
+    if (columns && Array.isArray(columns)) {
+      // Align each row explicitly to the provided columns
+      return parsedData.map(row => {
+        const rowObj = {};
+        columns.forEach((col, idx) => {
+          rowObj[col] = row[idx] !== undefined ? row[idx] : "";
+        });
+        return rowObj;
+      });
     }
 
-    const parsedData = XLSX.utils.sheet_to_json(worksheet, options);
-    console.debug("[parseExcelData] Parsed data:", parsedData);
     return parsedData;
+
   } catch (error) {
     console.error("Error parsing Excel data:", error);
     throw error;
@@ -207,7 +213,7 @@ async function processFiles() {
         
             const slim = {};
             KEEP.forEach(k => {
-              if (r[k] !== undefined && r[k] !== "") slim[k] = r[k];
+              if (r[k] !== undefined && r[k] !== "") slim[k] = cleanPrice(r[k]);
             });
             pricingBuckets.push(slim);
           });
@@ -394,6 +400,12 @@ function filterOutValues(data, column, disallowedValues) {
   });
 }
 
+function cleanPrice(value) {
+  if (typeof value === 'string') {
+    return parseFloat(value.replace(/[^0-9.-]+/g,"")) || 0;
+  }
+  return Number(value) || 0;
+}
 
 // Global storage for parsed data
 window.dataStore = {}; 
