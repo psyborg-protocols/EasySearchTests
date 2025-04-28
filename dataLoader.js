@@ -192,7 +192,7 @@ async function processFiles() {
           const raw = parseExcelData(
                        buf,
                        item.skipRows,
-                       item.columns,     // still forcing headers – blanks/dupes now fixed
+                       item.columns,
                        item.sheetName);
         
           /* Keep only the columns the UI needs */

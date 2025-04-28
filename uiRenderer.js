@@ -1,3 +1,16 @@
+const moneyFmt = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,   // always “.00”
+  maximumFractionDigits: 2
+});
+
+function fmtPrice(value) {
+  // Guard against undefined / blank cells
+  const num = Number(value);
+  return isFinite(num) ? moneyFmt.format(num) : "-";
+}
+
 // Global variable to store the current customer's full order history
 window.currentOrderHistory = null;
 
@@ -59,9 +72,9 @@ function updatePricingTable(partNumber) {
     tableHTML = `
     <tr>
       <td>${pricingEntry["Units per Box"]}</td>
-      <td>$${priceFB}</td>
-      <td>$${priceHB}</td>
-      <td>$${priceLTB}</td>
+      <td>$${fmtPrice(priceFB)}</td>
+      <td>$${fmtPrice(priceHB)}</td>
+      <td>$${fmtPrice(priceLTB)}</td>
     </tr>
     `;
   } else {
