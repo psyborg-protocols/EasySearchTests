@@ -203,7 +203,7 @@ async function processFiles() {
         
             const slim = {};
             KEEP.forEach(k => {
-              if (r[k] !== undefined && r[k] !== "") slim[k] = cleanPrice(r[k]);
+              if (r[k] !== undefined && r[k] !== "") slim[k] = r[k];
             });
             pricingBuckets.push(slim);
           });
@@ -388,13 +388,6 @@ function filterOutValues(data, column, disallowedValues) {
     if (value == null || String(value).trim() === "") return false;
     return !disallowedValues.includes(String(value).trim());
   });
-}
-
-function cleanPrice(value) {
-  if (typeof value === 'string') {
-    return parseFloat(value.replace(/[^0-9.-]+/g,"")) || 0;
-  }
-  return Number(value) || 0;
 }
 
 // Global storage for parsed data
