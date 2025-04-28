@@ -32,7 +32,7 @@
   {
     "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
     "filenamePrefix": "Quote Maker and Calculator",
-    "columns": ["Product", "Note", "Units per Box", "2021 FB", "2022 FB UNIT", "2022 FB TOTAL", "BLANK", "USER FB", "USER FB PROFIT", "USER HB", "USER LTB", "USER LTB PROFIT", "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
+    "columns": ["Product", "Note", "Units per Box", "2021 FB", "2022 FB UNIT", "2022 FB TOTAL", "BLANK", "USER FB", "USER FB PROFIT", "USER HB", "USER LTB", "USER LTB PROFIT", "BLANK", "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
     "skipRows": 3,
     "sheetName": "Sulzer Cartridges",
     "dataKey": "Pricing"	
@@ -40,7 +40,7 @@
   {
     "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
     "filenamePrefix": "Quote Maker and Calculator",
-    "columns": ["Product", "Note", "Units per Box", "2022 Cost", "New 2022-2023 Unit", "New 2022-2023", "USER FB", "USER FB PROFIT", "USER HB", "USER LTB", "USER LTB PROFIT", "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
+    "columns": ["Product", "Note", "Units per Box", "2022 Cost", "New 2022-2023 Unit", "New 2022-2023", "BLANK", "USER FB", "USER FB PROFIT", "USER HB", "USER LTB", "USER LTB PROFIT", "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
     "skipRows": 4,
     "sheetName": "Sulzer Mixers",
     "dataKey": "Pricing"	
