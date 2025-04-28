@@ -32,7 +32,7 @@
   {
     "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
     "filenamePrefix": "Quote Maker and Calculator",
-    "columns": ["Product", "Note", "Units per Box", "2021 FB", "2022 FB UNIT", "2022 FB TOTAL", "USER FB", "USER FB PROFIT", "USER HB", "USER LTB", "USER LTB PROFIT", "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
+    "columns": ["Product", "Note", "Units per Box", "2021 FB", "2022 FB UNIT", "2022 FB TOTAL", "BLANK", "USER FB", "USER FB PROFIT", "USER HB", "USER LTB", "USER LTB PROFIT", "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
     "skipRows": 3,
     "sheetName": "Sulzer Cartridges",
     "dataKey": "Pricing"	
