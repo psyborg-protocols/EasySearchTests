@@ -187,12 +187,34 @@ async function processFiles() {
         const md = mdResp.value[0];
 
         if (isPricing) {
-          /* ── 2) always re-download the price sheet ── */
+          // ── 2) always re-download the price sheet ──
           const buf = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
-          const df  = parseExcelData(buf, item.skipRows, item.columns, item.sheetName);
-          pricingBuckets.push(...df);
+          const raw = parseExcelData(
+                       buf,
+                       item.skipRows,
+                       item.columns,     // still forcing headers – blanks/dupes now fixed
+                       item.sheetName);
+        
+          /* Keep only the columns the UI needs */
+          const KEEP = [
+            "Product", "Units per Box",
+            "USER FB", "USER HB", "USER LTB",
+            "DISTR FB", "DISTR HB", "DISTR LTB"
+          ];
+        
+          raw.forEach(r => {
+            if (!r["Product"]) return;          // ignore spacer / total lines
+        
+            const slim = {};
+            KEEP.forEach(k => {
+              if (r[k] !== undefined && r[k] !== "") slim[k] = r[k];
+            });
+            pricingBuckets.push(slim);
+          });
+        
+          // Record last-modified stamp for later caching
           pricingMeta[md.id] = md.lastModifiedDateTime;
-          continue;                     // we’ll write once after the loop
+          continue;                             // write merged pricing after the loop
         }
 
         /* ── 3) non-pricing sheets: download only if changed ── */
@@ -233,31 +255,14 @@ async function processFiles() {
        4) after loop: commit merged pricing
     ──────────────────────────── */
     if (pricingBuckets.length) {
-
-      // (a)  Keep only the canonical columns (belt-and-suspenders)
-      const KEEP = [
-        "Product", "Units per Box",
-        "USER FB", "USER HB", "USER LTB",
-        "DISTR FB", "DISTR HB", "DISTR LTB"
-      ];
-    
-      const cleaned = pricingBuckets.map(r => {
-        const o = {};
-        KEEP.forEach(k => { if (r[k] !== undefined && r[k] !== "") o[k] = r[k]; });
-        return o;
-      });
-    
-      // (b)  De-dup by Product – last one in wins
+      // dedupe on Product (last-in wins)
       const uniq = {};
-      cleaned.forEach(r => { if (r.Product) uniq[r.Product] = r; });
-    
+      pricingBuckets.forEach(r => uniq[r.Product] = r);
       const merged = Object.values(uniq);
-    
-      // (c)  Persist
+
       const stored = { dataframe: merged, metadata: pricingMeta };
       window.dataStore["Pricing"] = stored;
       await idbUtil.setDataset("PricingData", stored);
-    
       console.log(`[Pricing] refreshed – ${merged.length} rows merged from all price sheets.`);
     }
 
