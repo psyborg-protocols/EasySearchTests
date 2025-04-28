@@ -165,84 +165,92 @@ async function processFiles() {
       return;
     }
 
+    /* ────────────────────────────
+       buckets for the pricing merge
+    ──────────────────────────── */
+    const pricingBuckets = [];          // rows from all price sheets
+    const pricingMeta    = {};          // { driveItemId: lastModified }
+
     for (const item of config) {
       try {
-        const { directory, filenamePrefix } = item;
-        const storageKey = (filenamePrefix === "DB") ? "DBData"
-                : (filenamePrefix === "Sales") ? "SalesData"
-                : (filenamePrefix === "Pricing") ? "PricingData"
-                : (filenamePrefix === "Quote Maker and Calculator") ? "EquivalentsData"
-                : null;
-        if (!storageKey) continue;
+        const { directory, filenamePrefix, dataKey } = item;
+        const key        = dataKey || filenamePrefix;
+        const storageKey = `${key}Data`;
+        const isPricing  = key === "Pricing" || /^Prices\s\d+$/i.test(key);
 
-        // Fetch latest metadata from SharePoint
-        const metadataResponse = await fetchLatestFileMetadata(directory, filenamePrefix, token);
-        if (!metadataResponse.value || metadataResponse.value.length === 0) {
+        /* ── 1) always fetch latest metadata ── */
+        const mdResp = await fetchLatestFileMetadata(directory, filenamePrefix, token);
+        if (!mdResp.value || mdResp.value.length === 0) {
           console.warn(`No matching file found in '${directory}' for prefix '${filenamePrefix}'`);
           continue;
         }
-        const latestMetadata = metadataResponse.value[0];
+        const md = mdResp.value[0];
 
-        // Check the cache
-        const cachedData = await idbUtil.getDataset(storageKey);
-        if (cachedData &&
-            cachedData.metadata &&
-            cachedData.metadata.lastModifiedDateTime === latestMetadata.lastModifiedDateTime) {
-          console.log(`Cache for ${filenamePrefix} is up-to-date. Using cached data.`);
-          window.dataStore[filenamePrefix] = cachedData;
-          continue; // Skip re-downloading
+        if (isPricing) {
+          /* ── 2) always re-download the price sheet ── */
+          const buf = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
+          const df  = parseExcelData(buf, item.skipRows, item.columns, item.sheetName);
+          pricingBuckets.push(...df);
+          pricingMeta[md.id] = md.lastModifiedDateTime;
+          continue;                     // we’ll write once after the loop
         }
 
-        // Download and process the file if cache is missing or outdated
-        const downloadUrl = latestMetadata['@microsoft.graph.downloadUrl'];
-        if (!downloadUrl) {
-          console.error(`Download URL not found for ${latestMetadata.name}`);
-          continue;
-        }
-        const excelBuffer = await downloadExcelFile(downloadUrl);
-        const dataframe = parseExcelData(excelBuffer, item.skipRows, item.columns, item.sheetName, item.range);
-        if (!dataframe || dataframe.length < 2) {
-          console.warn(`Invalid or empty dataframe for ${latestMetadata.name}`);
-          continue;
+        /* ── 3) non-pricing sheets: download only if changed ── */
+        const cached = await idbUtil.getDataset(storageKey);
+        if (cached?.metadata?.lastModifiedDateTime === md.lastModifiedDateTime) {
+          window.dataStore[key] = cached;
+          continue;                   // cache up-to-date, skip download
         }
 
-        let processedData = dataframe;
+        const buf       = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
+        const dataframe = parseExcelData(buf, item.skipRows, item.columns, item.sheetName);
+
+        let processed = dataframe;
         if (filenamePrefix === "Sales") {
-          processedData = fillDownColumn(dataframe, "Customer");
-          processedData = filterOutValues(processedData, "Product_Service", DISALLOWED_PRODUCTS);
+          processed = fillDownColumn(dataframe, "Customer");
+          processed = filterOutValues(processed, "Product_Service", DISALLOWED_PRODUCTS);
         }
 
-        if (filenamePrefix === "Quote Maker and Calculator") {
-          const equivalentsMap = normalizeEquivalents(dataframe);        
-          // Build the object containing both data and metadata
-          const storedData = { dataframe: equivalentsMap, metadata: latestMetadata };
-        
-          // Save to window.dataStore
-          window.dataStore["Equivalents"] = equivalentsMap;
-        
-          // Cache it in IndexedDB
-          await idbUtil.setDataset(storageKey, storedData);
-          console.log("[Equivalents] Loaded, normalized, and cached brand → generic mapping.");
-          continue;  // Now we break out after caching
+        if (key === "Equivalents") {
+          const map = normalizeEquivalents(processed);
+          const stored = { dataframe: map, metadata: md };
+          window.dataStore["Equivalents"] = map;
+          await idbUtil.setDataset(storageKey, stored);
+          continue;
         }
 
-        // Build the object containing both data and metadata
-        const storedData = { dataframe: processedData, metadata: latestMetadata };
-        window.dataStore[filenamePrefix] = storedData;
-        await idbUtil.setDataset(storageKey, storedData);
-        console.log(`Successfully stored ${latestMetadata.name} in IndexedDB under key ${storageKey}.`);
+        const stored = { dataframe: processed, metadata: md };
+        window.dataStore[key] = stored;
+        await idbUtil.setDataset(storageKey, stored);
+        console.log(`Stored ${md.name} in IndexedDB under key ${storageKey}.`);
 
-      } catch (error) {
-        console.error("Error processing file:", error);
+      } catch (err) {
+        console.error("Error processing file:", err);
       }
     }
-  } catch (error) {
-    console.error("Error processing files:", error);
+
+    /* ────────────────────────────
+       4) after loop: commit merged pricing
+    ──────────────────────────── */
+    if (pricingBuckets.length) {
+      // dedupe on Product (last-in wins)
+      const uniq = {};
+      pricingBuckets.forEach(r => uniq[r.Product] = r);
+      const merged = Object.values(uniq);
+
+      const stored = { dataframe: merged, metadata: pricingMeta };
+      window.dataStore["Pricing"] = stored;
+      await idbUtil.setDataset("PricingData", stored);
+      console.log(`[Pricing] refreshed – ${merged.length} rows merged from all price sheets.`);
+    }
+
+  } catch (err) {
+    console.error("Error processing files:", err);
   }
 }
 
 /**
- * Normalizes the replacements mapping from the "Quote Maker and Calculator" sheet.
+ * Normalizes the replacements mapping from the "Equivalents (BT Master 2025)" sheet.
  * For each row, it aggregates:
  *   - The BM part (if it exists) as the first element.
  *   - The equivalent parts from other columns (as an array of 0, one, or more parts).

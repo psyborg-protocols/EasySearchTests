@@ -52,13 +52,13 @@ function updatePricingTable(partNumber) {
   let tableHTML = "";
 
   if (pricingEntry) {
-    const priceFB = isB2C ? pricingEntry["DISTR_FB"] : pricingEntry["USER_FB"];
-    const priceHB = isB2C ? pricingEntry["DISTR_HB"] : pricingEntry["USER_HB"];
-    const priceLTB = isB2C ? pricingEntry["DISTR_LTB"] : pricingEntry["USER_LTB"];
+    const priceFB = isB2C ? pricingEntry["DISTR FB"] : pricingEntry["USER FB"];
+    const priceHB = isB2C ? pricingEntry["DISTR HB"] : pricingEntry["USER HB"];
+    const priceLTB = isB2C ? pricingEntry["DISTR LTB"] : pricingEntry["USER LTB"];
     
     tableHTML = `
     <tr>
-      <td>${pricingEntry["UnitsPerBox"]}</td>
+      <td>${pricingEntry["Units per Box"]}</td>
       <td>$${priceFB}</td>
       <td>$${priceHB}</td>
       <td>$${priceLTB}</td>
@@ -212,6 +212,7 @@ async function selectProduct(encodedPartNumber) {
       const reorderLevel = parseFloat(selectedProduct["ReOrder Level"]) || 0;
       const qtyOnOrder = parseFloat(selectedProduct["QtyOnOrder"]) || 0;
   
+      console.debug(`[selectProduct] Qty Available: ${qtyAvailable}, Reorder Level: ${reorderLevel}, Qty On Order: ${qtyOnOrder}`);
       let qtyAvailableCellContent = `${qtyAvailable}`;
   
       if (qtyAvailable < reorderLevel && qtyOnOrder > 0) {

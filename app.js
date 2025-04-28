@@ -2,6 +2,18 @@
 document.addEventListener('DOMContentLoaded', async function () {
   initializeAuth();
 
+  // If we already have a valid token, fetch fresh data immediately
+  try {
+    const token = await getAccessToken();      // <-- assumes this returns null if not signed-in
+    if (token) {
+      console.log("[DOMContentLoaded] Existing session, fetching fresh datasets...");
+      await dataLoader.processFiles();         // <-- your wholesale fetch & cache routine :contentReference[oaicite:0]{index=0}&#8203;:contentReference[oaicite:1]{index=1}
+      console.log("[DOMContentLoaded] Fresh data loaded.");
+    }
+  } catch (authErr) {
+    console.warn("[DOMContentLoaded] No valid session yet:", authErr);
+  }
+
   try {
     // Retrieve cached datasets from IndexedDB
     const cachedDB = await idbUtil.getDataset("DBData");
