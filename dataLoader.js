@@ -233,14 +233,31 @@ async function processFiles() {
        4) after loop: commit merged pricing
     ──────────────────────────── */
     if (pricingBuckets.length) {
-      // dedupe on Product (last-in wins)
-      const uniq = {};
-      pricingBuckets.forEach(r => uniq[r.Product] = r);
-      const merged = Object.values(uniq);
 
+      // (a)  Keep only the canonical columns (belt-and-suspenders)
+      const KEEP = [
+        "Product", "Units per Box",
+        "USER FB", "USER HB", "USER LTB",
+        "DISTR FB", "DISTR HB", "DISTR LTB"
+      ];
+    
+      const cleaned = pricingBuckets.map(r => {
+        const o = {};
+        KEEP.forEach(k => { if (r[k] !== undefined && r[k] !== "") o[k] = r[k]; });
+        return o;
+      });
+    
+      // (b)  De-dup by Product – last one in wins
+      const uniq = {};
+      cleaned.forEach(r => { if (r.Product) uniq[r.Product] = r; });
+    
+      const merged = Object.values(uniq);
+    
+      // (c)  Persist
       const stored = { dataframe: merged, metadata: pricingMeta };
       window.dataStore["Pricing"] = stored;
       await idbUtil.setDataset("PricingData", stored);
+    
       console.log(`[Pricing] refreshed – ${merged.length} rows merged from all price sheets.`);
     }
 
@@ -309,8 +326,6 @@ async function getOrderHistory(customerName) {
 
 // fuzzy search for products - this will be used to populate the productTable
 async function getMatchingProducts(query) {
-  console.log(`[getMatchingProducts] Query initiated: "${query}"`);
-
   const inventoryData = window.dataStore["DB"]?.dataframe || [];
   
   if (inventoryData.length === 0) {
@@ -328,9 +343,6 @@ async function getMatchingProducts(query) {
   const results = fuse.search(query);
 
   console.log(`[getMatchingProducts] Search results count: ${results.length}`);
-  results.forEach((result, index) => {
-    console.log(`[getMatchingProducts] Result #${index + 1}:`, result.item);
-  });
 
   return results.map(result => {
     const item = result.item;
