@@ -104,7 +104,7 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       cellStyles: false
     });
 
-    // Determine sheet
+    // Determine the sheet to use
     const sheetToUse = sheetName && workbook.Sheets[sheetName]
       ? sheetName
       : workbook.SheetNames[0];
@@ -115,28 +115,31 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       throw new Error(`Sheet "${sheetToUse}" not found.`);
     }
 
-    // Parse sheet using header:1 to get raw arrays
-    let parsedData = XLSX.utils.sheet_to_json(worksheet, {
-      header: 1,
+    // Parse raw data as array-of-arrays
+    const rawData = XLSX.utils.sheet_to_json(worksheet, {
+      header: 1,  // raw array format
       defval: "",
       blankrows: false
     });
 
-    // Slice to skip the initial rows
-    parsedData = parsedData.slice(skipRows);
+    // Skip the desired number of rows
+    const slicedData = rawData.slice(skipRows);
 
     if (columns && Array.isArray(columns)) {
-      // Align each row explicitly to the provided columns
-      return parsedData.map(row => {
-        const rowObj = {};
-        columns.forEach((col, idx) => {
-          rowObj[col] = row[idx] !== undefined ? row[idx] : "";
+      // Align data to your custom column headers
+      const parsedData = slicedData.map(row => {
+        const rowData = {};
+        columns.forEach((col, index) => {
+          rowData[col] = row[index] !== undefined ? row[index] : "";
         });
-        return rowObj;
+        return rowData;
       });
+      console.debug("[parseExcelData] Parsed data with custom columns:", parsedData);
+      return parsedData;
+    } else {
+      console.debug("[parseExcelData] Parsed data without custom columns:", slicedData);
+      return slicedData;
     }
-
-    return parsedData;
 
   } catch (error) {
     console.error("Error parsing Excel data:", error);
