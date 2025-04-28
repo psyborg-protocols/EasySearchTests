@@ -104,7 +104,7 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       cellStyles: false
     });
 
-    // Determine the sheet to use
+    // Pick the right sheet
     const sheetToUse = sheetName && workbook.Sheets[sheetName]
       ? sheetName
       : workbook.SheetNames[0];
@@ -115,37 +115,39 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       throw new Error(`Sheet "${sheetToUse}" not found.`);
     }
 
-    // Parse raw data as array-of-arrays
-    const rawData = XLSX.utils.sheet_to_json(worksheet, {
-      header: 1,  // raw array format
-      defval: "",
-      blankrows: false
-    });
-
-    // Skip the desired number of rows
-    const slicedData = rawData.slice(skipRows);
-
-    if (columns && Array.isArray(columns)) {
-      // Align data to your custom column headers
-      const parsedData = slicedData.map(row => {
-        const rowData = {};
-        columns.forEach((col, index) => {
-          rowData[col] = row[index] !== undefined ? row[index] : "";
-        });
-        return rowData;
-      });
-      console.debug("[parseExcelData] Parsed data with custom columns:", parsedData);
-      return parsedData;
-    } else {
-      console.debug("[parseExcelData] Parsed data without custom columns:", slicedData);
-      return slicedData;
+    // Adjust the range manually
+    const ref = worksheet['!ref'];  // e.g., "A1:N400"
+    if (!ref) {
+      throw new Error("No reference range found in worksheet.");
     }
+
+    const [start, end] = ref.split(":");
+    const startCol = start.replace(/[0-9]/g, ''); // "A"
+    const endCol = end.replace(/[0-9]/g, '');     // "N"
+    const endRow = parseInt(end.replace(/[A-Z]/gi, ''), 10); // 400
+
+    // Define a new range, starting from (skipRows + 1) because rows are 1-indexed in Excel
+    const newRange = `${startCol}${skipRows + 1}:${endCol}${endRow}`;
+    console.debug("[parseExcelData] New range:", newRange);
+
+    const options = {
+      header: columns || 1,
+      defval: "",
+      blankrows: false,
+      range: newRange
+    };
+
+    const parsedData = XLSX.utils.sheet_to_json(worksheet, options);
+
+    console.debug("[parseExcelData] Parsed rows:", parsedData.length);
+    return parsedData;
 
   } catch (error) {
     console.error("Error parsing Excel data:", error);
     throw error;
   }
 }
+
 
 
 /**
