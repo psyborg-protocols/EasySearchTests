@@ -104,7 +104,7 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       cellStyles: false
     });
 
-    // Pick the right sheet
+    // Determine which sheet to use
     const sheetToUse = sheetName && workbook.Sheets[sheetName]
       ? sheetName
       : workbook.SheetNames[0];
@@ -115,33 +115,27 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
       throw new Error(`Sheet "${sheetToUse}" not found.`);
     }
 
-    // Adjust the range manually
-    const ref = worksheet['!ref'];  // e.g., "A1:N400"
-    if (!ref) {
-      throw new Error("No reference range found in worksheet.");
-    }
-
-    const [start, end] = ref.split(":");
-    const startCol = start.replace(/[0-9]/g, ''); // "A"
-    const endCol = end.replace(/[0-9]/g, '');     // "N"
-    const endRow = parseInt(end.replace(/[A-Z]/gi, ''), 10); // 400
-
-    // Define a new range, starting from (skipRows + 1) because rows are 1-indexed in Excel
-    const newRange = `${startCol}${skipRows + 1}:${endCol}${endRow}`;
-    console.debug("[parseExcelData] New range:", newRange);
-
+    // Set up options for SheetJS
     const options = {
-      header: columns || 1,
-      defval: "",
-      blankrows: false,
-      range: newRange
+      header: columns || 1,    // Use your custom header array if provided
+      defval: "",              // Default empty cells to ""
+      blankrows: false,        // Skip completely blank rows
+      raw: false               // Automatically clean numbers like "$166.99" to 166.99
     };
+
+    if (skipRows > 0) {
+      options.range = skipRows;   // Start reading after skipping N rows
+    }
 
     const parsedData = XLSX.utils.sheet_to_json(worksheet, options);
 
-    console.debug("[parseExcelData] Parsed rows:", parsedData.length);
-    return parsedData;
+    console.debug(`[parseExcelData] Parsed ${parsedData.length} rows from sheet ${sheetToUse}.`);
+    if (parsedData.length > 0) {
+      console.debug("[parseExcelData] First row keys:", Object.keys(parsedData[0]));
+      console.debug("[parseExcelData] First row values:", parsedData[0]);
+    }
 
+    return parsedData;
   } catch (error) {
     console.error("Error parsing Excel data:", error);
     throw error;
