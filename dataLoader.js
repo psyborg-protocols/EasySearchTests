@@ -81,65 +81,56 @@ async function downloadExcelFile(downloadUrl) {
 }
 
 /**
- * Parses the Excel file ArrayBuffer using SheetJS (XLSX) and returns the data as an array-of-arrays.
- * The first row is assumed to be the header.
+ * Parse an Excel sheet and return an array of row-objects.
  *
- * @param {ArrayBuffer} arrayBuffer - The ArrayBuffer of the Excel file.
- * @param {number} skipRows - Number of rows to skip at the start of the sheet.
- * @param {Array} columns - Optional array of column names to use as headers.
- * @param {string} sheetName - Optional name of the sheet to parse.
- * @returns {Array[]} - The parsed data (dataframe).
+ * @param {ArrayBuffer} arrayBuffer – raw XLSX file data
+ * @param {number}      skipRows    – how many physical rows to skip
+ * @param {string[]}    columns     – custom header array (optional)
+ * @param {string}      sheetName   – sheet to use (optional)
+ * @returns {Object[]}              – parsed rows keyed by your columns
  */
-function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = null) {
-  try {
-    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-      throw new Error("Empty or invalid ArrayBuffer provided");
-    }
+function parseExcelData(arrayBuffer,
+  skipRows   = 0,
+  columns    = null,
+  sheetName  = null) {
+try {
+if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+throw new Error("Empty or invalid ArrayBuffer provided");
+}
 
-    const data = new Uint8Array(arrayBuffer);
-    const workbook = XLSX.read(data, {
-      type: 'array',
-      cellDates: true,
-      cellFormula: false,
-      cellStyles: false
-    });
+/* ── 1. read workbook ──────────────────────────────────────────────*/
+const wb = XLSX.read(new Uint8Array(arrayBuffer), {
+type       : "array",
+cellDates  : true,
+cellFormula: false,
+cellStyles : false
+});
 
-    // Determine which sheet to use
-    const sheetToUse = sheetName && workbook.Sheets[sheetName]
-      ? sheetName
-      : workbook.SheetNames[0];
+/* ── 2. pick sheet ────────────────────────────────────────────────*/
+const sheetToUse =
+sheetName && wb.Sheets[sheetName] ? sheetName : wb.SheetNames[0];
+const ws = wb.Sheets[sheetToUse];
+if (!ws) throw new Error(`Sheet "${sheetToUse}" not found.`);
 
-    console.debug("[parseExcelData] Using sheet:", sheetToUse);
-    const worksheet = workbook.Sheets[sheetToUse];
-    if (!worksheet) {
-      throw new Error(`Sheet "${sheetToUse}" not found.`);
-    }
+/* ── 3. configure SheetJS options ─────────────────────────────────*/
+const opts = {
+header   : columns || 1,   // if array → use as virtual header row
+defval   : "",
+blankrows: false,
+raw      : false           // "$166.99" → 166.99  (auto-numeric)
+};
+if (skipRows > 0) opts.range = skipRows; // numeric index is valid
 
-    // Set up options for SheetJS
-    const options = {
-      header: columns || 1,    // Use your custom header array if provided
-      defval: "",              // Default empty cells to ""
-      blankrows: false,        // Skip completely blank rows
-      raw: false               // Automatically clean numbers like "$166.99" to 166.99
-    };
+/* ── 4. parse ─────────────────────────────────────────────────────*/
+const parsed = XLSX.utils.sheet_to_json(ws, opts);
+console.debug(
+`[parseExcelData] ${sheetToUse}: ${parsed.length} rows parsed.`);
+return parsed;
 
-    if (skipRows > 0) {
-      options.range = skipRows;   // Start reading after skipping N rows
-    }
-
-    const parsedData = XLSX.utils.sheet_to_json(worksheet, options);
-
-    console.debug(`[parseExcelData] Parsed ${parsedData.length} rows from sheet ${sheetToUse}.`);
-    if (parsedData.length > 0) {
-      console.debug("[parseExcelData] First row keys:", Object.keys(parsedData[0]));
-      console.debug("[parseExcelData] First row values:", parsedData[0]);
-    }
-
-    return parsedData;
-  } catch (error) {
-    console.error("Error parsing Excel data:", error);
-    throw error;
-  }
+} catch (err) {
+console.error("Error parsing Excel data:", err);
+throw err;
+}
 }
 
 
