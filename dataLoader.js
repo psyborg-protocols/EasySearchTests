@@ -360,7 +360,6 @@ async function getMatchingProducts(query) {
       QtyAvailable: qtyAvailable,
       UnitCost: parseFloat(item["UnitCost"]).toFixed(2)
     };
-    console.log(`[getMatchingProducts] Formatted item:`, formattedItem);
     return formattedItem;
   });
 }
