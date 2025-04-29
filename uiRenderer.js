@@ -242,7 +242,7 @@ async function selectProduct(encodedPartNumber) {
           <td>${selectedProduct["PartNumber"]}</td>
           <td>${selectedProduct["Description"]}</td>
           <td>${qtyAvailableCellContent}</td>
-          <td>$${selectedProduct["UnitCost"]}</td>
+          <td>${selectedProduct["UnitCost"]}</td>
         </tr>`;
 
       // Initialize tooltips (necessary if dynamically adding tooltips)
