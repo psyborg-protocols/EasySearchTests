@@ -24,7 +24,7 @@
   {
     "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
     "filenamePrefix": "Quote Maker and Calculator",
-    "columns": ["Brand",	"Sub for",	"Product",	"Units per Box", "Unit Cost",	"FB Cost",	"USER FB",	"USER HB", "USER LTB",	"DISTR FB",	"DISTR HB", "DISTR LTB"],
+    "columns": ["Brand",	"Sub for",	"Product",	"Units per Box", "Unit Cost",	"FB Cost", "Blank",	"USER FB", "Blank2",	"USER HB", "USER LTB", "Blank3", "Blank4",	"DISTR FB", "Blank5",	"DISTR HB", "DISTR LTB"],
     "skipRows": 1,
     "sheetName": "BM Selling Prices",
     "dataKey": "Pricing"	
