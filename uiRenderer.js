@@ -72,9 +72,9 @@ function updatePricingTable(partNumber) {
     tableHTML = `
     <tr>
       <td>${pricingEntry["Units per Box"]}</td>
-      <td>$${fmtPrice(priceFB)}</td>
-      <td>$${fmtPrice(priceHB)}</td>
-      <td>$${fmtPrice(priceLTB)}</td>
+      <td>${fmtPrice(priceFB)}</td>
+      <td>${fmtPrice(priceHB)}</td>
+      <td>${fmtPrice(priceLTB)}</td>
     </tr>
     `;
   } else {
