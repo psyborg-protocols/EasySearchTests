@@ -71,14 +71,13 @@ function updatePricingTable(partNumber) {
     
     tableHTML = `
     <tr>
-      <td>${pricingEntry["Units per Box"]}</td>
       <td>${fmtPrice(priceFB)}</td>
       <td>${fmtPrice(priceHB)}</td>
       <td>${fmtPrice(priceLTB)}</td>
     </tr>
     `;
   } else {
-    tableHTML = `<tr><td colspan="4" class="text-muted fst-italic">No pricing data available for product ${partNumber}</td></tr>`;
+    tableHTML = `<tr><td colspan="3" class="text-muted fst-italic">No pricing data available for product ${partNumber}</td></tr>`;
   }
   
   document.getElementById("priceTable").innerHTML = tableHTML;
@@ -241,6 +240,7 @@ async function selectProduct(encodedPartNumber) {
           <td>${selectedProduct["Description"]}</td>
           <td>${qtyAvailableCellContent}</td>
           <td>${selectedProduct["UnitCost"]}</td>
+          <td>${selectedProduct["FullBoxQty"] || '-'}</td>
         </tr>`;
 
       // Initialize tooltips (necessary if dynamically adding tooltips)
@@ -306,7 +306,7 @@ async function selectProduct(encodedPartNumber) {
     } else {
       document.getElementById("productTable").innerHTML = `
         <tr>
-          <td colspan="4" class="text-muted fst-italic">
+          <td colspan="5" class="text-muted fst-italic">
             No matching product details found.
           </td>
         </tr>`;
