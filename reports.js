@@ -170,7 +170,7 @@ function buildRevenueDropReport (modalEl) {
       saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8' }),
              'revenue_drop_report.csv');
     item.appendChild(btn);
-  }, 0);   // <-- closed the setTimeout bracket & added delay 0
+  }, 0);
 }
 
 /* ── fire the initial wiring on page-ready ─────────────────────── */
