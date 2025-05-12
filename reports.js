@@ -6,7 +6,7 @@
      – Bootstrap JS      (for modal)
 */
 
-(function () {
+window.initReports = function initReports() {
   /* =============  GUARDS  ============= */
   if (!window.dataStore) {
     console.error("[reports] dataStore missing – reports disabled");
@@ -198,4 +198,4 @@
   };
 
   console.debug("[reports] Modal driver attached");
-})();
+};
