@@ -10,6 +10,7 @@ window.initReports = function initReports() {
   const modalEl = document.getElementById('reportsModal');
   if (!btnGen || !modalEl) return;    // already logged elsewhere
 
+  const bsModal = new bootstrap.Modal(modalEl);
   /* ① – keep the button inactive until data are ready */
   btnGen.disabled = true;
 
