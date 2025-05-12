@@ -1,4 +1,4 @@
-/* reports.js – Revenue Drop Report */
+/* reports.js – Revenue Drop Report (formatted) */
 
 window.initReports = function initReports() {
   const btnGen = document.getElementById('generateReportsBtn');
@@ -10,7 +10,6 @@ window.initReports = function initReports() {
   const bsModal = new bootstrap.Modal(modalEl);
 
   btnGen.onclick = () => {
-    // 1. Clear & set up a single list-item for this report
     const list = modalEl.querySelector('.list-group');
     list.innerHTML = '';
     const li = document.createElement('li');
@@ -23,26 +22,23 @@ window.initReports = function initReports() {
     li.appendChild(spinner);
     list.appendChild(li);
 
-    // 2. Show modal and clear footer
     const footer = modalEl.querySelector('.modal-footer');
     footer.innerHTML = '';
     bsModal.show();
 
-    // 3. Build the report after a tiny delay (so spinner appears)
     setTimeout(() => {
-      // ——— your snippet, adapted to use Sales.dataframe ———
       const raw = window.dataStore.Sales.dataframe;
       const parsed = raw.map(r => {
         const [m, d, y] = r.Date.split('/').map(s => s.trim());
         return {
           customer: r.Customer,
-          date:    new Date(+y, +m - 1, +d),
+          date: new Date(+y, +m - 1, +d),
           revenue: parseFloat(r.Total_Amount)
         };
       });
 
       const customers = Array.from(new Set(parsed.map(r => r.customer)));
-      const years     = Array.from(new Set(parsed.map(r => r.date.getFullYear()))).sort();
+      const years = Array.from(new Set(parsed.map(r => r.date.getFullYear()))).sort();
 
       const totalRev = parsed.reduce((acc, r) => {
         acc[r.customer] = (acc[r.customer] || 0) + r.revenue;
@@ -61,7 +57,7 @@ window.initReports = function initReports() {
       }, {});
 
       const now = new Date();
-      const last12Start  = new Date(now); last12Start.setFullYear(now.getFullYear() - 1);
+      const last12Start = new Date(now); last12Start.setFullYear(now.getFullYear() - 1);
       const prior12Start = new Date(now); prior12Start.setFullYear(now.getFullYear() - 2);
 
       const sumWindow = (start, end) =>
@@ -72,45 +68,65 @@ window.initReports = function initReports() {
             return acc;
           }, {});
 
-      const revLast12  = sumWindow(last12Start, now);
+      const revLast12 = sumWindow(last12Start, now);
       const revPrior12 = sumWindow(prior12Start, last12Start);
+
+      const formatCurrency = val => `$${val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+      const formatPercent = val => `${val.toFixed(1)}%`;
 
       const reportRows = customers.map(cust => {
         const prior = revPrior12[cust] || 0;
-        const last  = revLast12[cust]  || 0;
-        const pctChange = prior > 0
-          ? ((last - prior) / prior) * 100
-          : null;
+        const last = revLast12[cust] || 0;
+        const pctChange = prior > 0 ? ((last - prior) / prior) * 100 : null;
 
-        return {
-          Customer:      cust,
+        const row = {
+          Customer: cust,
           Total_Revenue: totalRev[cust] || 0,
-          ...years.reduce((o, y) => {
-            o[`Y${y}`] = revByYear[y][cust] || 0;
-            return o;
-          }, {}),
-          Revenue_Last12:  last,
+          Revenue_Last12: last,
           Revenue_Prior12: prior,
-          Pct_Change:      pctChange
+          Pct_Change: pctChange
         };
+
+        // Add Y2021, Y2022, etc.
+        years.forEach(y => {
+          row[`Y${y}`] = revByYear[y][cust] || 0;
+        });
+
+        return row;
       });
 
       const filtered = reportRows
         .filter(r => r.Pct_Change !== null && r.Pct_Change < -20)
         .sort((a, b) => b.Total_Revenue - a.Total_Revenue);
 
-      // 4. CSV serialization
+      // Format all currency fields and percent
+      const formatted = filtered.map(r => {
+        const formattedRow = { Customer: r.Customer };
+
+        // Format revenue columns
+        Object.entries(r).forEach(([k, v]) => {
+          if (k === 'Customer') return;
+          if (k === 'Pct_Change') {
+            formattedRow[k] = formatPercent(v);
+          } else {
+            formattedRow[k] = formatCurrency(v);
+          }
+        });
+
+        return formattedRow;
+      });
+
+      // CSV serialization
       const toCSV = rows => {
         if (!rows.length) return "";
         const cols = Object.keys(rows[0]);
-        const esc  = v => `"${String(v).replace(/"/g, '""')}"`;
+        const esc = v => `"${String(v).replace(/"/g, '""')}"`;
         return [cols.join(",")]
           .concat(rows.map(r => cols.map(c => esc(r[c])).join(",")))
           .join("\n");
       };
-      const csv = toCSV(filtered);
+      const csv = toCSV(formatted);
 
-      // 5. Swap spinner for your SVG icon button
       const item = modalEl.querySelector('#item-drop');
       item.querySelector('.spinner-border')?.remove();
 
@@ -132,11 +148,9 @@ window.initReports = function initReports() {
       };
       item.appendChild(iconBtn);
 
-      // 6. Log to console
-      console.table(filtered);
+      console.table(formatted);
     }, 100);
   };
 };
 
-// auto-run on load
 document.addEventListener('DOMContentLoaded', initReports);
