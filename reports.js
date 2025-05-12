@@ -1,15 +1,30 @@
 /* reports.js – Revenue Drop Report (formatted) */
 
-window.initReports = function initReports() {
-  const btnGen = document.getElementById('generateReportsBtn');
-  const modalEl = document.getElementById('reportsModal');
-  if (!btnGen || !modalEl) {
-    console.error('[reports] Missing #generateReportsBtn or #reportsModal – reports disabled');
-    return;
-  }
-  const bsModal = new bootstrap.Modal(modalEl);
+let _reportsWired = false;            // <-- new guard
 
+window.initReports = function initReports() {
+  if (_reportsWired) return;          // idempotent
+  _reportsWired = true;
+
+  const btnGen  = document.getElementById('generateReportsBtn');
+  const modalEl = document.getElementById('reportsModal');
+  if (!btnGen || !modalEl) return;    // already logged elsewhere
+
+  /* ① – keep the button inactive until data are ready */
+  btnGen.disabled = true;
+
+  /* ② – flip the switch when the loader says “ready” */
+  document.addEventListener('reports-ready', () => {
+    btnGen.disabled   = false;
+    window.reportsReady = true;
+  });
+
+  /* ③ – graceful guard if someone still clicks too soon */
   btnGen.onclick = () => {
+    if (!window.reportsReady) {
+      alert('Data is still loading – please try again in a moment.');
+      return;
+    }    
     const list = modalEl.querySelector('.list-group');
     list.innerHTML = '';
     const li = document.createElement('li');

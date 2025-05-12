@@ -182,7 +182,9 @@
       pointer-events: none;
     }
     .generate-reports-btn {
-      margin-left: auto;
+      position: absolute;
+      top: -24px;
+      right: 10px;
       border: none;
       cursor: pointer;
       padding: 8px;
@@ -190,8 +192,8 @@
       transition: background 0.2s ease;
     }
 
-    .generate-reports-btn:hover {
-      background: rgba(95, 99, 104, 0.1); /* light gray on hover */
+    #appContainer .generate-reports-btn:hover {
+      background: rgba(201, 201, 201, 0.9); /* light gray on hover */
     }
 
     .generate-reports-btn svg {
@@ -221,14 +223,14 @@
   </div>
 
   <!-- App Container -->
-  <div id="appContainer" class="container py-4" style="display:none; margin-top: 30px;">
+  <div id="appContainer" class="container py-4 position-relative" style="display:none; margin-top: 30px;">
     <!-- Floating Reports Button -->
     <button id="generateReportsBtn" title="Generate Reports" class="generate-reports-btn" data-bs-toggle="modal" data-bs-target="#reportsModal">
       <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368">
         <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h360v80H200v560h560v-360h80v360q0 33-23.5 56.5T760-120H200Zm80-160h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160Zm80-320v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80ZM480-480Z"/>
       </svg>
     </button>
-    <button id="signOutButton" class="btn btn-outline-secondary position-absolute top-0 start-0 m-3">
+    <button id="signOutButton" class="btn btn-outline-secondary position-absolute start-0 m-3" style="top: -24px;">
       <i class="fas fa-sign-out-alt"></i> Sign Out
     </button>
     <div class="card bg-white p-4 rounded shadow">

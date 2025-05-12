@@ -267,9 +267,11 @@ async function processFiles() {
       await idbUtil.setDataset("PricingData", stored);
       console.log(`[Pricing] refreshed – ${merged.length} rows merged from all price sheets.`);
     }
-    // Initialize reports now that all data is loaded
-    window.initReports?.();
-    
+
+    // ✅ signal that every required sheet is in memory
+    window.reportsReady = true;
+    document.dispatchEvent(new Event('reports-ready'));
+
   } catch (err) {
     console.error("Error processing files:", err);
   }

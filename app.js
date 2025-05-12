@@ -30,6 +30,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         Sales: window.dataStore["Sales"],
         Pricing: window.dataStore["Pricing"]
       });
+
+      // ✅ cached path: tell the UI we’re good to go
+      window.reportsReady = true;
+      document.dispatchEvent(new Event('reports-ready'));
     } else {
       console.warn("[DOMContentLoaded] Cached data not found in IndexedDB.");
     }
