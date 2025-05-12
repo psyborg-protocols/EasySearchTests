@@ -1,49 +1,59 @@
-/* reports.js – Revenue Drop Report (formatted) */
+/* reports.js ------------------------------------------------------- */
 
-let _reportsWired = false;            // <-- new guard
+/* ── 1. ONE shared Bootstrap modal handle ───────────────────────── */
+let _reportsWired   = false;
+let _bsReportsModal = null;   // <-- make it module-level so helpers can see it
 
-window.initReports = function initReports() {
-  if (_reportsWired) return;          // idempotent
+window.initReports = function initReports () {
+  if (_reportsWired) return;
   _reportsWired = true;
 
   const btnGen  = document.getElementById('generateReportsBtn');
   const modalEl = document.getElementById('reportsModal');
-  if (!btnGen || !modalEl) return;    // already logged elsewhere
+  if (!btnGen || !modalEl) return;
 
-  const bsModal = new bootstrap.Modal(modalEl);
-  /* ① – keep the button inactive until data are ready */
-  btnGen.disabled = true;
+  _bsReportsModal = new bootstrap.Modal(modalEl);
 
-  /* ② – flip the switch when the loader says “ready” */
-  document.addEventListener('reports-ready', () => {
-    btnGen.disabled   = false;
-    window.reportsReady = true;
-  });
-
-  /* ③ – graceful guard if someone still clicks too soon */
+  /* ── MAIN CLICK ──────────────────────────────────────────────── */
   btnGen.onclick = () => {
-    if (!window.reportsReady) {
-      alert('Data is still loading – please try again in a moment.');
-      return;
-    }    
-    const list = modalEl.querySelector('.list-group');
-    list.innerHTML = '';
-    const li = document.createElement('li');
-    li.id = 'item-drop';
-    li.className = 'list-group-item d-flex justify-content-between align-items-center';
-    li.textContent = 'Revenue Drop > 20%';
-    const spinner = document.createElement('span');
-    spinner.className = 'spinner-border spinner-border-sm text-primary';
-    spinner.setAttribute('role', 'status');
-    li.appendChild(spinner);
-    list.appendChild(li);
+    /* reset modal each time */
+    modalEl.querySelector('.list-group').innerHTML = `
+      <li id="item-drop"
+          class="list-group-item d-flex justify-content-between align-items-center">
+        Revenue Drop &gt; 20%
+        <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+      </li>`;
+    modalEl.querySelector('.modal-footer').innerHTML = '';
+    _bsReportsModal.show();
 
-    const footer = modalEl.querySelector('.modal-footer');
-    footer.innerHTML = '';
-    bsModal.show();
+    /* build now or when data arrive */
+    const run = () => buildRevenueDropReport(modalEl);
+    if (window.reportsReady) {
+      run();
+    } else {
+      document.addEventListener('reports-ready', run, { once: true });
+    }
+  };
+};
 
-    setTimeout(() => {
-      const raw = window.dataStore.Sales.dataframe;
+/* ── 2. the heavy-lifter ------------------------------------------------ */
+function buildRevenueDropReport (modalEl) {
+  const list   = modalEl.querySelector('.list-group');
+  const footer = modalEl.querySelector('.modal-footer');
+
+  /* (a) still show spinner while we number-crunch */
+  list.innerHTML   = '';
+  footer.innerHTML = '';
+
+  const li = document.createElement('li');
+  li.id        = 'item-drop';
+  li.className = 'list-group-item d-flex justify-content-between align-items-center';
+  li.innerHTML = `Revenue Drop &gt; 20%
+      <span class="spinner-border spinner-border-sm text-primary" role="status"></span>`;
+  list.appendChild(li);
+
+  setTimeout(() => {
+    const raw = window.dataStore.Sales.dataframe;
       const parsed = raw.map(r => {
         const [m, d, y] = r.Date.split('/').map(s => s.trim());
         return {
@@ -143,30 +153,25 @@ window.initReports = function initReports() {
       };
       const csv = toCSV(formatted);
 
-      const item = modalEl.querySelector('#item-drop');
-      item.querySelector('.spinner-border')?.remove();
+    const item = modalEl.querySelector('#item-drop');
+    item.querySelector('.spinner-border')?.remove();
 
-      const iconBtn = document.createElement('button');
-      iconBtn.className = 'generate-reports-btn';
-      iconBtn.title = 'Download Revenue Drop Report';
-      iconBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg"
-             height="24px" viewBox="0 -960 960 960"
-             width="24px" fill="#5f6368">
-          <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104
-                   56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120
-                   h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
-        </svg>
-      `;
-      iconBtn.onclick = () => {
-        saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8' }),
-               'revenue_drop_report.csv');
-      };
-      item.appendChild(iconBtn);
+    const btn = document.createElement('button');
+    btn.className = 'report-download-btn';
+    btn.title     = 'Download CSV';
+    btn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg"
+           viewBox="0 -960 960 960" width="20" height="20">
+        <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104
+                 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120
+                 h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
+      </svg>`;
+    btn.onclick = () =>
+      saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+             'revenue_drop_report.csv');
+    item.appendChild(btn);
+  }, 0);   // <-- closed the setTimeout bracket & added delay 0
+}
 
-      console.table(formatted);
-    }, 100);
-  };
-};
-
+/* ── fire the initial wiring on page-ready ─────────────────────── */
 document.addEventListener('DOMContentLoaded', initReports);
