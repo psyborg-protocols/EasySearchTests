@@ -140,7 +140,7 @@ window.initReports = function initReports() {
 
   /* =============  MODAL / UI DRIVER  ============= */
   const modalEl   = document.getElementById("reportsModal");
-  const btnGen    = document.getElementById("btnGenerateReports");
+  const btnGen    = document.getElementById("generateReportsBtn");
   if (!modalEl || !btnGen) {
     console.error("[reports] Modal or trigger button missing in HTML");  // design-time hint
     return;
