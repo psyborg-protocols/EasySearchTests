@@ -181,6 +181,29 @@
       white-space: nowrap;
       pointer-events: none;
     }
+    .generate-reports-btn {
+      position: absolute;
+      right: 20px;
+      top: calc(var(--app-container-top, 0px) - 40px); /* fallback in case */
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      transition: background 0.2s ease;
+    }
+
+    .generate-reports-btn:hover {
+      background: rgba(95, 99, 104, 0.1); /* light gray on hover */
+    }
+
+    .generate-reports-btn svg {
+      transition: transform 0.2s ease;
+    }
+
+    .generate-reports-btn:hover svg {
+      transform: scale(1.1);
+    }
   </style>
 </head>
 <body>
@@ -202,6 +225,12 @@
 
   <!-- App Container -->
   <div id="appContainer" class="container py-4" style="display:none; margin-top: 30px;">
+    <!-- Floating Reports Button -->
+    <button id="generateReportsBtn" title="Generate Reports" class="generate-reports-btn" data-bs-toggle="modal" data-bs-target="#reportsModal">
+      <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368">
+        <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h360v80H200v560h560v-360h80v360q0 33-23.5 56.5T760-120H200Zm80-160h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160Zm80-320v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80ZM480-480Z"/>
+      </svg>
+    </button>
     <button id="signOutButton" class="btn btn-outline-secondary position-absolute top-0 start-0 m-3">
       <i class="fas fa-sign-out-alt"></i> Sign Out
     </button>
@@ -334,14 +363,47 @@
 
     </div>
   </div>
+  
+  <!-- Reports modal -->
+  <div class="modal fade" id="reportsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Generating Reports…</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="list-group">
+            <li class="list-group-item d-flex justify-content-between align-items-center" id="item-lapsed">
+              Inactive Customers
+              <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center" id="item-silent">
+              Quiet Best-sellers
+              <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center" id="item-profit">
+              Profit Leaderboard
+              <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+            </li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <!-- will be filled dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
   <script src="https://alcdn.msauth.net/browser/2.32.0/js/msal-browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   <script src="auth.js"></script>
   <script src="idbUtil.js"></script>
   <script src="dataLoader.js"></script>
+  <script src="reports.js"></script>
   <script src="uiRenderer.js"></script>
   <script src="app.js"></script>
   <script>document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
