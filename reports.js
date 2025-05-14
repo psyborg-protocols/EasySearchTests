@@ -20,7 +20,7 @@ window.initReports = function initReports () {
     modalEl.querySelector('.list-group').innerHTML = `
       <li id="item-drop"
           class="list-group-item d-flex justify-content-between align-items-center">
-        Revenue Drop &gt; 20%
+        Top Customers With Revenue Drop &gt; 20%
         <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
       </li>`;
     modalEl.querySelector('.modal-footer').innerHTML = '';
@@ -48,7 +48,7 @@ function buildRevenueDropReport (modalEl) {
   const li = document.createElement('li');
   li.id        = 'item-drop';
   li.className = 'list-group-item d-flex justify-content-between align-items-center';
-  li.innerHTML = `Revenue Drop &gt; 20%
+  li.innerHTML = `Top Customers With Revenue Drop &gt; 20%
       <span class="spinner-border spinner-border-sm text-primary" role="status"></span>`;
   list.appendChild(li);
 
@@ -171,7 +171,7 @@ function buildRevenueDropReport (modalEl) {
     iconBtn.onclick = () =>
       saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8' }),
              'revenue_drop_report.csv');
-    item.appendChild(btn);
+    item.appendChild(iconBtn);
   }, 0);
 }
 
