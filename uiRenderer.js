@@ -227,8 +227,10 @@ async function selectProduct(encodedPartNumber) {
       console.debug(`[selectProduct] Qty Available: ${qtyAvailable}, Reorder Level: ${reorderLevel}, Qty On Order: ${qtyOnOrder}`);
       let qtyAvailableCellContent = `${qtyAvailable}`;
   
+      const truckColorClass = qtyOnOrder > 0 ? "text-success" : "text-secondary";
+
       qtyAvailableCellContent += `
-        <i class="fas fa-truck text-secondary ms-2"
+        <i class="fas fa-truck ${truckColorClass} ms-2"
           data-bs-toggle="tooltip" 
           data-bs-placement="top" 
           title="Qty On Order: ${qtyOnOrder}">
