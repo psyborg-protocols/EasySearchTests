@@ -168,7 +168,7 @@ function buildRevenueDropReport (modalEl) {
                     h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
             </svg>
         `;
-    btn.onclick = () =>
+    iconBtn.onclick = () =>
       saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8' }),
              'revenue_drop_report.csv');
     item.appendChild(btn);
