@@ -59,10 +59,16 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
           const customerSales = salesByCustomer[customerName].sort((a, b) => b.date - a.date);
           if (customerSales.length === 0) continue;
           const lastSaleDate = customerSales[0].date;
+          // Skip if last sale is within 6 months
           if (lastSaleDate >= sixMonthsAgo) continue;
           if (customerSales.length < 2) continue;
           const firstSaleDate = customerSales[customerSales.length - 1].date;
           const timespanInDays = (lastSaleDate - firstSaleDate) / (1000 * 60 * 60 * 24);
+          // Skip if they were a customer for less than six months
+          const MIN_PERIOD_DAYS = 180;
+          if (timespanInDays < MIN_PERIOD_DAYS) {
+            continue;
+          }
           let averageSalesPer180Days;
           if (timespanInDays <= 0) {
             averageSalesPer180Days = (customerSales.length > 1) ? customerSales.length : 0;
@@ -77,7 +83,7 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
             });
           }
         }
-        lapsedCustomersReportData.sort((a, b) => a['Customer Name'].localeCompare(b['Customer Name']));
+        lapsedCustomersReportData.sort((a, b) => new Date(b['Date of Last Sale']) - new Date(a['Date of Last Sale']));
 
         item.querySelector('.spinner-border')?.remove();
 
