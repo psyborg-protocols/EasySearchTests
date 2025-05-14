@@ -157,7 +157,7 @@ function buildRevenueDropReport (modalEl) {
     item.querySelector('.spinner-border')?.remove();
 
     const iconBtn = document.createElement('button');
-        iconBtn.className = 'download-reports-btn';
+        iconBtn.className = 'report-download-btn';
         iconBtn.title = 'Download Revenue Drop Report';
         iconBtn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg"
