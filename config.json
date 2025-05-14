@@ -52,5 +52,13 @@
     "skipRows": 6,
     "sheetName": "Sulzer Mixpac Dispensers",
     "dataKey": "Pricing"
+  },
+  {
+    "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
+    "filenamePrefix": "Quote Maker and Calculator",
+    "columns": ["Product", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "USER FB", "P",  "DISTR FB"]    ,
+    "skipRows": 1,
+    "sheetName": "Nordson Top Items Pricing",
+    "dataKey": "Pricing"	
   }
 ]
