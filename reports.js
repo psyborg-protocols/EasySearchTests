@@ -13,7 +13,12 @@ window.reportModules = [
     id: 'lapsed',
     title: 'Lapsed Customers (No Orders in 6 Months, Avg. Freq. > 1/6mo)',
     generatorFunctionName: 'buildLapsedCustomersReport'
-  }
+  },
+  { 
+    id:'prodrev',
+    title:'Top Products With Revenue Drop > 20%',
+    generatorFunctionName:'buildProductRevenueDropReport'
+   }
   // Add more reports here
 ];
 
