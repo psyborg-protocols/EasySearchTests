@@ -5,6 +5,17 @@ const moneyFmt = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2
 });
 
+function getCountryName(code) {
+  const map = {
+    CN: "China",
+    ES: "Spain",
+    GB: "England",
+    CH: "Switzerland"
+  };
+  return map[code] || code;  // fallback to code if not found
+}
+
+
 function fmtPrice(value) {
   // Guard against undefined / blank cells
   const num = Number(value);
@@ -243,7 +254,8 @@ async function selectProduct(encodedPartNumber) {
 
       if (raiseInfo) {
         // Bootstrap needs <br> and data-bs-html="true" for line-breaks
-        const tooltipHtml = `COO: ${raiseInfo.COO}<br>
+        const country = getCountryName(raiseInfo.COO);
+        const tooltipHtml = `COO: ${country}<br>
                             July&nbsp;9<sup>th</sup>&nbsp;Price&nbsp;<i class="fa-solid fa-arrow-up"></i>: ${raiseInfo.July9thIncrease}`;
 
         unitCostCellContent += `
