@@ -134,169 +134,167 @@ throw err;
 }
 
 
-
 /**
- * Main loader – pulls every workbook listed in config, obeys cache,
- * and downloads each workbook only once per page-refresh.
+ * Pulls all workbooks listed in config, honours per-sheet caches,
+ * and rebuilds the merged Pricing table only when at least one
+ * pricing workbook really changed.
  */
 async function processFiles() {
   try {
-    /* ───────── 0. auth & config ──────────────────────────── */
+    /* ── 0. auth & config ─────────────────────────────── */
     const token = await getAccessToken();
-    if (!token) {
-      console.error("Failed to retrieve access token");
-      return;
+    if (!token) { console.error("No MSAL token"); return; }
+
+    const cfg = await loadConfig();
+    if (!Array.isArray(cfg) || !cfg.length) {
+      console.error("Config file empty or invalid"); return;
     }
 
-    const config = await loadConfig();
-    if (!Array.isArray(config) || config.length === 0) {
-      console.error("Invalid or empty configuration");
-      return;
-    }
+    /* ── 1. group config rows that point to the same workbook ─ */
+    const byWorkbook = new Map();              // signature → rows[]
+    const sigOf = r => `${r.directory}|${r.filenamePrefix}`;
+    cfg.forEach(r => (byWorkbook.get(sigOf(r)) ?? byWorkbook.set(sigOf(r), []).get(sigOf(r))).push(r));
 
-    /* ───────── helpers for this run ──────────────────────── */
-    const bufferCache = new Map();              // driveItem.id → ArrayBuffer
-    const grouped     = new Map();              // dir|prefix   → [config rows]
+    /* ── 2. read the last merged Pricing table (if any) ─────── */
+    const cachedPricing = await idbUtil.getDataset("PricingData") || null;
+    const pricingMeta = { ...(cachedPricing?.metadata || {}) };   // {fileId: lastModified}
+    const mergedPrices = [];              // will hold updated rows
+    let   pricingChanged = false;         // trip if ANY workbook updates
+    const bufferCache    = new Map();     // fileId → ArrayBuffer
+    const ds             = window.dataStore = {};   // local shortcut
 
-    // group identical workbooks so metadata + download happen once
-    for (const c of config) {
-      const sig = `${c.directory}|${c.filenamePrefix}`;
-      if (!grouped.has(sig)) grouped.set(sig, []);
-      grouped.get(sig).push(c);
-    }
+    /* ── 3. iterate unique workbooks ─────────────────────────── */
+    for (const rows of byWorkbook.values()) {
+      const { directory, filenamePrefix } = rows[0];
 
-    /* ───────── buckets for merged price sheets ───────────── */
-    const pricingBuckets = [];                  // rows from all price sheets
-    const pricingMeta    = {};                  // { driveItemId: lastModified }
+      // 3-a  lightweight metadata look-up
+      const metaResp = await fetchLatestFileMetadata(directory, filenamePrefix, token);
+      const md = metaResp.value?.[0];
+      if (!md) continue;                            // nothing matched
 
-    /* ───────── 1. loop over unique workbooks ─────────────── */
-    for (const bucket of grouped.values()) {
-      const { directory, filenamePrefix } = bucket[0];
+      const fileId = md.id;
+      const lastMod = md.lastModifiedDateTime;
 
-      /* 1-a  fetch latest metadata once */
-      const mdResp = await fetchLatestFileMetadata(directory, filenamePrefix, token);
-      if (!mdResp.value || mdResp.value.length === 0) {
-        console.warn(`No matching file found in '${directory}' for prefix '${filenamePrefix}'`);
+      // 3-b  quick test: is this a Pricing workbook, and is it unchanged?
+      const isPricingBook = rows.some(r => {
+        const k = r.dataKey || r.filenamePrefix;
+        return k === "Pricing" || /^Prices\s\d+/i.test(k);
+      });
+      if (isPricingBook && cachedPricing && pricingMeta[fileId] === lastMod) {
+        // already included in cached merged table → nothing to do
         continue;
       }
-      const md = mdResp.value[0];
 
-      /* 1-b  download (or reuse) workbook */
-      let buf = bufferCache.get(md.id);
+      // 3-c  lazy download (only once per file in this run)
+      let buf = bufferCache.get(fileId);
       if (!buf) {
         buf = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
-        bufferCache.set(md.id, buf);
+        bufferCache.set(fileId, buf);
       }
 
-      /* 1-c  iterate the sibling config rows (different sheetNames, etc.) */
-      for (const item of bucket) {
-        try {
-          const { dataKey, skipRows, columns, sheetName } = item;
-          const key        = dataKey || item.filenamePrefix;
-          const storageKey = `${key}Data`;
-          const isPricing  = key === "Pricing" || /^Prices\s\d+$/i.test(key);
+      /* 3-d  handle each tab the caller asked for */
+      for (const row of rows) {
+        const key        = row.dataKey || row.filenamePrefix;
+        const storageKey = `${key}Data`;
+        const isPricing  = key === "Pricing" || /^Prices\s\d+/i.test(key);
 
-          /* 2. unified cache guard – runs for *all* sheet types */
+        // non-pricing sheets: honour their own cache
+        if (!isPricing) {
           const cached = await idbUtil.getDataset(storageKey);
-          if (cached?.metadata?.lastModifiedDateTime === md.lastModifiedDateTime) {
-            window.dataStore[key] = cached;
-            if (isPricing) pricingBuckets.push(...cached.dataframe);
-            continue;                             // up-to-date
-          }
-
-          /* 3. parse the requested sheet/tab */
-          const dataframe = parseExcelData(buf, skipRows, columns, sheetName);
-
-          /* 3-a  pricing workbook  ----------------------------------- */
-          if (isPricing) {
-            const KEEP = [
-              "Product", "Units per Box",
-              "USER FB", "USER HB", "USER LTB",
-              "DISTR FB", "DISTR HB", "DISTR LTB"
-            ];
-
-            dataframe.forEach(r => {
-              if (!r["Product"]) return;          // skip spacer rows
-
-              const slim = {};
-              KEEP.forEach(k => {
-                if (r[k] !== undefined && r[k] !== "") {
-                  slim[k] = (k === "Product" || k === "Units per Box")
-                           ? r[k]
-                           : toNumber(r[k]);      // price cells → numbers
-                }
-              });
-              pricingBuckets.push(slim);
-            });
-
-            pricingMeta[md.id] = md.lastModifiedDateTime;
-            continue;                             // store merged after loop
-          }
-
-          /* 3-b  price-raise sheet  ---------------------------------- */
-          if (key === "PriceRaise") {
-            const map = {};
-            dataframe.forEach(r => {
-              if (!r.Product) return;
-              map[String(r.Product).trim()] = {
-                COO            : r.COO || "N/A",
-                July9thIncrease: r.July9thIncrease || "N/A"
-              };
-            });
-
-            const stored = { dataframe: map, metadata: md };
-            window.dataStore["PriceRaise"] = stored;
-            await idbUtil.setDataset("PriceRaiseData", stored);
-            console.log(`[PriceRaise] ${Object.keys(map).length} rows loaded.`);
+          if (cached?.metadata?.lastModifiedDateTime === lastMod) {
+            ds[key] = cached;                        // reuse
             continue;
           }
-
-          /* 3-c  other sheets (Sales, DB, Equivalents, …) ------------- */
-          let processed = dataframe;
-          if (item.filenamePrefix === "Sales") {
-            processed = fillDownColumn(dataframe, "Customer");
-            processed = filterOutValues(processed, "Product_Service", DISALLOWED_PRODUCTS);
-          }
-
-          if (key === "Equivalents") {
-            const map = normalizeEquivalents(processed);
-            const stored = { dataframe: map, metadata: md };
-            window.dataStore["Equivalents"] = map;
-            await idbUtil.setDataset(storageKey, stored);
-            continue;
-          }
-
-          const stored = { dataframe: processed, metadata: md };
-          window.dataStore[key] = stored;
-          await idbUtil.setDataset(storageKey, stored);
-          console.log(`Stored ${md.name} in IndexedDB under key ${storageKey}.`);
-
-        } catch (err) {
-          console.error("Error processing sheet:", err);
         }
+
+        // parse requested worksheet
+        const frame = parseExcelData(buf, row.skipRows, row.columns, row.sheetName);
+
+        if (isPricing) {
+          pricingChanged = true;
+          mergedPrices.push(...slimPriceRows(frame));   // collect for global merge
+          pricingMeta[fileId] = lastMod;                // update meta map
+          continue;                                     // no per-tab cache needed
+        }
+
+        if (key === "PriceRaise") {
+          const map = {};
+          frame.forEach(r => {
+            if (r.Product) map[String(r.Product).trim()] = {
+              COO: r.COO || "N/A",
+              July9thIncrease: r.July9thIncrease || "N/A"
+            };
+          });
+          const stored = { dataframe: map, metadata: md };
+          ds["PriceRaise"] = stored;
+          await idbUtil.setDataset(storageKey, stored);
+          console.log(`[PriceRaise] ${Object.keys(map).length} rows loaded.`);
+          continue;
+        }
+
+        if (key === "Equivalents") {
+          const map = normalizeEquivalents(frame);
+          const stored = { dataframe: map, metadata: md };
+          ds[key] = map;
+          await idbUtil.setDataset(storageKey, stored);
+          continue;
+        }
+
+        // generic sheet (Sales, DB, …)
+        const cleaned = key === "Sales"
+                        ? filterOutValues(fillDownColumn(frame, "Customer"),
+                                          "Product_Service", DISALLOWED_PRODUCTS)
+                        : frame;
+
+        const stored = { dataframe: cleaned, metadata: md };
+        ds[key] = stored;
+        await idbUtil.setDataset(storageKey, stored);
       }
     }
 
-    /* ───────── 4. commit merged price sheets ─────────────────────── */
-    if (pricingBuckets.length) {
-      const uniq = {};
-      pricingBuckets.forEach(r => uniq[r.Product] = r);   // dedupe by Product
-      const merged = Object.values(uniq);
-
+    /* ── 4. assemble or reuse merged Pricing table ───────────── */
+    if (pricingChanged) {
+      const merged = Object.values(mergedPrices.reduce((acc, r) => {
+        acc[r.Product] = r; return acc;              // de-dupe by Product
+      }, {}));
       const stored = { dataframe: merged, metadata: pricingMeta };
-      window.dataStore["Pricing"] = stored;
+      ds["Pricing"] = stored;
       await idbUtil.setDataset("PricingData", stored);
-      console.log(`[Pricing] refreshed – ${merged.length} rows merged from all price sheets.`);
+      console.log(`[Pricing] refreshed – ${merged.length} rows merged.`);
+    } else if (cachedPricing) {
+      ds["Pricing"] = cachedPricing;                 // still valid
+      console.log("[Pricing] cache valid – no parsing needed.");
     }
 
-    /* ───────── 5. signal ready ───────────────────────────────────── */
-    window.reportsReady = true;
-    document.dispatchEvent(new Event('reports-ready'));
+    /* ── 5. done ─────────────────────────────────────────────── */
+    document.dispatchEvent(new Event("reports-ready"));
 
   } catch (err) {
-    console.error("Error processing files:", err);
+    console.error("processFiles() failed:", err);
   }
 }
+
+/* helper: convert raw sheet rows → trimmed pricing rows */
+function slimPriceRows(frame) {
+  const KEEP = [
+    "Product", "Units per Box",
+    "USER FB", "USER HB", "USER LTB",
+    "DISTR FB", "DISTR HB", "DISTR LTB"
+  ];
+  return frame.flatMap(r => {
+    if (!r.Product) return [];
+    const slim = {};
+    KEEP.forEach(k => {
+      if (r[k] !== undefined && r[k] !== "") {
+        slim[k] = (k === "Product" || k === "Units per Box")
+                  ? r[k]
+                  : toNumber(r[k]);
+      }
+    });
+    return [slim];
+  });
+}
+
 
 
 /**

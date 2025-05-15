@@ -19,16 +19,19 @@ document.addEventListener('DOMContentLoaded', async function () {
     const cachedDB = await idbUtil.getDataset("DBData");
     const cachedSales = await idbUtil.getDataset("SalesData");
     const cachedPricing = await idbUtil.getDataset("PricingData");
-    const cachedEquivs = await idbUtil.getDataset("EquivalentsData");
+    const cachedPriceRaise = await idbUtil.getDataset("PriceRaiseData");
 
-    if (cachedDB && cachedSales && cachedPricing) {
+    if (cachedDB && cachedSales && cachedPricing && cachedPriceRaise) {
+      // Store the datasets in the global dataStore
+      window.dataStore["PriceRaise"] = cachedPriceRaise;
       window.dataStore["DB"] = cachedDB;
       window.dataStore["Sales"] = cachedSales;
       window.dataStore["Pricing"] = cachedPricing;
       console.log("[DOMContentLoaded] Data loaded from IndexedDB cache.", {
         DB: window.dataStore["DB"],
         Sales: window.dataStore["Sales"],
-        Pricing: window.dataStore["Pricing"]
+        Pricing: window.dataStore["Pricing"],
+        PriceRaise: window.dataStore["PriceRaise"]
       });
 
       // ✅ cached path: tell the UI we’re good to go
