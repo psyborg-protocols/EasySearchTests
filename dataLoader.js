@@ -299,6 +299,45 @@ async function processFiles() {
 }
 
 
+/**
+ * Normalizes the replacements mapping from the "Equivalents (BT Master 2025)" sheet.
+ * For each row, it aggregates:
+ *   - The BM part (if it exists) as the first element.
+ *   - The equivalent parts from other columns (as an array of 0, one, or more parts).
+ * Then, it maps every found part (BM or equivalent) to the full array of replacements.
+ *
+ * @param {Array<Object>} data - The parsed sheet data.
+ * @returns {Object} - A mapping where keys are parts and values are arrays of valid replacements.
+ */
+function normalizeEquivalents(data) {
+  const mapping = {};
+  for (const row of data) {
+    const bmPart = String(row["BM Part #"] || "").trim(); // BM Part
+    let equivalents = [];
+    // Process the equivalent columns
+    for (const col of ["Nordson EFD Part #", "Medmix Sulzer Part #"]) {
+      const raw = String(row[col] || "");
+      const parts = raw.split(",").map(val => val.trim()).filter(Boolean);
+      equivalents = equivalents.concat(parts);
+    }
+    // Build the replacement array (BM part always first if available)
+    let replacements = [];
+    if (bmPart) {
+      replacements.push(bmPart);
+    }
+    replacements = replacements.concat(equivalents);
+    // Only map rows that have at least one replacement
+    if (replacements.length > 0) {
+      // For every part in the replacement list, map it to the full replacement array
+      for (const part of replacements) {
+        mapping[part] = replacements;
+      }
+    }
+  }
+  return mapping;
+}
+
+
 // fuzzy search for a customer, will return the list to populate the selection dropdown
 async function searchCustomers(query) {
   const SalesData = window.dataStore["Sales"]?.dataframe || [];
