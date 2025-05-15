@@ -4,10 +4,10 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   // If we already have a valid token, fetch fresh data immediately
   try {
-    const token = await getAccessToken();      // <-- assumes this returns null if not signed-in
+    const token = await getAccessToken();      
     if (token) {
       console.log("[DOMContentLoaded] Existing session, fetching fresh datasets...");
-      await dataLoader.processFiles();         // <-- your wholesale fetch & cache routine :contentReference[oaicite:0]{index=0}&#8203;:contentReference[oaicite:1]{index=1}
+      await dataLoader.processFiles(); 
       console.log("[DOMContentLoaded] Fresh data loaded.");
     }
   } catch (authErr) {
@@ -20,15 +20,19 @@ document.addEventListener('DOMContentLoaded', async function () {
     const cachedSales = await idbUtil.getDataset("SalesData");
     const cachedPricing = await idbUtil.getDataset("PricingData");
     const cachedEquivs = await idbUtil.getDataset("EquivalentsData");
+    const cachedPriceRaise = await idbUtil.getDataset("PriceRaiseData");
 
-    if (cachedDB && cachedSales && cachedPricing) {
+    if (cachedDB && cachedSales && cachedPricing && cachedPriceRaise) {
+      // ✅ cached path: load datasets into the dataStore
       window.dataStore["DB"] = cachedDB;
       window.dataStore["Sales"] = cachedSales;
       window.dataStore["Pricing"] = cachedPricing;
+      window.dataStore["PriceRaise"] = cachedPriceRaise;
       console.log("[DOMContentLoaded] Data loaded from IndexedDB cache.", {
         DB: window.dataStore["DB"],
         Sales: window.dataStore["Sales"],
-        Pricing: window.dataStore["Pricing"]
+        Pricing: window.dataStore["Pricing"],
+        PriceRaise: window.dataStore["PriceRaise"]
       });
 
       // ✅ cached path: tell the UI we’re good to go
