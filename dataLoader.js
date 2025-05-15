@@ -1,6 +1,6 @@
 const DISALLOWED_PRODUCTS = [
-  "", "Credit Card Fees", "Cost of Goods Sold", "Freight", "Health Insurance",
-  "Misc", "PmntDiscount_Bank Service Charges", "Testing-Bio", "Testing-Endo"
+  "", "Credit Card Fees", "Cost of Goods Sold", "Freight", "Health Insurance", "Amazon Fees", "Bank Fees", "Bad Debit", "PmntDiscount_Customer Discounts",
+  "Misc", "PmntDiscount_Bank Service Charges", "Testing", "Restock", "Testing-Bio", "Testing-Endo", "Services", "Sales"
 ];
 
 /**
