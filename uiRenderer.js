@@ -251,7 +251,7 @@ async function selectProduct(encodedPartNumber) {
             data-bs-toggle="tooltip"
             data-bs-html="true"
             data-bs-placement="top"
-            title="${tooltipHtml}">
+            title='${tooltipHtml}'>
           </i>`;
       }
       
