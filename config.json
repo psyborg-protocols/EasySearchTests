@@ -60,5 +60,13 @@
     "skipRows": 1,
     "sheetName": "Nordson Top Items Pricing",
     "dataKey": "Pricing"	
+  },
+  {
+    "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
+    "filenamePrefix": "Quote Maker and Calculator",
+    "columns": ["A", "B", "C", "Product", "COO", "F","G", "H", "July9thIncrease"],
+    "skipRows": 1,
+    "sheetName": "COO",
+    "dataKey": "PriceRaise"	
   }
 ]

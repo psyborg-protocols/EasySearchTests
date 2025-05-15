@@ -225,10 +225,9 @@ async function selectProduct(encodedPartNumber) {
       const qtyOnOrder = parseFloat(selectedProduct["QtyOnOrder"]) || 0;
   
       console.debug(`[selectProduct] Qty Available: ${qtyAvailable}, Reorder Level: ${reorderLevel}, Qty On Order: ${qtyOnOrder}`);
+      // Prepare the cell content with a truck icon
       let qtyAvailableCellContent = `${qtyAvailable}`;
-  
       const truckColorClass = qtyOnOrder > 0 ? "truck-bright-green" : "truck-faded-grey";
-
       qtyAvailableCellContent += `
         <i class="fas fa-truck ${truckColorClass} ms-2"
           data-bs-toggle="tooltip" 
@@ -236,12 +235,32 @@ async function selectProduct(encodedPartNumber) {
           title="Qty On Order: ${qtyOnOrder}">
         </i>`;
   
+      // Prepare Unit Cost with a tooltip for price raises
+      const baseUnitCost = Number(selectedProduct["UnitCost"]).toFixed(2);
+      const raiseInfo = window.dataStore["PriceRaise"]?.dataframe[partNumber];
+
+      let unitCostCellContent = baseUnitCost;
+
+      if (raiseInfo) {
+        // Bootstrap needs <br> and data-bs-html="true" for line-breaks
+        const tooltipHtml = `COO: ${raiseInfo.COO}<br>
+                            July&nbsp;9<sup>th</sup>&nbsp;Price&nbsp;<i class="fa-solid fa-arrow-up"></i>: ${raiseInfo.July9thIncrease}`;
+
+        unitCostCellContent += `
+          <i class="fa-solid fa-chart-line text-danger ms-2"
+            data-bs-toggle="tooltip"
+            data-bs-html="true"
+            data-bs-placement="top"
+            title="${tooltipHtml}">
+          </i>`;
+      }
+      
       document.getElementById("productTable").innerHTML = `
         <tr>
           <td>${selectedProduct["PartNumber"]}</td>
           <td>${selectedProduct["Description"]}</td>
           <td>${qtyAvailableCellContent}</td>
-          <td>${selectedProduct["UnitCost"]}</td>
+          <td>${unitCostCellContent}</td>
           <td>${selectedProduct["FullBoxQty"] || '-'}</td>
         </tr>`;
 

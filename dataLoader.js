@@ -219,6 +219,27 @@ async function processFiles() {
           continue;                             // write merged pricing after the loop
         }
 
+        /* ── 2b) Price-raise sheet ───────────────────────────────── */
+        if (key === "PriceRaise") {
+          const buf = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
+          const raw = parseExcelData(buf, item.skipRows, item.columns, item.sheetName);
+
+          const map = {};
+          raw.forEach(r => {
+            if (!r.Product) return;
+            map[String(r.Product).trim()] = {
+              COO: r.COO || "N/A",
+              July9thIncrease: r.July9thIncrease || "N/A"
+            };
+          });
+
+          const stored = { dataframe: map, metadata: md };
+          window.dataStore["PriceRaise"] = stored;
+          await idbUtil.setDataset("PriceRaiseData", stored);
+          console.log(`[PriceRaise] ${Object.keys(map).length} rows loaded.`);
+          continue;
+        }
+
         /* ── 3) non-pricing sheets: download only if changed ── */
         const cached = await idbUtil.getDataset(storageKey);
         if (cached?.metadata?.lastModifiedDateTime === md.lastModifiedDateTime) {
