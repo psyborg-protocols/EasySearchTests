@@ -236,7 +236,7 @@ async function selectProduct(encodedPartNumber) {
         </i>`;
   
       // Prepare Unit Cost with a tooltip for price raises
-      const baseUnitCost = Number(selectedProduct["UnitCost"]).toFixed(2);
+      const baseUnitCost = selectedProduct["UnitCost"];
       const raiseInfo = window.dataStore["PriceRaise"]?.dataframe[partNumber];
 
       let unitCostCellContent = baseUnitCost;
