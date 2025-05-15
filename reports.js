@@ -18,7 +18,12 @@ window.reportModules = [
     id:'prodrev',
     title:'Top Products With Revenue Drop > 20%',
     generatorFunctionName:'buildProductRevenueDropReport'
-   }
+  },
+  {
+    "id": "prodlapsed",
+    "title": "Lapsed Products (No Orders in 6 Months, Avg. Freq. > 1/6mo)",
+    "generatorFunctionName": "buildProductLapsedReport"
+  }
   // Add more reports here
 ];
 
