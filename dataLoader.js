@@ -136,19 +136,12 @@ throw err;
 
 
 /**
- * Processes all configuration items:
- *   1. Retrieves the file metadata for each directory/filenamePrefix pair.
- *   2. Downloads and parses the Excel file.
- *   3. Returns an array of result objects that include:
- *        - directory
- *        - filenamePrefix
- *        - fileMetadata (raw metadata from Graph API)
- *        - dataframe (parsed Excel data)
- *
- * @returns {Promise<object[]>} - Array of results for each config item.
+ * Main loader – pulls every workbook listed in config, obeys cache,
+ * and downloads each workbook only once per page-refresh.
  */
 async function processFiles() {
   try {
+    /* ───────── 0. auth & config ──────────────────────────── */
     const token = await getAccessToken();
     if (!token) {
       console.error("Failed to retrieve access token");
@@ -161,126 +154,133 @@ async function processFiles() {
       return;
     }
 
-    /* ────────────────────────────
-       buckets for the pricing merge
-    ──────────────────────────── */
-    const pricingBuckets = [];          // rows from all price sheets
-    const pricingMeta    = {};          // { driveItemId: lastModified }
+    /* ───────── helpers for this run ──────────────────────── */
+    const bufferCache = new Map();              // driveItem.id → ArrayBuffer
+    const grouped     = new Map();              // dir|prefix   → [config rows]
 
-    for (const item of config) {
-      try {
-        const { directory, filenamePrefix, dataKey } = item;
-        const key        = dataKey || filenamePrefix;
-        const storageKey = `${key}Data`;
-        const isPricing  = key === "Pricing" || /^Prices\s\d+$/i.test(key);
+    // group identical workbooks so metadata + download happen once
+    for (const c of config) {
+      const sig = `${c.directory}|${c.filenamePrefix}`;
+      if (!grouped.has(sig)) grouped.set(sig, []);
+      grouped.get(sig).push(c);
+    }
 
-        /* ── 1) always fetch latest metadata ── */
-        const mdResp = await fetchLatestFileMetadata(directory, filenamePrefix, token);
-        if (!mdResp.value || mdResp.value.length === 0) {
-          console.warn(`No matching file found in '${directory}' for prefix '${filenamePrefix}'`);
-          continue;
-        }
-        const md = mdResp.value[0];
+    /* ───────── buckets for merged price sheets ───────────── */
+    const pricingBuckets = [];                  // rows from all price sheets
+    const pricingMeta    = {};                  // { driveItemId: lastModified }
 
-        if (isPricing) {
-          // ── 2) always re-download the price sheet ──
-          const buf = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
-          const raw = parseExcelData(
-                       buf,
-                       item.skipRows,
-                       item.columns,
-                       item.sheetName);
-        
-          /* Keep only the columns the UI needs */
-          const KEEP = [
-            "Product", "Units per Box",
-            "USER FB", "USER HB", "USER LTB",
-            "DISTR FB", "DISTR HB", "DISTR LTB"
-          ];
-        
-          raw.forEach(r => {
-            if (!r["Product"]) return;          // ignore spacer / total lines
-        
-            const slim = {};
-            KEEP.forEach(k => {
-              if (r[k] !== undefined && r[k] !== "") {
-                if (k !== "Product" && k !== "Units per Box") {
-                  slim[k] = toNumber(r[k]);  // price fields → numbers
-                } else {
-                  slim[k] = r[k];            // text fields stay raw
+    /* ───────── 1. loop over unique workbooks ─────────────── */
+    for (const bucket of grouped.values()) {
+      const { directory, filenamePrefix } = bucket[0];
+
+      /* 1-a  fetch latest metadata once */
+      const mdResp = await fetchLatestFileMetadata(directory, filenamePrefix, token);
+      if (!mdResp.value || mdResp.value.length === 0) {
+        console.warn(`No matching file found in '${directory}' for prefix '${filenamePrefix}'`);
+        continue;
+      }
+      const md = mdResp.value[0];
+
+      /* 1-b  download (or reuse) workbook */
+      let buf = bufferCache.get(md.id);
+      if (!buf) {
+        buf = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
+        bufferCache.set(md.id, buf);
+      }
+
+      /* 1-c  iterate the sibling config rows (different sheetNames, etc.) */
+      for (const item of bucket) {
+        try {
+          const { dataKey, skipRows, columns, sheetName } = item;
+          const key        = dataKey || item.filenamePrefix;
+          const storageKey = `${key}Data`;
+          const isPricing  = key === "Pricing" || /^Prices\s\d+$/i.test(key);
+
+          /* 2. unified cache guard – runs for *all* sheet types */
+          const cached = await idbUtil.getDataset(storageKey);
+          if (cached?.metadata?.lastModifiedDateTime === md.lastModifiedDateTime) {
+            window.dataStore[key] = cached;
+            if (isPricing) pricingBuckets.push(...cached.dataframe);
+            continue;                             // up-to-date
+          }
+
+          /* 3. parse the requested sheet/tab */
+          const dataframe = parseExcelData(buf, skipRows, columns, sheetName);
+
+          /* 3-a  pricing workbook  ----------------------------------- */
+          if (isPricing) {
+            const KEEP = [
+              "Product", "Units per Box",
+              "USER FB", "USER HB", "USER LTB",
+              "DISTR FB", "DISTR HB", "DISTR LTB"
+            ];
+
+            dataframe.forEach(r => {
+              if (!r["Product"]) return;          // skip spacer rows
+
+              const slim = {};
+              KEEP.forEach(k => {
+                if (r[k] !== undefined && r[k] !== "") {
+                  slim[k] = (k === "Product" || k === "Units per Box")
+                           ? r[k]
+                           : toNumber(r[k]);      // price cells → numbers
                 }
-              }
+              });
+              pricingBuckets.push(slim);
             });
-            pricingBuckets.push(slim);
-          });
-        
-          // Record last-modified stamp for later caching
-          pricingMeta[md.id] = md.lastModifiedDateTime;
-          continue;                             // write merged pricing after the loop
-        }
 
-        /* ── 2b) Price-raise sheet ───────────────────────────────── */
-        if (key === "PriceRaise") {
-          const buf = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
-          const raw = parseExcelData(buf, item.skipRows, item.columns, item.sheetName);
+            pricingMeta[md.id] = md.lastModifiedDateTime;
+            continue;                             // store merged after loop
+          }
 
-          const map = {};
-          raw.forEach(r => {
-            if (!r.Product) return;
-            map[String(r.Product).trim()] = {
-              COO: r.COO || "N/A",
-              July9thIncrease: r.July9thIncrease || "N/A"
-            };
-          });
+          /* 3-b  price-raise sheet  ---------------------------------- */
+          if (key === "PriceRaise") {
+            const map = {};
+            dataframe.forEach(r => {
+              if (!r.Product) return;
+              map[String(r.Product).trim()] = {
+                COO            : r.COO || "N/A",
+                July9thIncrease: r.July9thIncrease || "N/A"
+              };
+            });
 
-          const stored = { dataframe: map, metadata: md };
-          window.dataStore["PriceRaise"] = stored;
-          await idbUtil.setDataset("PriceRaiseData", stored);
-          console.log(`[PriceRaise] ${Object.keys(map).length} rows loaded.`);
-          continue;
-        }
+            const stored = { dataframe: map, metadata: md };
+            window.dataStore["PriceRaise"] = stored;
+            await idbUtil.setDataset("PriceRaiseData", stored);
+            console.log(`[PriceRaise] ${Object.keys(map).length} rows loaded.`);
+            continue;
+          }
 
-        /* ── 3) non-pricing sheets: download only if changed ── */
-        const cached = await idbUtil.getDataset(storageKey);
-        if (cached?.metadata?.lastModifiedDateTime === md.lastModifiedDateTime) {
-          window.dataStore[key] = cached;
-          continue;                   // cache up-to-date, skip download
-        }
+          /* 3-c  other sheets (Sales, DB, Equivalents, …) ------------- */
+          let processed = dataframe;
+          if (item.filenamePrefix === "Sales") {
+            processed = fillDownColumn(dataframe, "Customer");
+            processed = filterOutValues(processed, "Product_Service", DISALLOWED_PRODUCTS);
+          }
 
-        const buf       = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
-        const dataframe = parseExcelData(buf, item.skipRows, item.columns, item.sheetName);
+          if (key === "Equivalents") {
+            const map = normalizeEquivalents(processed);
+            const stored = { dataframe: map, metadata: md };
+            window.dataStore["Equivalents"] = map;
+            await idbUtil.setDataset(storageKey, stored);
+            continue;
+          }
 
-        let processed = dataframe;
-        if (filenamePrefix === "Sales") {
-          processed = fillDownColumn(dataframe, "Customer");
-          processed = filterOutValues(processed, "Product_Service", DISALLOWED_PRODUCTS);
-        }
-
-        if (key === "Equivalents") {
-          const map = normalizeEquivalents(processed);
-          const stored = { dataframe: map, metadata: md };
-          window.dataStore["Equivalents"] = map;
+          const stored = { dataframe: processed, metadata: md };
+          window.dataStore[key] = stored;
           await idbUtil.setDataset(storageKey, stored);
-          continue;
+          console.log(`Stored ${md.name} in IndexedDB under key ${storageKey}.`);
+
+        } catch (err) {
+          console.error("Error processing sheet:", err);
         }
-
-        const stored = { dataframe: processed, metadata: md };
-        window.dataStore[key] = stored;
-        await idbUtil.setDataset(storageKey, stored);
-        console.log(`Stored ${md.name} in IndexedDB under key ${storageKey}.`);
-
-      } catch (err) {
-        console.error("Error processing file:", err);
       }
     }
 
-    /* ────────────────────────────
-       4) after loop: commit merged pricing
-    ──────────────────────────── */
+    /* ───────── 4. commit merged price sheets ─────────────────────── */
     if (pricingBuckets.length) {
-      // dedupe on Product (last-in wins)
       const uniq = {};
-      pricingBuckets.forEach(r => uniq[r.Product] = r);
+      pricingBuckets.forEach(r => uniq[r.Product] = r);   // dedupe by Product
       const merged = Object.values(uniq);
 
       const stored = { dataframe: merged, metadata: pricingMeta };
@@ -289,51 +289,13 @@ async function processFiles() {
       console.log(`[Pricing] refreshed – ${merged.length} rows merged from all price sheets.`);
     }
 
-    // ✅ signal that every required sheet is in memory
+    /* ───────── 5. signal ready ───────────────────────────────────── */
     window.reportsReady = true;
     document.dispatchEvent(new Event('reports-ready'));
 
   } catch (err) {
     console.error("Error processing files:", err);
   }
-}
-
-/**
- * Normalizes the replacements mapping from the "Equivalents (BT Master 2025)" sheet.
- * For each row, it aggregates:
- *   - The BM part (if it exists) as the first element.
- *   - The equivalent parts from other columns (as an array of 0, one, or more parts).
- * Then, it maps every found part (BM or equivalent) to the full array of replacements.
- *
- * @param {Array<Object>} data - The parsed sheet data.
- * @returns {Object} - A mapping where keys are parts and values are arrays of valid replacements.
- */
-function normalizeEquivalents(data) {
-  const mapping = {};
-  for (const row of data) {
-    const bmPart = String(row["BM Part #"] || "").trim(); // BM Part
-    let equivalents = [];
-    // Process the equivalent columns
-    for (const col of ["Nordson EFD Part #", "Medmix Sulzer Part #"]) {
-      const raw = String(row[col] || "");
-      const parts = raw.split(",").map(val => val.trim()).filter(Boolean);
-      equivalents = equivalents.concat(parts);
-    }
-    // Build the replacement array (BM part always first if available)
-    let replacements = [];
-    if (bmPart) {
-      replacements.push(bmPart);
-    }
-    replacements = replacements.concat(equivalents);
-    // Only map rows that have at least one replacement
-    if (replacements.length > 0) {
-      // For every part in the replacement list, map it to the full replacement array
-      for (const part of replacements) {
-        mapping[part] = replacements;
-      }
-    }
-  }
-  return mapping;
 }
 
 
