@@ -30,7 +30,7 @@ window.buildProductLapsedReport = function buildProductLapsedReport(modalEl, rep
         /* ---------- group rows by product ---------- */
         const salesByProd = raw.reduce((acc, row) => {
           const prodNum = row.Product_Service;
-          const descr   = Memo_Description || '';
+          const descr   = row.Memo_Description || '';
           const saleDt  = parseDate(row.Date);
           if (!saleDt || isNaN(saleDt)) return acc;
 
