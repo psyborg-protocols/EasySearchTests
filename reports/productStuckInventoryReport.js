@@ -75,14 +75,20 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
 
           if (!stuck || inv.avail <= 0) return;
 
-          outRows.push({
+            const reason =
+            avgMonthly === 0 ? 'No sales in past year' :
+            monthsOnHand > MONTH_SUPPLY_LIM ? 'Oversupply' :
+            lastSale < sixMonths ? 'Lapsed sales' : '';
+
+            outRows.push({
             'Product Number'   : pn,
             'Description'      : inv.descr,
             'Qty Available'    : inv.avail,
             'Avg Monthly Units (1 yr)' : avgMonthly.toFixed(2),
-            'Months On Hand'   : (monthsOnHand===Infinity? '∞' : monthsOnHand.toFixed(1)),
-            'Last Sale Date'   : lastSale ? lastSale.toLocaleDateString('en-US') : '—'
-          });
+            'Months On Hand'   : isFinite(monthsOnHand) ? monthsOnHand.toFixed(1) : '∞',
+            'Last Sale Date'   : lastSale ? lastSale.toLocaleDateString('en-US') : '—',
+            'Stuck Reason'     : reason
+            });
         });
 
         outRows.sort((a,b)=> b['Months On Hand'] - a['Months On Hand']);
