@@ -1,151 +1,222 @@
-/* reports/profitReport.js
-   ----------------------- */
-window.buildProfitReport = function buildProfitReport(modalEl, reportId, topN = 5) {
+/* --------------------------------------------------------------------------
+   profitReport.js
+   --------------------------------------------------------------------------
+   Registers window.buildProfitReport(modalEl, reportId, topN = 5)
+   – Generates a CSV ranking the top-N customers and products by profit.
+   – Columns:   All-Time block  │  blank │  Year blocks (newest → oldest)
+   – Rows   :   Customers 1-N   │ blank row │ Products 1-N
+   -------------------------------------------------------------------------- */
+
+window.buildProfitReport = function buildProfitReport (modalEl, reportId, topN = 5) {
+
+  /* ---------- tiny helpers ---------- */
+  const currency = v => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
+  const pct      = frac => `${(frac * 100).toFixed(1)}%`;          // 0.274 → “27.4%”
+  const parseDate = s => {
+    if (typeof s !== 'string') return null;
+    const [m, d, y] = s.split('/').map(t => +t.trim());
+    return (m && d && y) ? new Date(y, m - 1, d) : null;
+  };
+
+  /* ---------- promise wrapper matches other reports ---------- */
   return new Promise((resolve, reject) => {
     const item = modalEl.querySelector(`#item-${reportId}`);
-    if (!item) return reject({ reportId, error:'LI not found' });
+    if (!item) return reject({ reportId, error: 'list-item not found' });
 
-    setTimeout(() => {             // let spinner paint
+    /* let the spinner show for a frame */
+    setTimeout(() => {
       try {
         /* ---------- pull datasets ---------- */
         const salesDF = window.dataStore?.Sales?.dataframe || [];
         const dbDF    = window.dataStore?.DB?.dataframe    || [];
+
         if (!salesDF.length || !dbDF.length) {
           item.querySelector('.spinner-border')?.remove();
-          item.insertAdjacentHTML('beforeend',
-            ' <small class="text-danger">(Sales and/or DB data missing)</small>');
-          return resolve({ reportId, status:'error' });
+          item.insertAdjacentHTML(
+            'beforeend',
+            ' <small class="text-danger">(Sales and/or DB data missing)</small>'
+          );
+          return resolve({ reportId, status: 'error', message: 'no data' });
         }
 
-        /* ---------- look-ups & helpers ---------- */
-        const costBySku = dbDF.reduce((a,r)=>{
-          a[r.PartNumber||r.Product_Service] = +r.UnitCost||+r.Unit_Cost||0;
-          return a;
-        },{});
-        const parseDate = s => {
-          const [m,d,y]=typeof s==='string'?s.split('/').map(t=>+t.trim()):[];
-          return (m&&d&&y) ? new Date(y,m-1,d) : null;
-        };
-        const currency=v=>`$${v.toLocaleString(undefined,{minimumFractionDigits:0})}`;
-        const pct=v=>`${v.toFixed(1)}%`;
+        /* ---------- SKU → unit-cost map ---------- */
+        const costBySku = dbDF.reduce((acc, r) => {
+          const sku = r.PartNumber || r.Product_Service;
+          const cost = +r.UnitCost || +r.Unit_Cost || 0;
+          if (sku) acc[sku] = cost;
+          return acc;
+        }, {});
 
-        /* ---------- flatten sales → profit rows ---------- */
-        const rows=[];
-        salesDF.forEach(r=>{
-          const dt=parseDate(r.Date); if(!dt) return;
-          const sku=r.Product_Service;
-          const rev= +String(r.Total_Amount||0).replace(/\s/g,'');
-          const cost=(costBySku[sku]||0)*(+r.Quantity||1);
+        /* ---------- loop through sales; compute profit per line ---------- */
+        const rows = [];
+        const skuDescriptions = {};          // { sku: { descr: count, … }, … }
+
+        salesDF.forEach(r => {
+          const dt  = parseDate(r.Date);
+          if (!dt) return;                   // skip bad dates
+
+          const sku = r.Product_Service;
+          const qty = +r.Quantity || 1;
+          const rev = +String(r.Total_Amount).replace(/\s/g, '') || 0;
+          const cost = (costBySku[sku] || 0) * qty;
+          const profit = rev - cost;
+
+          if (!isFinite(profit)) return;
+
+          /* track the description text frequency for each SKU */
+          const descr = r.Memo_Description || r.Description || '';
+          if (sku) {
+            const bucket = skuDescriptions[sku] ||= {};
+            bucket[descr] = (bucket[descr] || 0) + 1;
+          }
+
           rows.push({
-            year:dt.getFullYear(),
-            customer:r.Customer,
-            product:sku,
-            descr:r.Memo_Description||r.Description||'',
-            profit:rev-cost
+            year    : dt.getFullYear(),
+            customer: r.Customer,
+            sku,
+            profit
           });
         });
 
-        if(!rows.length){
+        if (!rows.length) {
           item.querySelector('.spinner-border')?.remove();
-          item.insertAdjacentHTML('beforeend',' <small class="text-muted">(No calculable rows)</small>');
-          return resolve({ reportId, status:'success', message:'empty' });
+          item.insertAdjacentHTML('beforeend', ' <small class="text-muted">(No calculable profit rows)</small>');
+          return resolve({ reportId, status: 'success', message: 'empty' });
         }
 
-        /* ---------- helper to rank ---------- */
-        function topBy(key, yr=null){
-          const bucket={};
-          rows.forEach(r=>{
-            if(yr!==null && r.year!==yr) return;
-            const k = key==='customer' ? r.customer : `${r.product}: ${r.descr}`;
-            if(!k) return;
-            bucket[k] = (bucket[k]||0)+r.profit;
+        /* ---------- pick ONE display description per SKU (most common) ---------- */
+        const labelForSku = {};
+        Object.entries(skuDescriptions).forEach(([sku, counts]) => {
+          const best = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+          labelForSku[sku] = best ? `${sku}: ${best}` : sku;
+        });
+
+        /* ---------- handy aggregators ---------- */
+        function topBy (bucketKey, yearFilter = null) {
+          const totals = {};                         // name → profit
+          rows.forEach(r => {
+            if (yearFilter !== null && r.year !== yearFilter) return;
+
+            const key = bucketKey === 'customer'
+              ? (r.customer || '(no customer)')
+              : (labelForSku[r.sku] || r.sku || '(no SKU)');
+
+            totals[key] = (totals[key] || 0) + r.profit;
           });
-          const total = Object.values(bucket).reduce((a,b)=>a+b,0);
-          const list  = Object.entries(bucket)
-                          .sort((a,b)=>b[1]-a[1])
-                          .slice(0,topN)
-                          .map(([label,total])=>({label,total,percent:total/total}));
-          return { total, list };
+
+          /* convert to sorted list of { label, total } */
+          return Object.entries(totals)
+                       .sort((a, b) => b[1] - a[1])
+                       .slice(0, topN)
+                       .map(([label, total]) => ({ label, total }));
         }
 
-        /* ---------- collect global + yearly ---------- */
-        const years=[...new Set(rows.map(r=>r.year))].sort((a,b)=>b-a); // newest first
-        const overallCompanyProfit=rows.reduce((a,r)=>a+r.profit,0);
+        /* ---------- time scopes ---------- */
+        const years = [...new Set(rows.map(r => r.year))].sort((a, b) => b - a); // newest first
+        const companyTotalAll = rows.reduce((a, r) => a + r.profit, 0);
 
-        const overallCust=topBy('customer').list.map(o=>{
-          o.percent=o.total/overallCompanyProfit; return o;
-        });
-        const overallProd=topBy('product').list.map(o=>{
-          o.percent=o.total/overallCompanyProfit; return o;
-        });
+        /* overall (all-time) */
+        const overallCust = topBy('customer');
+        const overallProd = topBy('product');
 
-        const custByYear={}, prodByYear={}, companyByYear={};
-        years.forEach(y=>{
-          const c=topBy('customer',y); custByYear[y]=c.list;
-          const p=topBy('product' ,y); prodByYear[y]=p.list;
-          companyByYear[y]=rows.filter(r=>r.year===y)
-                               .reduce((a,r)=>a+r.profit,0);
-          // fix % once company total known
-          custByYear[y].forEach(o=>o.percent=o.total/companyByYear[y]);
-          prodByYear[y].forEach(o=>o.percent=o.total/companyByYear[y]);
+        /* per-year results & company totals */
+        const custByYear   = {};
+        const prodByYear   = {};
+        const companyByYear = {};
+
+        years.forEach(y => {
+          custByYear[y]   = topBy('customer', y);
+          prodByYear[y]   = topBy('product' , y);
+          companyByYear[y] = rows.filter(r => r.year === y)
+                                 .reduce((a, r) => a + r.profit, 0);
         });
 
-        /* ---------- build header row ---------- */
-        const header=[
-          'All-Time Customer/Product','All-Time Profit',
-          'All-Time % of Profit','',''  // the blank separator col gets empty header
+        /* ---------- header row ---------- */
+        const header = [
+          'All-Time Customer/Product',
+          'All-Time Profit',
+          'All-Time % of Profit',
+          ''   // blank column after all-time block
         ];
-        years.forEach(y=>{
-          header.push(`${y} Customer/Product`,`${y} Profit`,`${y} % of Profit`);
+        years.forEach((y, idx) => {
+          header.push(
+            `${y} Customer/Product`,
+            `${y} Profit`,
+            `${y} % of Profit`
+          );
+          if (idx < years.length - 1) header.push('');   // blank between year blocks
         });
 
-        /* ---------- assemble section helper ---------- */
-        const makeSection=(overallArr, yearlyDict)=>{
-          const out=[];
-          for(let i=0;i<topN;i++){
-            const row=[];
-            // overall
-            const o=overallArr[i]||{};
-            row.push(o.label||'', o.label?currency(o.total):'',
-                      o.label?pct(o.percent*100):'', '');
-            years.forEach(y=>{
-              const v=yearlyDict[y][i]||{};
-              row.push(v.label||'', v.label?currency(v.total):'',
-                       v.label?pct(v.percent*100):'');
+        /* ---------- section builder (customers then products) ---------- */
+        function makeSection (overallArr, yearlyDict) {
+          const out = [];
+          for (let i = 0; i < topN; i++) {
+            const row = [];
+
+            /* ---- all-time block ---- */
+            const o = overallArr[i] || {};
+            row.push(
+              o.label || '',
+              o.label ? currency(o.total) : '',
+              o.label ? pct(o.total / companyTotalAll) : '',
+              ''       // blank between all-time and first year block
+            );
+
+            /* ---- one block per year ---- */
+            years.forEach((y, idx) => {
+              const v   = yearlyDict[y][i] || {};
+              const den = companyByYear[y] || 0;
+              row.push(
+                v.label || '',
+                v.label ? currency(v.total) : '',
+                (v.label && den) ? pct(v.total / den) : ''
+              );
+              if (idx < years.length - 1) row.push('');   // blank between year blocks
             });
+
             out.push(row);
           }
           return out;
-        };
+        }
 
-        const rowsCSV=[
+        const csvRows = [
           header,
-          ...makeSection(overallCust,custByYear),
-          [],                                    // blank row between cust / prod
-          ...makeSection(overallProd,prodByYear)
+          ...makeSection(overallCust, custByYear),
+          [],  // blank row between customers & products
+          ...makeSection(overallProd, prodByYear)
         ];
 
         /* ---------- CSV stringify ---------- */
-        const toCSV = arr => arr.map(r => r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
-        const csv = toCSV(rowsCSV);
+        const toCSV = arr =>
+          arr.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
+             .join('\n');
+        const csv = toCSV(csvRows);
 
-        /* ---------- UI ---------- */
+        /* ---------- UI finish ---------- */
         item.querySelector('.spinner-border')?.remove();
-        const btn=document.createElement('button');
-        btn.className='report-download-btn';
-        btn.title='Download Profit Report';
-        btn.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="#5f6368"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>`;
-        btn.onclick=()=>saveAs(new Blob([csv],{type:'text/csv;charset=utf-8'}),'profit_report.csv');
-        item.appendChild(btn);
+        if (csv) {
+          const btn = document.createElement('button');
+          btn.className = 'report-download-btn';
+          btn.title = 'Download Profit Report';
+          btn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="#5f6368">
+              <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
+            </svg>`;
+          btn.onclick = () =>
+            saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8' }), 'profit_report.csv');
+          item.appendChild(btn);
+        } else {
+          item.insertAdjacentHTML('beforeend', ' <small class="text-muted">(No profit rows)</small>');
+        }
 
-        resolve({ reportId, status:'success', rows:rowsCSV.length });
+        resolve({ reportId, status: 'success', lines: csvRows.length });
 
-      } catch(err){
-        console.error('Profit report error',err);
+      } catch (err) {
+        console.error('Profit report error', err);
         item.querySelector('.spinner-border')?.remove();
-        item.insertAdjacentHTML('beforeend',' <small class="text-danger">(Error)</small>');
-        reject({ reportId, error:err });
+        item.insertAdjacentHTML('beforeend', ' <small class="text-danger">(Error)</small>');
+        reject({ reportId, error: err });
       }
-    },0);
-  });
+    }, 0);    // end setTimeout
+  });         // end Promise
 };
