@@ -41,17 +41,22 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
           return acc;
         },{});
 
-        // 2. sales stats for the last year
+        // 2. sales stats, split into “demand window” and “ever”
         const statsByPart = {};
-        salesDF.forEach(r=>{
-          const pn = r.Product_Service;
-          const dt = parseDate(r.Date);
-          if (!pn || !dt) return;
-          if (dt < yearAgo) return;                // outside 1-year window
-          const qty = +r.Quantity || 0;
-          statsByPart[pn] = statsByPart[pn] || {units:0,last:dt};
-          statsByPart[pn].units += qty;
-          if (dt > statsByPart[pn].last) statsByPart[pn].last = dt;
+
+        salesDF.forEach(r => {
+        const pn = r.Product_Service?.trim();
+        const dt = parseDate(r.Date);
+        if (!pn || !dt) return;
+
+        // Get (or create) the stats bucket for this part
+        const s = statsByPart[pn] ||= { units: 0, last: null };
+
+        // 2a. Demand in the last 365 days
+        if (dt >= yearAgo) s.units += +r.Quantity || 0;
+
+        // 2b. Absolute last-sale date (keeps even very old sales)
+        if (!s.last || dt > s.last) s.last = dt;
         });
 
         /* ---------- identify “stuck” products ---------- */
