@@ -28,6 +28,11 @@ window.reportModules = [
     id: 'invstuck',
     title: 'Stuck Inventory (Qty > 12-mo supply OR no sale in 6 mo)',
     generatorFunctionName: 'buildStuckInventoryReport'
+  },
+  {
+  id: 'profit',
+  title: 'Top Customers & Products by Profit',
+  generatorFunctionName: 'buildProfitReport'
   }
   // Add more reports here
 ];
