@@ -78,7 +78,7 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
             const reason =
             avgMonthly === 0 ? 'No sales in past year' :
             monthsOnHand > MONTH_SUPPLY_LIM ? 'Oversupply' :
-            lastSale < sixMonths ? 'Lapsed sales' : '';
+            lastSale < sixMonths ? 'Lapsed sales - No sales in the past six months' : '';
 
             outRows.push({
             'Product Number'   : pn,
