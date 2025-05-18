@@ -23,6 +23,11 @@ window.reportModules = [
     "id": "prodlapsed",
     "title": "Lapsed Products (No Orders in 6 Months, Avg. Freq. > 1/6mo)",
     "generatorFunctionName": "buildProductLapsedReport"
+  },
+  {
+    id: 'invstuck',
+    title: 'Stuck Inventory (Qty > 12-mo supply OR no sale in 6 mo)',
+    generatorFunctionName: 'buildStuckInventoryReport'
   }
   // Add more reports here
 ];
