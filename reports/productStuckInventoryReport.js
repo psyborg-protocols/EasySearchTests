@@ -83,7 +83,7 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
             outRows.push({
             'Product Number'   : pn,
             'Description'      : inv.descr,
-            'Top Customers'    : window.getTopCustomersForProduct(prodNum).join(', '),
+            'Top Customers'    : window.getTopCustomersForProduct(pn).join(', '),
             'Qty Available'    : inv.avail,
             'Avg Monthly Units Sold (1 yr)' : avgMonthly.toFixed(2),
             'Months On Hand (at current rate of sale)'   : isFinite(monthsOnHand) ? monthsOnHand.toFixed(1) : '∞',
