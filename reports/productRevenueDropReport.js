@@ -125,6 +125,7 @@ window.buildProductRevenueDropReport = function buildProductRevenueDropReport(mo
             Product     : r.Product,
             Description : r.Description
           };
+          row.Top_Customers   = window.getTopCustomersForProduct(r.Product).join(', ');
           yearsList.forEach(y => row[`Y${y}`] = currency(revByYr[y][r.Product] || 0));
           row.Total_Revenue   = currency(r.Total_Revenue);
           row.Revenue_Prior12 = currency(r.Revenue_Prior12);

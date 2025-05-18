@@ -32,6 +32,36 @@ window.reportModules = [
   // Add more reports here
 ];
 
+/* --------------------------------------------------------- */
+/*  Common helper – returns an array of the top N customers  */
+/*  for a given product SKU, ranked by total revenue.        */
+/* --------------------------------------------------------- */
+window.getTopCustomersForProduct = function (
+        sku,          // product number / SKU
+        topN   = 3,   // how many customers to return
+        salesDF = window.dataStore?.Sales?.dataframe || []
+) {
+  if (!salesDF.length) return [];
+
+  /* --- what column holds customer names? --- */
+  const custField = 'Customer';
+
+  /* --- aggregate revenue by customer for this SKU --- */
+  const totals = {};
+  salesDF.forEach(r => {
+    if (r.Product_Service !== sku) return;
+    const cust = r[custField];
+    if (!cust) return;
+    const amt  = +String(r.Total_Amount).replace(/\s/g, '') || 0;
+    totals[cust] = (totals[cust] || 0) + amt;
+  });
+
+  return Object.entries(totals)
+               .sort((a,b) => b[1] - a[1])        // high-rev first
+               .slice(0, topN)                    // top N
+               .map(([cust]) => cust);            // array of names
+};
+
 window.initReports = function initReports() {
   if (_reportsWired) return;
   _reportsWired = true;

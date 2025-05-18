@@ -61,6 +61,7 @@ window.buildProductLapsedReport = function buildProductLapsedReport(modalEl, rep
           outRows.push({
             'Product Number'                 : prodNum,
             'Description'                    : descr,
+            'Top Customers'                  : window.getTopCustomersForProduct(prodNum).join(', '),
             'Avg Sales Freq (orders/6mo)'    : avgPer180.toFixed(2),
             'Date of Last Sale'              : lastSale.toLocaleDateString('en-US',
                                                 { year:'numeric', month:'2-digit', day:'2-digit' })
