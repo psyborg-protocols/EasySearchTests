@@ -58,24 +58,20 @@ document.addEventListener('DOMContentLoaded', async function () {
     console.log("[signInButton] Data processing completed after sign-in.");
   });
 
-  document.addEventListener('reports-ready', () => {
-    const links = window.dataStore.fileLinks || {};
-
-    const setLink = (id, url) => {
+  /* ---------------- link-icon hookup ---------------- */
+  const exposeFileLinks = () => {
+    const { fileLinks = {} } = window.dataStore;
+    const show = (id, url) => {
       const a = document.getElementById(id);
       if (!a) return;
-      if (url) {
-        a.href = url;
-        a.classList.remove('d-none');   // show icon
-      } else {
-        a.classList.add('d-none');      // keep hidden if we have no link
-      }
+      a.href = url || '#';
+      a.classList.toggle('d-none', !url);
     };
-
-    setLink('salesFileLink',   links.Sales);
-    setLink('dbFileLink',      links.DB);
-    setLink('pricingFileLink', links.Pricing);
-  });
+    show('salesFileLink',   fileLinks.Sales);
+    show('dbFileLink',      fileLinks.DB);
+    show('pricingFileLink', fileLinks.Pricing);
+  };
+  document.addEventListener('reports-ready', exposeFileLinks);
 
   document.getElementById('signOutButton').addEventListener('click', async () => {
     signOut();
