@@ -35,6 +35,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         PriceRaise: window.dataStore["PriceRaise"]
       });
 
+      window.dataStore.fileLinks = {
+        Sales   : cachedSales?.metadata?.webUrl   || null,
+        DB      : cachedDB?.metadata?.webUrl      || null,
+        Pricing : cachedPricing?.metadata?.webUrl || null
+      };
+
       // ✅ cached path: tell the UI we’re good to go
       window.reportsReady = true;
       document.dispatchEvent(new Event('reports-ready'));
