@@ -172,6 +172,15 @@ async function processFiles() {
       const md = metaResp.value?.[0];
       if (!md) continue;                            // nothing matched
 
+      // keep the webUrl for links
+      const webUrl = md.webUrl;
+      rows.forEach(r => {
+        const key = r.dataKey || r.filenamePrefix;   // "Sales", "DB", "Pricing", …
+        if (!window.dataStore.fileLinks[key]) {
+          window.dataStore.fileLinks[key] = webUrl;
+        }
+      });
+
       const fileId = md.id;
       const lastMod = md.lastModifiedDateTime;
 
@@ -429,6 +438,7 @@ function toNumber(val) {
 
 // Global storage for parsed data
 window.dataStore = {}; 
+window.dataStore.fileLinks = {}; // for sheet links
 // Export the functions for external use.
 window.dataLoader = {
   loadConfig,
