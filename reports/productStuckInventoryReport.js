@@ -33,11 +33,12 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
         const sixMonths = new Date(today); sixMonths.setDate(today.getDate()-LAPSED_SALE_DAYS);
 
         /* ---------- build look-ups ---------- */
-        // 1. QtyAvailable per PartNumber from DB
+        // 1. QtyAvailable  and cost per PartNumber from DB
         const invByPart = dbDF.reduce((acc,r)=>{
           const pn = r.PartNumber;
           const avail = (+r.QtyOnHand||0) - (+r.QtyOnOrder||0);
-          acc[pn] = {...acc[pn], avail, descr: r.Description || r.PartDesc || ''};
+          const cost  = +r.UnitCost || 0;
+          acc[pn] = {...acc[pn], avail, cost, descr: r.Description || r.PartDesc || ''};
           return acc;
         },{});
 
@@ -67,6 +68,10 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
           const avgMonthly = stats.units / 12;
           const monthsOnHand = avgMonthly ? inv.avail / avgMonthly : Infinity;
           const lastSale = stats.last;
+          // metrics for sorting
+          const sixMonthSupply = avgMonthly * 6;           
+          const excessUnits    = Math.max(0, inv.avail - sixMonthSupply); 
+          const excessCapital  = excessUnits * inv.cost;           
 
           const stuck =
             (!lastSale) ||                                    // never sold
@@ -87,12 +92,16 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
             'Qty Available'    : inv.avail,
             'Avg Monthly Units Sold (1 yr)' : avgMonthly.toFixed(2),
             'Months On Hand (at current rate of sale)'   : isFinite(monthsOnHand) ? monthsOnHand.toFixed(1) : '∞',
+            'Excess Capital (>$) – over 6-mo supply' :               // display
+                  excessCapital.toLocaleString('en-US',{style:'currency',currency:'USD'}),
+            excessCapitalNum : excessCapital,                        // raw ★
             'Last Sale Date'   : lastSale ? lastSale.toLocaleDateString('en-US') : '—',
             'Stuck Reason'     : reason
             });
         });
 
-        outRows.sort((a,b)=> b['Months On Hand'] - a['Months On Hand']);
+        outRows.sort((a,b)=> b.excessCapitalNum - a.excessCapitalNum
+                 ||  b['Qty Available']   - a['Qty Available']);
 
         /* ---------- render result ---------- */
         item.querySelector('.spinner-border')?.remove();
