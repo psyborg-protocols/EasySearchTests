@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     show('pricingFileLink', fileLinks.Pricing);
   };
   document.addEventListener('reports-ready', exposeFileLinks);
+  exposeFileLinks();
 
   document.getElementById('signOutButton').addEventListener('click', async () => {
     signOut();
