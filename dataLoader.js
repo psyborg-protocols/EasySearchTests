@@ -161,7 +161,7 @@ async function processFiles() {
     const mergedPrices = [];              // will hold updated rows
     let   pricingChanged = false;         // trip if ANY workbook updates
     const bufferCache    = new Map();     // fileId → ArrayBuffer
-    const ds             = window.dataStore = {};   // local shortcut
+    const ds             = window.dataStore;   // local shortcut
 
     /* ── 3. iterate unique workbooks ─────────────────────────── */
     for (const rows of byWorkbook.values()) {
