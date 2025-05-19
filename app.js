@@ -35,11 +35,18 @@ document.addEventListener('DOMContentLoaded', async function () {
         PriceRaise: window.dataStore["PriceRaise"]
       });
 
-      window.dataStore.fileLinks = {
-        Sales   : cachedSales?.metadata?.webUrl   || null,
-        DB      : cachedDB?.metadata?.webUrl      || null,
-        Pricing : cachedPricing?.metadata?.webUrl || null
-      };
+      // --- rebuild the three hrefs from what we just loaded ---
+      const links       = window.dataStore.fileLinks ||= {};
+
+      links.Sales = cachedSales?.metadata?.webUrl || null;
+      links.DB    = cachedDB?.metadata?.webUrl    || null;
+
+      // Pricing: scan the composite metadata and grab the first URL we find
+      if (cachedPricing?.metadata) {
+        for (const m of Object.values(cachedPricing.metadata)) {
+          if (m?.webUrl) { links.Pricing = m.webUrl; break; }
+        }
+      }
 
       // ✅ cached path: tell the UI we’re good to go
       window.reportsReady = true;

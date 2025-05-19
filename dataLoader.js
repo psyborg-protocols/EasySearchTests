@@ -189,7 +189,7 @@ async function processFiles() {
         const k = r.dataKey || r.filenamePrefix;
         return k === "Pricing" || /^Prices\s\d+/i.test(k);
       });
-      if (isPricingBook && cachedPricing && pricingMeta[fileId] === lastMod) {
+      if (isPricingBook && cachedPricing && pricingMeta[fileId]?.lastModifiedDateTime === lastMod) {
         // already included in cached merged table → nothing to do
         continue;
       }
@@ -222,7 +222,10 @@ async function processFiles() {
         if (isPricing) {
           pricingChanged = true;
           mergedPrices.push(...slimPriceRows(frame));   // collect for global merge
-          pricingMeta[fileId] = lastMod;                // update meta map
+          pricingMeta[fileId] = {                     // ✅ keep both pieces
+            lastModifiedDateTime: lastMod,
+            webUrl              : md.webUrl
+          };
           continue;                                     // no per-tab cache needed
         }
 
