@@ -1,29 +1,30 @@
 /* --------------------------------------------------------------------------
-   profitReport.js
-   --------------------------------------------------------------------------
-   Registers window.buildProfitReport(modalEl, reportId, topN = 5)
-   – Generates a CSV ranking the top-N customers and products by profit.
-   – Columns:   All-Time block  │  blank │  Year blocks (newest → oldest)
-   – Rows   :   Customers 1-N   │ blank row │ Products 1-N
+   profitReport.js – fixed numeric parsing
    -------------------------------------------------------------------------- */
 
 window.buildProfitReport = function buildProfitReport (modalEl, reportId, topN = 5) {
 
-  /* ---------- tiny helpers ---------- */
+  /* ---------- helpers ---------- */
   const currency = v => `$${v.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
-  const pct      = frac => `${(frac * 100).toFixed(1)}%`;          // 0.274 → “27.4%”
+  const pct      = f => `${(f * 100).toFixed(1)}%`;
+
+  /* robust numeric parser: "1,234.56" → 1234.56 */
+  const parseNumber = val => {
+    if (val == null) return NaN;
+    return parseFloat(String(val).replace(/[^0-9.\-]/g, ''));
+  };
+
   const parseDate = s => {
     if (typeof s !== 'string') return null;
     const [m, d, y] = s.split('/').map(t => +t.trim());
     return (m && d && y) ? new Date(y, m - 1, d) : null;
   };
 
-  /* ---------- promise wrapper matches other reports ---------- */
+  /* ---------- promise wrapper ---------- */
   return new Promise((resolve, reject) => {
     const item = modalEl.querySelector(`#item-${reportId}`);
     if (!item) return reject({ reportId, error: 'list-item not found' });
 
-    /* let the spinner show for a frame */
     setTimeout(() => {
       try {
         /* ---------- pull datasets ---------- */
@@ -36,34 +37,33 @@ window.buildProfitReport = function buildProfitReport (modalEl, reportId, topN =
             'beforeend',
             ' <small class="text-danger">(Sales and/or DB data missing)</small>'
           );
-          return resolve({ reportId, status: 'error', message: 'no data' });
+          return resolve({ reportId, status: 'error' });
         }
 
-        /* ---------- SKU → unit-cost map ---------- */
+        /* ---------- SKU → unit cost ---------- */
         const costBySku = dbDF.reduce((acc, r) => {
-          const sku = r.PartNumber || r.Product_Service;
-          const cost = +r.UnitCost || +r.Unit_Cost || 0;
-          if (sku) acc[sku] = cost;
+          const sku  = r.PartNumber || r.Product_Service;
+          const cost = parseNumber(r.UnitCost ?? r.Unit_Cost);
+          if (sku) acc[sku] = isFinite(cost) ? cost : 0;
           return acc;
         }, {});
 
-        /* ---------- loop through sales; compute profit per line ---------- */
+        /* ---------- profit rows ---------- */
         const rows = [];
-        const skuDescriptions = {};          // { sku: { descr: count, … }, … }
+        const skuDescriptions = {};
 
         salesDF.forEach(r => {
-          const dt  = parseDate(r.Date);
-          if (!dt) return;                   // skip bad dates
+          const dt = parseDate(r.Date);
+          if (!dt) return;
 
-          const sku = r.Product_Service;
-          const qty = +r.Quantity || 1;
-          const rev = +String(r.Total_Amount).replace(/\s/g, '') || 0;
-          const cost = (costBySku[sku] || 0) * qty;
+          const sku   = r.Product_Service;
+          const qty   = isFinite(parseNumber(r.Quantity)) ? parseNumber(r.Quantity) : 1;
+          const rev   = parseNumber(r.Total_Amount);
+          const cost  = (costBySku[sku] || 0) * qty;
           const profit = rev - cost;
 
-          if (!isFinite(profit)) return;
+          if (!isFinite(profit)) return;          // still malformed
 
-          /* track the description text frequency for each SKU */
           const descr = r.Memo_Description || r.Description || '';
           if (sku) {
             const bucket = skuDescriptions[sku] ||= {};
@@ -80,31 +80,27 @@ window.buildProfitReport = function buildProfitReport (modalEl, reportId, topN =
 
         if (!rows.length) {
           item.querySelector('.spinner-border')?.remove();
-          item.insertAdjacentHTML('beforeend', ' <small class="text-muted">(No calculable profit rows)</small>');
+          item.insertAdjacentHTML('beforeend',' <small class="text-muted">(No calculable rows)</small>');
           return resolve({ reportId, status: 'success', message: 'empty' });
         }
 
-        /* ---------- pick ONE display description per SKU (most common) ---------- */
+        /* ---------- display label per SKU ---------- */
         const labelForSku = {};
-        Object.entries(skuDescriptions).forEach(([sku, counts]) => {
+        for (const [sku, counts] of Object.entries(skuDescriptions)) {
           const best = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
           labelForSku[sku] = best ? `${sku}: ${best}` : sku;
-        });
+        }
 
-        /* ---------- handy aggregators ---------- */
+        /* ---------- aggregator ---------- */
         function topBy (bucketKey, yearFilter = null) {
-          const totals = {};                         // name → profit
+          const totals = {};
           rows.forEach(r => {
             if (yearFilter !== null && r.year !== yearFilter) return;
-
             const key = bucketKey === 'customer'
               ? (r.customer || '(no customer)')
               : (labelForSku[r.sku] || r.sku || '(no SKU)');
-
             totals[key] = (totals[key] || 0) + r.profit;
           });
-
-          /* convert to sorted list of { label, total } */
           return Object.entries(totals)
                        .sort((a, b) => b[1] - a[1])
                        .slice(0, topN)
@@ -112,68 +108,53 @@ window.buildProfitReport = function buildProfitReport (modalEl, reportId, topN =
         }
 
         /* ---------- time scopes ---------- */
-        const years = [...new Set(rows.map(r => r.year))].sort((a, b) => b - a); // newest first
+        const years = [...new Set(rows.map(r => r.year))].sort((a, b) => b - a);
         const companyTotalAll = rows.reduce((a, r) => a + r.profit, 0);
 
-        /* overall (all-time) */
         const overallCust = topBy('customer');
         const overallProd = topBy('product');
 
-        /* per-year results & company totals */
         const custByYear   = {};
         const prodByYear   = {};
         const companyByYear = {};
-
         years.forEach(y => {
-          custByYear[y]   = topBy('customer', y);
-          prodByYear[y]   = topBy('product' , y);
+          custByYear[y]    = topBy('customer', y);
+          prodByYear[y]    = topBy('product' , y);
           companyByYear[y] = rows.filter(r => r.year === y)
                                  .reduce((a, r) => a + r.profit, 0);
         });
 
-        /* ---------- header row ---------- */
+        /* ---------- header ---------- */
         const header = [
-          'All-Time Customer/Product',
-          'All-Time Profit',
-          'All-Time % of Profit',
-          ''   // blank column after all-time block
+          'All-Time Customer/Product', 'All-Time Profit', 'All-Time % of Profit', ''
         ];
         years.forEach((y, idx) => {
-          header.push(
-            `${y} Customer/Product`,
-            `${y} Profit`,
-            `${y} % of Profit`
-          );
-          if (idx < years.length - 1) header.push('');   // blank between year blocks
+          header.push(`${y} Customer/Product`, `${y} Profit`, `${y} % of Profit`);
+          if (idx < years.length - 1) header.push('');
         });
 
-        /* ---------- section builder (customers then products) ---------- */
+        /* ---------- section builder ---------- */
         function makeSection (overallArr, yearlyDict) {
           const out = [];
           for (let i = 0; i < topN; i++) {
             const row = [];
-
-            /* ---- all-time block ---- */
             const o = overallArr[i] || {};
             row.push(
               o.label || '',
               o.label ? currency(o.total) : '',
               o.label ? pct(o.total / companyTotalAll) : '',
-              ''       // blank between all-time and first year block
+              ''
             );
-
-            /* ---- one block per year ---- */
             years.forEach((y, idx) => {
-              const v   = yearlyDict[y][i] || {};
+              const v = yearlyDict[y][i] || {};
               const den = companyByYear[y] || 0;
               row.push(
                 v.label || '',
                 v.label ? currency(v.total) : '',
                 (v.label && den) ? pct(v.total / den) : ''
               );
-              if (idx < years.length - 1) row.push('');   // blank between year blocks
+              if (idx < years.length - 1) row.push('');
             });
-
             out.push(row);
           }
           return out;
@@ -182,17 +163,17 @@ window.buildProfitReport = function buildProfitReport (modalEl, reportId, topN =
         const csvRows = [
           header,
           ...makeSection(overallCust, custByYear),
-          [],  // blank row between customers & products
+          [],
           ...makeSection(overallProd, prodByYear)
         ];
 
-        /* ---------- CSV stringify ---------- */
+        /* ---------- CSV ---------- */
         const toCSV = arr =>
-          arr.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
-             .join('\n');
+          arr.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+
         const csv = toCSV(csvRows);
 
-        /* ---------- UI finish ---------- */
+        /* ---------- UI ---------- */
         item.querySelector('.spinner-border')?.remove();
         if (csv) {
           const btn = document.createElement('button');
@@ -206,17 +187,17 @@ window.buildProfitReport = function buildProfitReport (modalEl, reportId, topN =
             saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8' }), 'profit_report.csv');
           item.appendChild(btn);
         } else {
-          item.insertAdjacentHTML('beforeend', ' <small class="text-muted">(No profit rows)</small>');
+          item.insertAdjacentHTML('beforeend',' <small class="text-muted">(No profit rows)</small>');
         }
 
-        resolve({ reportId, status: 'success', lines: csvRows.length });
+        resolve({ reportId, status: 'success', rows: csvRows.length });
 
       } catch (err) {
         console.error('Profit report error', err);
         item.querySelector('.spinner-border')?.remove();
-        item.insertAdjacentHTML('beforeend', ' <small class="text-danger">(Error)</small>');
+        item.insertAdjacentHTML('beforeend',' <small class="text-danger">(Error)</small>');
         reject({ reportId, error: err });
       }
-    }, 0);    // end setTimeout
-  });         // end Promise
+    }, 0);
+  });
 };
