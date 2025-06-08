@@ -93,8 +93,8 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
             'Qty Available'    : inv.avail,
             'Avg Monthly Units Sold (1 yr)' : avgMonthly.toFixed(2),
             'Months On Hand (at current rate of sale)'   : isFinite(monthsOnHand) ? monthsOnHand.toFixed(1) : '∞',
-            'Inventory Value (>$)' : inv.extValue,
-            'Excess Capital (>$) – over 6-mo supply' :               // display
+            'Inventory Value ($)' : num(inv.extValue).toLocaleString('en-US', {style:'currency', currency:'USD'}),
+            'Excess Capital ($) > over 6-mo supply' :               // display
                   excessCapital.toLocaleString('en-US',{style:'currency',currency:'USD'}),
             excessCapitalNum : excessCapital,                        // raw ★
             'Last Sale Date'   : lastSale ? lastSale.toLocaleDateString('en-US') : '—',
