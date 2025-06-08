@@ -2,7 +2,7 @@
   {
     "directory": "Brandywine Collaborate Team Site Folder/Inventory",
     "filenamePrefix": "DB",
-    "columns": ["PartNumber", "Description", "Active", "QtyOnHand", "ReOrder Level", "QtyCommited", "QtyOnOrder",	"FullBoxQty", "UnitCost"],
+    "columns": ["PartNumber", "Description", "Active", "QtyOnHand", "ReOrder Level", "QtyCommited", "QtyOnOrder",	"FullBoxQty", "UnitCost", "ExtValue" ],
     "skipRows": 1,
     "dataKey": "DB"
   },

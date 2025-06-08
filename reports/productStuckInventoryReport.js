@@ -38,7 +38,8 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
           const pn = r.PartNumber;
           const avail = (+r.QtyOnHand||0) - (+r.QtyOnOrder||0);
           const cost  = +r.UnitCost || 0;
-          acc[pn] = {...acc[pn], avail, cost, descr: r.Description || r.PartDesc || ''};
+          const extValue = +r.ExtValue || 0;
+          acc[pn] = {...acc[pn], avail, cost, extValue, descr: r.Description || r.PartDesc || ''};
           return acc;
         },{});
 
@@ -92,6 +93,7 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
             'Qty Available'    : inv.avail,
             'Avg Monthly Units Sold (1 yr)' : avgMonthly.toFixed(2),
             'Months On Hand (at current rate of sale)'   : isFinite(monthsOnHand) ? monthsOnHand.toFixed(1) : '∞',
+            'Inventory Value (>$)' : inv.extValue.toLocaleString('en-US', {style:'currency', currency:'USD'}),
             'Excess Capital (>$) – over 6-mo supply' :               // display
                   excessCapital.toLocaleString('en-US',{style:'currency',currency:'USD'}),
             excessCapitalNum : excessCapital,                        // raw ★
