@@ -37,8 +37,8 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
         const invByPart = dbDF.reduce((acc,r)=>{
           const pn = r.PartNumber;
           const avail = (+r.QtyOnHand||0) - (+r.QtyOnOrder||0);
-          const cost  = +r.UnitCost || 0;
-          const extValue = +r.ExtValue || 0;
+          const cost  = num(r.UnitCost);
+          const extValue = num(r.ExtValue);
           acc[pn] = {...acc[pn], avail, cost, extValue, descr: r.Description || r.PartDesc || ''};
           return acc;
         },{});
@@ -104,6 +104,8 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
 
         outRows.sort((a,b)=> b.excessCapitalNum - a.excessCapitalNum
                  ||  b['Qty Available']   - a['Qty Available']);
+        // helper column no longer needed
+        outRows.forEach(r => delete r.excessCapitalNum);
 
         /* ---------- render result ---------- */
         item.querySelector('.spinner-border')?.remove();
@@ -143,4 +145,9 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
       }
     },0);
   });
+};
+/* ---------- helpers ---------- */
+const num = v => {
+  const n = parseFloat(String(v||'').replace(/[^0-9.-]+/g,''));
+  return isFinite(n) ? n : 0;
 };
