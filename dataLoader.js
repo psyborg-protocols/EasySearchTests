@@ -234,7 +234,8 @@ async function processFiles() {
           frame.forEach(r => {
             if (r.Product) map[String(r.Product).trim()] = {
               COO: r.COO || "N/A",
-              July9thIncrease: r.July9thIncrease || "N/A"
+              July9thIncrease: r.July9thIncrease || "N/A",
+              AddedCost: r.AddedCost || "N/A"
             };
           });
           const stored = { dataframe: map, metadata: md };
