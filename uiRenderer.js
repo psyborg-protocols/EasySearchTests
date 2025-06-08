@@ -256,8 +256,9 @@ async function selectProduct(encodedPartNumber) {
         // Bootstrap needs <br> and data-bs-html="true" for line-breaks
         const country = getCountryName(raiseInfo.COO);
         const tooltipHtml = `COO: ${country}<br>
-                            July&nbsp;9<sup>th</sup>&nbsp;Cost&nbsp;<i class="fa-solid fa-arrow-up"></i>: ${raiseInfo.July9thIncrease}`;
-
+                            July&nbsp;9<sup>th</sup>&nbsp;Cost&nbsp;<i class="fa-solid fa-arrow-up"></i>: ${raiseInfo.July9thIncrease}<br>
+                            Added&nbsp;Cost: ${raiseInfo.AddedCost}`;
+                            
         unitCostCellContent += `
           <i class="fa-solid fa-chart-line text-danger ms-2"
             data-bs-toggle="tooltip"
