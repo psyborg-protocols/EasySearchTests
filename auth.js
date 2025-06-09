@@ -16,7 +16,7 @@ const msalConfig = {
 // MS Graph API scopes needed for accessing OneDrive files
 const scopes = [
     "User.Read",
-    "Files.Read.All",
+    "Files.ReadWrite.All",
     "Sites.Read.All"
 ];
 
