@@ -430,6 +430,24 @@
     </div>
   </div>
 
+  <!-- Warning Modal -->
+  <div class="modal fade show" id="pricingWarningModal" tabindex="-1" style="display: none;" aria-modal="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content" style="background-color: #fffbe6; border: 2px solid #ffe58f;">
+        <div class="modal-header">
+          <h5 class="modal-title text-warning fw-bold">Notice About Pricing Data</h5>
+        </div>
+        <div class="modal-body fs-5 text-dark">
+          Our pricing lists are currently being reorganized. Some pricing data may be incorrect or temporarily unavailable.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-warning" data-bs-dismiss="modal">I Understand</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
   <script src="https://alcdn.msauth.net/browser/2.32.0/js/msal-browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
@@ -449,6 +467,8 @@
   <script src="app.js"></script>
   <script>document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
     new bootstrap.Tooltip(el);
+    const warningModal = new bootstrap.Modal(document.getElementById('pricingWarningModal'));
+    warningModal.show();
   });</script>
 </body>
 </html>
