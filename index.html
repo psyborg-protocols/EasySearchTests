@@ -229,6 +229,8 @@
     }
     .file-link i      { font-size: .9rem; color:#6c757d; }
     .file-link:hover i{ color:#343a40;   }
+
+    #codeEditor .CodeMirror { height:100% !important; }   /* fill the pane */
   </style>
 </head>
 <body>
@@ -255,6 +257,15 @@
       <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368">
         <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h360v80H200v560h560v-360h80v360q0 33-23.5 56.5T760-120H200Zm80-160h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160Zm80-320v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80ZM480-480Z"/>
       </svg>
+    </button>
+    <!-- Code-Console button -->
+    <button id="openCodeBtn"
+            title="Open Code Console"
+            class="generate-reports-btn"
+            style="right: 60px;"
+            data-bs-toggle="modal"
+            data-bs-target="#codeModal">
+      <i class="fa-solid fa-terminal"></i>
     </button>
     <button id="signOutButton" class="btn btn-outline-secondary position-absolute start-0 m-3" style="top: -24px;">
       <i class="fas fa-sign-out-alt"></i> Sign Out
@@ -429,25 +440,46 @@
       </div>
     </div>
   </div>
-
-  <!-- Warning Modal -->
-  <div class="modal fade show" id="pricingWarningModal" tabindex="-1" style="display: none;" aria-modal="true" role="dialog">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content" style="background-color: #fffbe6; border: 2px solid #ffe58f;">
+  <!-- Code Console modal -->
+  <div class="modal fade" id="codeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title text-warning fw-bold">Notice About Pricing Data</h5>
+          <h5 class="modal-title">Run Custom Script</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body fs-5 text-dark">
-          Our pricing lists are currently being reorganized. Some pricing data may be incorrect or temporarily unavailable.
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-warning" data-bs-dismiss="modal">I Understand</button>
+
+        <div class="modal-body p-0">
+          <!-- editor pane -->
+          <div id="codeEditor" style="height:300px;"></div>
+
+          <!-- controls -->
+          <div class="d-flex border-top">
+            <button id="runCodeBtn"   class="btn btn-success m-2">
+              <i class="fa fa-play"></i> Run
+            </button>
+            <button id="clearLogBtn" class="btn btn-secondary m-2 ms-auto">
+              <i class="fa fa-broom"></i> Clear
+            </button>
+          </div>
+
+          <!-- terminal-style output -->
+          <pre id="codeLog"
+              class="bg-dark text-light m-0 p-3"
+              style="height:200px; overflow-y:auto; font-size:.85rem;">
+  <!-- logs will stream here -->
+          </pre>
         </div>
       </div>
     </div>
   </div>
 
 
+  <!--CodeMirror CDN-->
+  <link  href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/javascript/javascript.min.js"></script>
+  <script src="codeConsole.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
   <script src="https://alcdn.msauth.net/browser/2.32.0/js/msal-browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
