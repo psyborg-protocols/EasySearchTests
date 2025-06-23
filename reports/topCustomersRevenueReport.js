@@ -66,7 +66,7 @@ window.buildTopCustomersByRevenueReport = function buildTopCustomersByRevenueRep
           .map(([cust,stats], idx) => ({
             '#': idx+1,
             'Customer Name' : cust,
-            'Total Revenue ($)' : stats.revenue.toFixed(2),
+            'Total Revenue ($)' : `$${stats.revenue.toFixed(2)}`,
             'Orders (12 mo)'    : stats.orders
           }));
 
