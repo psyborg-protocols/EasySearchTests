@@ -30,6 +30,11 @@ window.reportModules = [
     generatorFunctionName: 'buildStuckInventoryReport'
   },
   {
+  id: 'top20cust',
+  title: 'Top 20 Customers by Revenue (Last 12 mo)',
+  generatorFunctionName: 'buildTopCustomersByRevenueReport'
+  },  
+  {
   id: 'profit',
   title: 'Top Customers & Products by Profit',
   generatorFunctionName: 'buildProfitReport'
