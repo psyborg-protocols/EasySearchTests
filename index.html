@@ -234,32 +234,36 @@
     #codeEditor .CodeMirror { height:100% !important; }   /* fill the pane */
 
     /* Tab styling */
+    .nav-tabs {
+      border-bottom: none; /* Remove default border to make them stick out */
+      margin-top: 1rem; /* Space from top of app container */
+      margin-bottom: -1px; /* Overlap with the card border */
+      position: relative;
+      z-index: 10; /* Ensure tabs are above the card */
+    }
+    .nav-tabs .nav-item {
+      margin-bottom: 0; /* Remove default bottom margin */
+    }
     .nav-tabs .nav-link {
       background-color: #e9ecef;
-      border-color: #dee2e6 #dee2e6 #fff;
+      border: 1px solid #dee2e6;
+      border-bottom: none; /* Make them stick out */
       border-top-left-radius: 0.5rem;
       border-top-right-radius: 0.5rem;
       padding: 0.5rem 1rem;
       color: #495057;
       font-weight: 500;
-      position: relative;
-      top: 1px; /* To make them "stick up" slightly */
       margin-right: 0.25rem; /* Space between tabs */
-      border-bottom: none; /* Remove bottom border to make them stick up */
+      transition: background-color 0.2s ease, color 0.2s ease;
     }
 
     .nav-tabs .nav-link.active {
       background-color: #fff;
-      border-color: #dee2e6 #dee2e6 #fff;
+      border-color: #dee2e6 #dee2e6 #fff; /* Only bottom border is white to blend with card */
       color: #2D2A32;
       font-weight: 700;
-      border-bottom: none;
     }
     
-    .nav-tabs {
-      border-bottom: 1px solid #dee2e6; /* Ensure a border below tabs */
-    }
-
     .customer-info-field {
       margin-bottom: 0.75rem;
       padding-left: 0.5rem;
@@ -287,6 +291,11 @@
 <body>
   <h1 class="app-title text-center my-3 glowing-text">BrandyWise</h1>
   <button id="userDisplayName" class="btn btn-outline-secondary position-absolute top-0 end-0 m-3"></button>
+  
+  <!-- Logout Button (moved outside appContainer) -->
+  <button id="signOutButton" class="btn btn-outline-secondary position-absolute top-0 start-0 m-3">
+    <i class="fas fa-sign-out-alt"></i> Sign Out
+  </button>
 
   <!-- Login Container -->
   <div id="loginContainer">
@@ -303,11 +312,6 @@
 
   <!-- App Container -->
   <div id="appContainer" class="container py-4 position-relative" style="display:none; margin-top: 30px;">
-    <!-- Logout Button -->
-    <button id="signOutButton" class="btn btn-outline-secondary position-absolute start-0 m-3" style="top: -24px;">
-      <i class="fas fa-sign-out-alt"></i> Sign Out
-    </button>
-
     <!-- Floating Reports Button -->
     <button id="generateReportsBtn" title="Generate Reports" class="generate-reports-btn" data-bs-toggle="modal" data-bs-target="#reportsModal">
       <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368">
@@ -324,17 +328,17 @@
       <i class="fa-solid fa-terminal"></i>
     </button>
     
-    <div class="card bg-white p-4 rounded shadow">
-      <!-- Tabs for Search and Customer Info -->
-      <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#searchView" type="button" role="tab" aria-controls="searchView" aria-selected="true">Search</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="customer-info-tab" data-bs-toggle="tab" data-bs-target="#customerInfoView" type="button" role="tab" aria-controls="customerInfoView" aria-selected="false">Customer Info</button>
-        </li>
-      </ul>
+    <!-- Tabs for Search and Customer Info (moved outside the card) -->
+    <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#searchView" type="button" role="tab" aria-controls="searchView" aria-selected="true">Search</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="customer-info-tab" data-bs-toggle="tab" data-bs-target="#customerInfoView" type="button" role="tab" aria-controls="customerInfoView" aria-selected="false">Customer Info</button>
+      </li>
+    </ul>
 
+    <div class="card bg-white p-4 rounded shadow">
       <!-- Tab Content -->
       <div class="tab-content" id="mainTabsContent">
         <!-- Search View Tab Pane -->
@@ -489,7 +493,27 @@
 
         <!-- Customer Info View Tab Pane -->
         <div class="tab-pane fade" id="customerInfoView" role="tabpanel" aria-labelledby="customer-info-tab">
-          <!-- Customer Search Row (always visible in this view) -->
+          <!-- Titles Row for Customer Info Tab -->
+          <div class="row">
+            <!-- Customer -->
+            <div class="col-md-4 d-flex align-items-center gap-2">
+              <h4 class="m-0">Customer</h4>
+              <a id="salesFileLinkCustomerInfo" class="file-link d-none" target="_blank"
+                title="Open latest Sales workbook">
+                <i class="fa-solid fa-link"></i>
+              </a>
+            </div>
+            <!-- Customer Details Title -->
+            <div class="col-md-5 d-flex align-items-center">
+              <h4 class="m-0">Customer Details</h4>
+            </div>
+            <!-- Contacts Title -->
+            <div class="col-md-3 d-flex align-items-center">
+              <h4 class="m-0">Contacts</h4>
+            </div>
+          </div>
+
+          <!-- Dropdown Inputs Row for Customer Info Tab -->
           <div class="row mt-3">
             <div class="col-md-4">
               <div class="dropdown position-relative mb-3">
@@ -497,10 +521,14 @@
                 <ul id="customerInfoDropdown" class="dropdown-menu w-100"></ul>
               </div>
             </div>
+            <!-- Empty columns to align with previous titles -->
+            <div class="col-md-5"></div>
+            <div class="col-md-3"></div>
           </div>
 
+
           <!-- Customer Details Row (initially hidden, shown on customer select) -->
-          <div class="row mt-3" id="customerDetailsRow" style="display: none;">
+          <div class="row" id="customerDetailsRow" style="display: none;">
             <!-- Column 1: Order History -->
             <div class="col-md-4 table-responsive" style="max-height: 300px;">
               <h5>Order History</h5>
@@ -526,7 +554,7 @@
 
             <!-- Column 2: Customer Fields -->
             <div class="col-md-5">
-              <h5>Customer Details</h5>
+              <h5>Customer Info</h5>
               <div id="customerFieldsContainer">
                 <div class="customer-info-field"><strong>Sales by Year:</strong> <span id="salesByYear">N/A</span></div>
                 <div class="customer-info-field"><strong>Location:</strong> <span id="customerLocation">N/A</span></div>
@@ -539,7 +567,7 @@
 
             <!-- Column 3: Contact Cards -->
             <div class="col-md-3">
-              <h5>Contacts</h5>
+              <h5>Contacts List</h5>
               <div id="contactCardsContainer">
                 <p class="text-muted fst-italic">No contacts available</p>
               </div>
