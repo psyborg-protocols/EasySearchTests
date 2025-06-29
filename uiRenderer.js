@@ -24,8 +24,10 @@ function fmtPrice(value) {
 
 // Global variable to store the current customer's full order history
 window.currentOrderHistory = null;
+// Global variable to store the current customer's full customer info
+window.currentCustomerInfo = null;
 
-// Handle the Customer search dropdown and selection
+// Handle the Customer search dropdown and selection for the Search tab
 document.getElementById("customerSearch").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
   const dropdown = document.getElementById("customerDropdown");
@@ -57,6 +59,41 @@ document.getElementById("customerSearch").addEventListener("input", async (e) =>
   }
 });
 
+// Handle the Customer search dropdown and selection for the Customer Info tab
+document.getElementById("customerInfoSearch").addEventListener("input", async (e) => {
+  const query = e.target.value.trim();
+  const dropdown = document.getElementById("customerInfoDropdown");
+
+  if (!query) {
+    dropdown.innerHTML = "";
+    dropdown.classList.remove('show');
+    // Hide customer details if search is cleared
+    document.getElementById("customerDetailsRow").style.display = 'none';
+    return;
+  }
+
+  try {
+    const results = await searchCustomers(query); // Assuming searchCustomers can be reused
+    const uniqueResults = [...new Set(results)];
+
+    if (uniqueResults.length > 0) {
+      dropdown.innerHTML = uniqueResults
+        .map(name => `<li><a class="dropdown-item" href="#" onclick="selectCustomerInfo('${name}')">${name}</a></li>`)
+        .join("");
+      
+      dropdown.classList.add('show');
+    } else {
+      dropdown.innerHTML = "";
+      dropdown.classList.remove('show');
+      document.getElementById("customerDetailsRow").style.display = 'none';
+    }
+  } catch (error) {
+    console.error("Error performing customer info search:", error);
+    dropdown.classList.remove('show');
+  }
+});
+
+
 // Hide dropdowns when clicking outside
 document.addEventListener('click', (e) => {
   if (!e.target.closest('#customerSearch') && !e.target.closest('#customerDropdown')) {
@@ -64,6 +101,9 @@ document.addEventListener('click', (e) => {
   }
   if (!e.target.closest('#productSearch') && !e.target.closest('#productDropdown')) {
     document.getElementById("productDropdown").classList.remove('show');
+  }
+  if (!e.target.closest('#customerInfoSearch') && !e.target.closest('#customerInfoDropdown')) {
+    document.getElementById("customerInfoDropdown").classList.remove('show');
   }
 });
 
@@ -95,9 +135,14 @@ function updatePricingTable(partNumber) {
 }
 
 // Helper function to update the order table based on filter state and selected product
-function updateOrderTable() {
+function updateOrderTable(targetTableId = "orderHistoryTable") {
   const orderHistory = window.currentOrderHistory;
-  if (!orderHistory) return; // No customer selected
+  if (!orderHistory) {
+    document.getElementById(targetTableId).innerHTML = `<tr><td colspan="5" class="text-muted fst-italic">
+      search for a customer to display order history
+    </td></tr>`;
+    return; // No customer selected
+  }
 
   const filterToggle = document.getElementById("filterOrdersToggle").checked;
   const productValue = document.getElementById("productSearch").value.trim();
@@ -113,7 +158,7 @@ function updateOrderTable() {
     });
   }
 
-  const tableBody = document.getElementById("orderHistoryTable");
+  const tableBody = document.getElementById(targetTableId);
   if (filteredOrders.length > 0) {
     tableBody.innerHTML = filteredOrders
     .map(order => `
@@ -136,6 +181,7 @@ function updateOrderTable() {
 function orderRowClicked(rowElement) {
   // Remove any existing highlight from order rows
   document.querySelectorAll("#orderHistoryTable tr").forEach(tr => tr.classList.remove("selected-row"));
+  document.querySelectorAll("#customerInfoOrderHistoryTable tr").forEach(tr => tr.classList.remove("selected-row"));
   
   // Highlight the clicked row
   rowElement.classList.add("selected-row");
@@ -150,7 +196,7 @@ function orderRowClicked(rowElement) {
 }
 
  
-// Handle Customer Selection
+// Handle Customer Selection for Search Tab
 async function selectCustomer(customerName) {
   document.getElementById("customerSearch").value = customerName;
   document.getElementById("customerDropdown").innerHTML = "";
@@ -166,12 +212,69 @@ async function selectCustomer(customerName) {
   orderHistory.sort((a, b) => new Date(b.Date) - new Date(a.Date));
 
   // Render orders (this will apply filtering if the toggle is on)
-  updateOrderTable();
+  updateOrderTable("orderHistoryTable");
 }
+
+// Handle Customer Selection for Customer Info Tab
+async function selectCustomerInfo(customerName) {
+  document.getElementById("customerInfoSearch").value = customerName;
+  document.getElementById("customerInfoDropdown").innerHTML = "";
+  document.getElementById("customerDetailsRow").style.display = 'flex'; // Show the details row
+
+  // Fetch order history
+  const orderHistory = await getOrderHistory(customerName);
+  window.currentOrderHistory = orderHistory; // Update global for filtering
+  orderHistory.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+  updateOrderTable("customerInfoOrderHistoryTable"); // Update order table for customer info tab
+
+  // Fetch customer details (assuming there's a function like getCustomerDetails)
+  const customerDetails = await getCustomerDetails(customerName); // This function needs to be implemented
+  window.currentCustomerInfo = customerDetails; // Store for potential future use
+
+  // Populate Customer Fields
+  if (customerDetails) {
+    document.getElementById("salesByYear").textContent = customerDetails["Sales by Year"] || "N/A";
+    document.getElementById("customerLocation").textContent = customerDetails["Location"] || "N/A";
+    document.getElementById("customerBusiness").textContent = customerDetails["Business"] || "N/A";
+    document.getElementById("customerType").textContent = customerDetails["Type"] || "N/A";
+    document.getElementById("customerRemarks").textContent = customerDetails["Remarks"] || "N/A";
+    document.getElementById("customerWebsite").textContent = customerDetails["Website"] || "N/A";
+
+    // Populate Contact Cards (assuming customerDetails.Contacts is an array of contact objects)
+    const contactCardsContainer = document.getElementById("contactCardsContainer");
+    contactCardsContainer.innerHTML = ''; // Clear previous contacts
+    if (customerDetails.Contacts && customerDetails.Contacts.length > 0) {
+      customerDetails.Contacts.forEach(contact => {
+        const card = `
+          <div class="contact-card">
+            <h6>${contact.Name || 'N/A'}</h6>
+            <p><strong>Title:</strong> ${contact.Title || 'N/A'}</p>
+            <p><strong>Email:</strong> ${contact.Email || 'N/A'}</p>
+            <p><strong>Phone:</strong> ${contact.Phone || 'N/A'}</p>
+          </div>
+        `;
+        contactCardsContainer.innerHTML += card;
+      });
+    } else {
+      contactCardsContainer.innerHTML = '<p class="text-muted fst-italic">No contacts available</p>';
+    }
+
+  } else {
+    // Clear fields if no details found
+    document.getElementById("salesByYear").textContent = "N/A";
+    document.getElementById("customerLocation").textContent = "N/A";
+    document.getElementById("customerBusiness").textContent = "N/A";
+    document.getElementById("customerType").textContent = "N/A";
+    document.getElementById("customerRemarks").textContent = "N/A";
+    document.getElementById("customerWebsite").textContent = "N/A";
+    document.getElementById("contactCardsContainer").innerHTML = '<p class="text-muted fst-italic">No contacts available</p>';
+  }
+}
+
 
 // Add an event listener for changes on the filter toggle switch
 document.getElementById("filterOrdersToggle").addEventListener("change", () => {
-  updateOrderTable();
+  updateOrderTable("orderHistoryTable");
 });
 
 document.getElementById("productSearch").addEventListener("input", async (e) => {
@@ -335,7 +438,7 @@ async function selectProduct(encodedPartNumber) {
 
       // After selecting a product, if a customer is already selected, update order filtering
       if (window.currentOrderHistory) {
-        updateOrderTable();
+        updateOrderTable("orderHistoryTable");
       }
     } else {
       document.getElementById("productTable").innerHTML = `
@@ -367,6 +470,16 @@ function updateUIForLoggedInUser() {
     // Display user name
     const displayName = userAccount?.name || userAccount?.username || "User";
     document.getElementById('userDisplayName').textContent = displayName;
+
+    // Ensure the default tab is active and corresponding content is shown
+    const searchTab = document.getElementById('search-tab');
+    const searchView = document.getElementById('searchView');
+    if (searchTab && searchView) {
+      searchTab.classList.add('active');
+      searchView.classList.add('show', 'active');
+      document.getElementById('customerInfoView').classList.remove('show', 'active');
+      document.getElementById('customer-info-tab').classList.remove('active');
+    }
 }
 
 // Update UI after logout
@@ -378,16 +491,76 @@ function updateUIForLoggedOutUser() {
     const fileListContainer = document.getElementById('fileListContainer');
     if (fileListContainer) fileListContainer.innerHTML = '';
     
-    const tableContainer = document.getElementById('tableContainer');
-    if (tableContainer) tableContainer.style.display = 'none';
+    // The tableContainer might not exist anymore due to the new structure
+    // const tableContainer = document.getElementById('tableContainer');
+    // if (tableContainer) tableContainer.style.display = 'none';
     
     const welcomeMessage = document.getElementById('welcomeMessage');
     if (welcomeMessage) welcomeMessage.style.display = 'block';
+
+    // Hide customer details row on logout
+    const customerDetailsRow = document.getElementById('customerDetailsRow');
+    if (customerDetailsRow) customerDetailsRow.style.display = 'none';
 }
+
+// Add event listeners for tab switching
+document.getElementById('search-tab').addEventListener('click', () => {
+  document.getElementById('searchView').classList.add('show', 'active');
+  document.getElementById('customerInfoView').classList.remove('show', 'active');
+});
+
+document.getElementById('customer-info-tab').addEventListener('click', () => {
+  document.getElementById('customerInfoView').classList.add('show', 'active');
+  document.getElementById('searchView').classList.remove('show', 'active');
+  // Initially hide customer details when switching to Customer Info tab
+  document.getElementById("customerDetailsRow").style.display = 'none';
+  // Clear customer search on tab switch
+  document.getElementById("customerInfoSearch").value = "";
+  document.getElementById("customerInfoDropdown").innerHTML = "";
+  document.getElementById("customerInfoOrderHistoryTable").innerHTML = `<tr><td colspan="5" class="text-muted fst-italic">
+      select a customer to display order history
+    </td></tr>`;
+});
+
+
+// Temporary mock function for getCustomerDetails
+// YOU WILL NEED TO REPLACE THIS WITH ACTUAL DATA FETCHING LOGIC
+async function getCustomerDetails(customerName) {
+  // Mock data for demonstration
+  const mockCustomerData = {
+    "Acme Corp": {
+      "Sales by Year": "$1,200,000 (2024)",
+      "Location": "New York, USA",
+      "Business": "Manufacturing",
+      "Type": "B2B",
+      "Remarks": "Key account, high potential for growth.",
+      "Website": "https://www.acmecorp.com",
+      "Contacts": [
+        { Name: "John Doe", Title: "Purchasing Manager", Email: "john.doe@acme.com", Phone: "555-123-4567" },
+        { Name: "Jane Smith", Title: "CEO", Email: "jane.smith@acme.com", Phone: "555-987-6543" }
+      ]
+    },
+    "Global Solutions": {
+      "Sales by Year": "$500,000 (2024)",
+      "Location": "London, UK",
+      "Business": "Software Development",
+      "Type": "B2B",
+      "Remarks": "New client, growing steadily.",
+      "Website": "https://www.globalsolutions.co.uk",
+      "Contacts": [
+        { Name: "Alice Brown", Title: "CTO", Email: "alice.brown@global.com", Phone: "020-7946-0123" }
+      ]
+    }
+  };
+  return mockCustomerData[customerName] || null;
+}
+
 
 // Expose function globally
 window.UIrenderer = {
   updateUIForLoggedInUser,
   updateUIForLoggedOutUser,
-  orderRowClicked
+  orderRowClicked,
+  selectCustomer, // Expose selectCustomer for the Search tab
+  selectCustomerInfo // Expose selectCustomerInfo for the Customer Info tab
 };

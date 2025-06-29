@@ -8,7 +8,8 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&display=swap">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-  <link rel="icon" type="image/png" href="/EasySearchTests/static/favicon.png">  <style>
+  <link rel="icon" type="image/png" href="/EasySearchTests/static/favicon.png">
+  <style>
     body {
       background: url('background.jpg') no-repeat center center fixed;
       background-size: cover;
@@ -231,6 +232,56 @@
     .file-link:hover i{ color:#343a40;   }
 
     #codeEditor .CodeMirror { height:100% !important; }   /* fill the pane */
+
+    /* Tab styling */
+    .nav-tabs .nav-link {
+      background-color: #e9ecef;
+      border-color: #dee2e6 #dee2e6 #fff;
+      border-top-left-radius: 0.5rem;
+      border-top-right-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+      color: #495057;
+      font-weight: 500;
+      position: relative;
+      top: 1px; /* To make them "stick up" slightly */
+      margin-right: 0.25rem; /* Space between tabs */
+      border-bottom: none; /* Remove bottom border to make them stick up */
+    }
+
+    .nav-tabs .nav-link.active {
+      background-color: #fff;
+      border-color: #dee2e6 #dee2e6 #fff;
+      color: #2D2A32;
+      font-weight: 700;
+      border-bottom: none;
+    }
+    
+    .nav-tabs {
+      border-bottom: 1px solid #dee2e6; /* Ensure a border below tabs */
+    }
+
+    .customer-info-field {
+      margin-bottom: 0.75rem;
+      padding-left: 0.5rem;
+      border-left: 3px solid #0d6efd;
+    }
+
+    .contact-card {
+      background-color: #f8f9fa;
+      border-left: 5px solid #6c757d;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    .contact-card h6 {
+      color: #0d6efd;
+      margin-bottom: 0.5rem;
+    }
+    .contact-card p {
+      margin-bottom: 0.25rem;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
@@ -252,6 +303,11 @@
 
   <!-- App Container -->
   <div id="appContainer" class="container py-4 position-relative" style="display:none; margin-top: 30px;">
+    <!-- Logout Button -->
+    <button id="signOutButton" class="btn btn-outline-secondary position-absolute start-0 m-3" style="top: -24px;">
+      <i class="fas fa-sign-out-alt"></i> Sign Out
+    </button>
+
     <!-- Floating Reports Button -->
     <button id="generateReportsBtn" title="Generate Reports" class="generate-reports-btn" data-bs-toggle="modal" data-bs-target="#reportsModal">
       <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368">
@@ -267,157 +323,230 @@
             data-bs-target="#codeModal">
       <i class="fa-solid fa-terminal"></i>
     </button>
-    <button id="signOutButton" class="btn btn-outline-secondary position-absolute start-0 m-3" style="top: -24px;">
-      <i class="fas fa-sign-out-alt"></i> Sign Out
-    </button>
+    
     <div class="card bg-white p-4 rounded shadow">
-    <!-- Titles Row -->
-    <div class="row">
-      <!-- Customer -->
-      <div class="col-md-4 d-flex align-items-center gap-2">
-        <h4 class="m-0">Customer</h4>
-        <a id="salesFileLink" class="file-link d-none" target="_blank"
-          title="Open latest Sales workbook">
-          <i class="fa-solid fa-link"></i>
-        </a>
-      </div>
+      <!-- Tabs for Search and Customer Info -->
+      <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#searchView" type="button" role="tab" aria-controls="searchView" aria-selected="true">Search</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="customer-info-tab" data-bs-toggle="tab" data-bs-target="#customerInfoView" type="button" role="tab" aria-controls="customerInfoView" aria-selected="false">Customer Info</button>
+        </li>
+      </ul>
 
-      <!-- Product -->
-      <div class="col-md-5 d-flex align-items-center justify-content-between">
-        <!-- left-hand cluster: title + link -->
-        <div class="d-flex align-items-center gap-2">
-          <h4 class="m-0">Product</h4>
-          <a id="dbFileLink" class="file-link d-none" target="_blank"
-            title="Open latest Inventory workbook">
-            <i class="fa-solid fa-link"></i>
-          </a>
-        </div>
-        <!-- right-hand: the existing toggle switch -->
-        <div class="form-check form-switch m-0">
-          <label class="form-check-label" for="filterOrdersToggle">Filter Orders</label>
-          <input class="form-check-input" type="checkbox" id="filterOrdersToggle">
-        </div>
-      </div>
-
-      <!-- Pricing -->
-      <div class="col-md-3 d-flex align-items-center gap-2">
-        <h4 class="m-0">Pricing</h4>
-        <a id="pricingFileLink" class="file-link d-none" target="_blank"
-          title="Open latest Pricing workbook">
-          <i class="fa-solid fa-link"></i>
-        </a>
-      </div>
-    </div>
-
-      <!-- Dropdown Inputs Row -->
-      <div class="row mt-3">
-        <div class="col-md-4">
-          <div class="dropdown position-relative mb-3">
-            <input type="text" id="customerSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
-            <ul id="customerDropdown" class="dropdown-menu w-100"></ul>
-          </div>
-        </div>
-        <div class="col-md-5">
-          <div class="dropdown position-relative mb-3">
-            <input type="text" id="productSearch" class="form-control" placeholder="Search Product...">
-            <ul id="productDropdown" class="dropdown-menu w-100"></ul>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="toggle-container">
-            <input type="checkbox" class="toggle-checkbox" id="pricingToggle">
-            <label for="pricingToggle" class="toggle-label">
-              <div class="toggle-switch"></div>
-              <span class="b2b">B2C</span>
-              <span class="b2c">B2B</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- Subtitles Row -->
-      <div class="row mt-3">
-        <div class="col-md-4">
-          <h5>Order History</h5>
-        </div>
-        <div class="col-md-5">
-          <h5 class="d-flex align-items-center gap-2">
-            Matching Products
-            <div id="genericContainer" class="position-relative" style="display: none; margin-left: auto;">
-              <i id="genericBulb" class="fas fa-lightbulb text-warning" style="cursor: pointer;"></i>
-              <div id="genericSlideText" class="generic-slide-text fst-italic">Generic: XYZ123</div>
+      <!-- Tab Content -->
+      <div class="tab-content" id="mainTabsContent">
+        <!-- Search View Tab Pane -->
+        <div class="tab-pane fade show active" id="searchView" role="tabpanel" aria-labelledby="search-tab">
+          <!-- Titles Row -->
+          <div class="row">
+            <!-- Customer -->
+            <div class="col-md-4 d-flex align-items-center gap-2">
+              <h4 class="m-0">Customer</h4>
+              <a id="salesFileLink" class="file-link d-none" target="_blank"
+                title="Open latest Sales workbook">
+                <i class="fa-solid fa-link"></i>
+              </a>
             </div>
-          </h5>
+
+            <!-- Product -->
+            <div class="col-md-5 d-flex align-items-center justify-content-between">
+              <!-- left-hand cluster: title + link -->
+              <div class="d-flex align-items-center gap-2">
+                <h4 class="m-0">Product</h4>
+                <a id="dbFileLink" class="file-link d-none" target="_blank"
+                  title="Open latest Inventory workbook">
+                  <i class="fa-solid fa-link"></i>
+                </a>
+              </div>
+              <!-- right-hand: the existing toggle switch -->
+              <div class="form-check form-switch m-0">
+                <label class="form-check-label" for="filterOrdersToggle">Filter Orders</label>
+                <input class="form-check-input" type="checkbox" id="filterOrdersToggle">
+              </div>
+            </div>
+
+            <!-- Pricing -->
+            <div class="col-md-3 d-flex align-items-center gap-2">
+              <h4 class="m-0">Pricing</h4>
+              <a id="pricingFileLink" class="file-link d-none" target="_blank"
+                title="Open latest Pricing workbook">
+                <i class="fa-solid fa-link"></i>
+              </a>
+            </div>
+          </div>
+
+          <!-- Dropdown Inputs Row -->
+          <div class="row mt-3">
+            <div class="col-md-4">
+              <div class="dropdown position-relative mb-3">
+                <input type="text" id="customerSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
+                <ul id="customerDropdown" class="dropdown-menu w-100"></ul>
+              </div>
+            </div>
+            <div class="col-md-5">
+              <div class="dropdown position-relative mb-3">
+                <input type="text" id="productSearch" class="form-control" placeholder="Search Product...">
+                <ul id="productDropdown" class="dropdown-menu w-100"></ul>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="toggle-container">
+                <input type="checkbox" class="toggle-checkbox" id="pricingToggle">
+                <label for="pricingToggle" class="toggle-label">
+                  <div class="toggle-switch"></div>
+                  <span class="b2b">B2C</span>
+                  <span class="b2c">B2B</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subtitles Row -->
+          <div class="row mt-3">
+            <div class="col-md-4">
+              <h5>Order History</h5>
+            </div>
+            <div class="col-md-5">
+              <h5 class="d-flex align-items-center gap-2">
+                Matching Products
+                <div id="genericContainer" class="position-relative" style="display: none; margin-left: auto;">
+                  <i id="genericBulb" class="fas fa-lightbulb text-warning" style="cursor: pointer;"></i>
+                  <div id="genericSlideText" class="generic-slide-text fst-italic">Generic: XYZ123</div>
+                </div>
+              </h5>
+            </div>
+            <div class="col-md-3">
+              <h5>Prices</h5>
+            </div>
+          </div>
+
+          <!-- Tables Row -->
+          <div class="row">
+            <div class="col-md-4 table-responsive" style="max-height: 300px;">
+              <table class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                  </tr>
+                </thead>
+                <tbody id="orderHistoryTable">
+                  <tr>
+                    <td colspan="5" class="text-muted fst-italic">
+                      search for a customer to display order history
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="col-md-5 table-responsive" style="max-height: 300px;">
+              <table class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Description</th>
+                    <th>QtyAvailable</th>
+                    <th>UnitCost</th>
+                    <th>Units/Box</th>
+                  </tr>
+                </thead>
+                <tbody id="productTable">
+                  <tr>
+                    <td colspan="5" class="text-muted fst-italic">
+                      search for a product
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="col-md-3 table-responsive" style="max-height: 300px;">
+              <table class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th>FB Price</th>
+                    <th>HB Price</th>
+                    <th>LTB Price</th>
+                  </tr>
+                </thead>
+                <tbody id="priceTable">
+                  <tr>
+                    <td colspan="3" class="text-muted fst-italic">
+                      select a product
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-        <div class="col-md-3">
-          <h5>Prices</h5>
+
+        <!-- Customer Info View Tab Pane -->
+        <div class="tab-pane fade" id="customerInfoView" role="tabpanel" aria-labelledby="customer-info-tab">
+          <!-- Customer Search Row (always visible in this view) -->
+          <div class="row mt-3">
+            <div class="col-md-4">
+              <div class="dropdown position-relative mb-3">
+                <input type="text" id="customerInfoSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
+                <ul id="customerInfoDropdown" class="dropdown-menu w-100"></ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customer Details Row (initially hidden, shown on customer select) -->
+          <div class="row mt-3" id="customerDetailsRow" style="display: none;">
+            <!-- Column 1: Order History -->
+            <div class="col-md-4 table-responsive" style="max-height: 300px;">
+              <h5>Order History</h5>
+              <table class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                  </tr>
+                </thead>
+                <tbody id="customerInfoOrderHistoryTable">
+                  <tr>
+                    <td colspan="5" class="text-muted fst-italic">
+                      select a customer to display order history
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Column 2: Customer Fields -->
+            <div class="col-md-5">
+              <h5>Customer Details</h5>
+              <div id="customerFieldsContainer">
+                <div class="customer-info-field"><strong>Sales by Year:</strong> <span id="salesByYear">N/A</span></div>
+                <div class="customer-info-field"><strong>Location:</strong> <span id="customerLocation">N/A</span></div>
+                <div class="customer-info-field"><strong>Business:</strong> <span id="customerBusiness">N/A</span></div>
+                <div class="customer-info-field"><strong>Type:</strong> <span id="customerType">N/A</span></div>
+                <div class="customer-info-field"><strong>Remarks:</strong> <span id="customerRemarks">N/A</span></div>
+                <div class="customer-info-field"><strong>Website:</strong> <span id="customerWebsite">N/A</span></div>
+              </div>
+            </div>
+
+            <!-- Column 3: Contact Cards -->
+            <div class="col-md-3">
+              <h5>Contacts</h5>
+              <div id="contactCardsContainer">
+                <p class="text-muted fst-italic">No contacts available</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      <!-- Tables Row -->
-      <div class="row">
-        <div class="col-md-4 table-responsive" style="max-height: 300px;">
-          <table class="table table-bordered table-striped">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Product</th>
-                <th>Description</th>
-                <th>Qty</th>
-                <th>Price</th>
-              </tr>
-            </thead>
-            <tbody id="orderHistoryTable">
-              <tr>
-                <td colspan="5" class="text-muted fst-italic">
-                  search for a customer to display order history
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="col-md-5 table-responsive" style="max-height: 300px;">
-          <table class="table table-bordered table-striped">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Description</th>
-                <th>QtyAvailable</th>
-                <th>UnitCost</th>
-                <th>Units/Box</th>
-              </tr>
-            </thead>
-            <tbody id="productTable">
-              <tr>
-                <td colspan="5" class="text-muted fst-italic">
-                  search for a product
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="col-md-3 table-responsive" style="max-height: 300px;">
-          <table class="table table-bordered table-striped">
-            <thead>
-              <tr>
-                <th>FB Price</th>
-                <th>HB Price</th>
-                <th>LTB Price</th>
-              </tr>
-            </thead>
-            <tbody id="priceTable">
-              <tr>
-                <td colspan="3" class="text-muted fst-italic">
-                  select a product
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
     </div>
   </div>
   
