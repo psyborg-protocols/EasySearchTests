@@ -183,13 +183,13 @@
     }
     .generate-reports-btn {
       position: absolute;
-      top: -38px; /* Adjusted to hover above the tabs/card */
+      top: 15px; /* Adjusted to hover above the tabs/card */
       width: 40px; /* Fixed width */
       height: 40px; /* Fixed height */
       border: none;
       cursor: pointer;
       padding: 0; /* Remove padding to make size consistent with width/height */
-      border-radius: 8px;
+      border-radius: 6px;
       transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
       display: flex; /* For centering content */
       align-items: center; /* For centering content */
@@ -505,7 +505,7 @@
           <div class="row">
             <!-- Column 1: Customer Search and Order History -->
             <div class="col-md-4">
-              <h4 class="m-0">Customer</h4>
+              <h4 class="mb-3">Customer</h4>
               <a id="salesFileLinkCustomerInfo" class="file-link d-none" target="_blank"
                 title="Open latest Sales workbook">
                 <i class="fa-solid fa-link"></i>
@@ -514,7 +514,7 @@
                 <input type="text" id="customerInfoSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
                 <ul id="customerInfoDropdown" class="dropdown-menu w-100"></ul>
               </div>
-              <div id="customerOrderHistoryContainer" class="customer-info-content-hidden">
+              <div id="customerOrderHistoryContainer" class="customer-info-content-hidden mt-3"> <!-- Added mt-3 here -->
                 <h5>Order History</h5>
                 <div class="table-responsive" style="max-height: 300px;">
                   <table class="table table-bordered table-striped">
@@ -541,8 +541,8 @@
 
             <!-- Column 2: Customer Details -->
             <div class="col-md-5">
-              <h4 class="m-0">Customer Details</h4>
-              <div id="customerFieldsContainer" class="customer-info-content-hidden">
+              <h4 class="mb-3">Customer Details</h4>
+              <div id="customerFieldsContainer" class="customer-info-content-hidden mt-3"> <!-- Added mt-3 here -->
                 <div class="customer-info-field"><strong>Sales by Year:</strong> <span id="salesByYear">N/A</span></div>
                 <div class="customer-info-field"><strong>Location:</strong> <span id="customerLocation">N/A</span></div>
                 <div class="customer-info-field"><strong>Business:</strong> <span id="customerBusiness">N/A</span></div>
@@ -554,8 +554,8 @@
 
             <!-- Column 3: Contact Cards -->
             <div class="col-md-3">
-              <h4 class="m-0">Contacts</h4>
-              <div id="contactCardsContainer" class="customer-info-content-hidden">
+              <h4 class="mb-3">Contacts</h4>
+              <div id="contactCardsContainer" class="customer-info-content-hidden mt-3"> <!-- Added mt-3 here -->
                 <p class="text-muted fst-italic">No contacts available</p>
               </div>
             </div>
