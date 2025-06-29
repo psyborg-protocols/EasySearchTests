@@ -143,7 +143,7 @@ function updateOrderTable(targetTableId = "orderHistoryTable") {
   const orderHistory = window.currentOrderHistory;
   if (!orderHistory) {
     document.getElementById(targetTableId).innerHTML = `<tr><td colspan="5" class="text-muted fst-italic">
-      search for a customer to display order history
+      select a customer to display order history
     </td></tr>`;
     return; // No customer selected
   }
@@ -561,7 +561,20 @@ async function getCustomerDetails(customerName) {
       ]
     }
   };
-  return mockCustomerData[customerName] || null;
+
+  // Return specific mock data if found, otherwise return generic data
+  return mockCustomerData[customerName] || {
+    "Sales by Year": "N/A (Generic)",
+    "Location": "Unknown",
+    "Business": "Various",
+    "Type": "Mixed",
+    "Remarks": "Generic customer profile.",
+    "Website": "N/A",
+    "Contacts": [
+      { Name: "Generic Contact 1", Title: "Manager", Email: "generic1@example.com", Phone: "555-000-1111" },
+      { Name: "Generic Contact 2", Title: "Specialist", Email: "generic2@example.com", Phone: "555-000-2222" }
+    ]
+  };
 }
 
 
