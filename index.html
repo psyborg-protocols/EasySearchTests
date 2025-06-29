@@ -183,27 +183,32 @@
     }
     .generate-reports-btn {
       position: absolute;
-      top: -24px;
-      right: 10px;
+      top: -38px; /* Adjusted to hover above the tabs/card */
+      width: 40px; /* Fixed width */
+      height: 40px; /* Fixed height */
       border: none;
       cursor: pointer;
-      padding: 8px;
+      padding: 0; /* Remove padding to make size consistent with width/height */
       border-radius: 8px;
-      transition: background 0.2s ease;
+      transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      display: flex; /* For centering content */
+      align-items: center; /* For centering content */
+      justify-content: center; /* For centering content */
+      background: rgba(255, 255, 255, 0.8); /* Slightly transparent white */
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
     #appContainer .generate-reports-btn:hover {
       background: rgba(201, 201, 201, 0.9); /* light gray on hover */
-    }
-
-    .generate-reports-btn svg {
-      transition: transform 0.2s ease;
-    }
-
-    .generate-reports-btn:hover svg {
       transform: scale(1.1);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
-    /* download button inside report list-items */
+
+    .generate-reports-btn svg,
+    .generate-reports-btn i { /* Apply to both SVG and FontAwesome icon */
+      transition: transform 0.2s ease;
+      font-size: 1.2rem; /* Adjust icon size */
+    }
     .report-download-btn{
       border:none;
       background:transparent;
@@ -286,6 +291,10 @@
       margin-bottom: 0.25rem;
       font-size: 0.9rem;
     }
+    /* Styles for initially hidden content in Customer Info tab */
+    .customer-info-content-hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -313,7 +322,7 @@
   <!-- App Container -->
   <div id="appContainer" class="container py-4 position-relative" style="display:none; margin-top: 30px;">
     <!-- Floating Reports Button -->
-    <button id="generateReportsBtn" title="Generate Reports" class="generate-reports-btn" data-bs-toggle="modal" data-bs-target="#reportsModal">
+    <button id="generateReportsBtn" title="Generate Reports" class="generate-reports-btn" style="right: 10px;">
       <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368">
         <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h360v80H200v560h560v-360h80v360q0 33-23.5 56.5T760-120H200Zm80-160h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160Zm80-320v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80ZM480-480Z"/>
       </svg>
@@ -493,69 +502,47 @@
 
         <!-- Customer Info View Tab Pane -->
         <div class="tab-pane fade" id="customerInfoView" role="tabpanel" aria-labelledby="customer-info-tab">
-          <!-- Titles Row for Customer Info Tab -->
           <div class="row">
-            <!-- Customer -->
-            <div class="col-md-4 d-flex align-items-center gap-2">
+            <!-- Column 1: Customer Search and Order History -->
+            <div class="col-md-4">
               <h4 class="m-0">Customer</h4>
               <a id="salesFileLinkCustomerInfo" class="file-link d-none" target="_blank"
                 title="Open latest Sales workbook">
                 <i class="fa-solid fa-link"></i>
               </a>
-            </div>
-            <!-- Customer Details Title -->
-            <div class="col-md-5 d-flex align-items-center">
-              <h4 class="m-0">Customer Details</h4>
-            </div>
-            <!-- Contacts Title -->
-            <div class="col-md-3 d-flex align-items-center">
-              <h4 class="m-0">Contacts</h4>
-            </div>
-          </div>
-
-          <!-- Dropdown Inputs Row for Customer Info Tab -->
-          <div class="row mt-3">
-            <div class="col-md-4">
               <div class="dropdown position-relative mb-3">
                 <input type="text" id="customerInfoSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
                 <ul id="customerInfoDropdown" class="dropdown-menu w-100"></ul>
               </div>
-            </div>
-            <!-- Empty columns to align with previous titles -->
-            <div class="col-md-5"></div>
-            <div class="col-md-3"></div>
-          </div>
-
-
-          <!-- Customer Details Row (initially hidden, shown on customer select) -->
-          <div class="row" id="customerDetailsRow" style="display: none;">
-            <!-- Column 1: Order History -->
-            <div class="col-md-4 table-responsive" style="max-height: 300px;">
-              <h5>Order History</h5>
-              <table class="table table-bordered table-striped">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Product</th>
-                    <th>Description</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                  </tr>
-                </thead>
-                <tbody id="customerInfoOrderHistoryTable">
-                  <tr>
-                    <td colspan="5" class="text-muted fst-italic">
-                      select a customer to display order history
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <div id="customerOrderHistoryContainer" class="customer-info-content-hidden">
+                <h5>Order History</h5>
+                <div class="table-responsive" style="max-height: 300px;">
+                  <table class="table table-bordered table-striped">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                      </tr>
+                    </thead>
+                    <tbody id="customerInfoOrderHistoryTable">
+                      <tr>
+                        <td colspan="5" class="text-muted fst-italic">
+                          select a customer to display order history
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
 
-            <!-- Column 2: Customer Fields -->
+            <!-- Column 2: Customer Details -->
             <div class="col-md-5">
-              <!-- Removed the extra <h5>Customer Info</h5> here -->
-              <div id="customerFieldsContainer">
+              <h4 class="m-0">Customer Details</h4>
+              <div id="customerFieldsContainer" class="customer-info-content-hidden">
                 <div class="customer-info-field"><strong>Sales by Year:</strong> <span id="salesByYear">N/A</span></div>
                 <div class="customer-info-field"><strong>Location:</strong> <span id="customerLocation">N/A</span></div>
                 <div class="customer-info-field"><strong>Business:</strong> <span id="customerBusiness">N/A</span></div>
@@ -567,8 +554,8 @@
 
             <!-- Column 3: Contact Cards -->
             <div class="col-md-3">
-              <!-- Removed the extra <h5>Contacts List</h5> here -->
-              <div id="contactCardsContainer">
+              <h4 class="m-0">Contacts</h4>
+              <div id="contactCardsContainer" class="customer-info-content-hidden">
                 <p class="text-muted fst-italic">No contacts available</p>
               </div>
             </div>

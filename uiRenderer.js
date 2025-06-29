@@ -68,7 +68,9 @@ document.getElementById("customerInfoSearch").addEventListener("input", async (e
     dropdown.innerHTML = "";
     dropdown.classList.remove('show');
     // Hide customer details if search is cleared
-    document.getElementById("customerDetailsRow").style.display = 'none';
+    document.getElementById("customerOrderHistoryContainer").classList.add('customer-info-content-hidden');
+    document.getElementById("customerFieldsContainer").classList.add('customer-info-content-hidden');
+    document.getElementById("contactCardsContainer").classList.add('customer-info-content-hidden');
     return;
   }
 
@@ -85,7 +87,9 @@ document.getElementById("customerInfoSearch").addEventListener("input", async (e
     } else {
       dropdown.innerHTML = "";
       dropdown.classList.remove('show');
-      document.getElementById("customerDetailsRow").style.display = 'none';
+      document.getElementById("customerOrderHistoryContainer").classList.add('customer-info-content-hidden');
+      document.getElementById("customerFieldsContainer").classList.add('customer-info-content-hidden');
+      document.getElementById("contactCardsContainer").classList.add('customer-info-content-hidden');
     }
   } catch (error) {
     console.error("Error performing customer info search:", error);
@@ -219,7 +223,11 @@ async function selectCustomer(customerName) {
 async function selectCustomerInfo(customerName) {
   document.getElementById("customerInfoSearch").value = customerName;
   document.getElementById("customerInfoDropdown").innerHTML = "";
-  document.getElementById("customerDetailsRow").style.display = 'flex'; // Show the details row
+  
+  // Show the content containers
+  document.getElementById("customerOrderHistoryContainer").classList.remove('customer-info-content-hidden');
+  document.getElementById("customerFieldsContainer").classList.remove('customer-info-content-hidden');
+  document.getElementById("contactCardsContainer").classList.remove('customer-info-content-hidden');
 
   // Fetch order history
   const orderHistory = await getOrderHistory(customerName);
@@ -491,16 +499,13 @@ function updateUIForLoggedOutUser() {
     const fileListContainer = document.getElementById('fileListContainer');
     if (fileListContainer) fileListContainer.innerHTML = '';
     
-    // The tableContainer might not exist anymore due to the new structure
-    // const tableContainer = document.getElementById('tableContainer');
-    // if (tableContainer) tableContainer.style.display = 'none';
-    
     const welcomeMessage = document.getElementById('welcomeMessage');
     if (welcomeMessage) welcomeMessage.style.display = 'block';
 
-    // Hide customer details row on logout
-    const customerDetailsRow = document.getElementById('customerDetailsRow');
-    if (customerDetailsRow) customerDetailsRow.style.display = 'none';
+    // Hide all customer info containers on logout
+    document.getElementById("customerOrderHistoryContainer").classList.add('customer-info-content-hidden');
+    document.getElementById("customerFieldsContainer").classList.add('customer-info-content-hidden');
+    document.getElementById("contactCardsContainer").classList.add('customer-info-content-hidden');
 }
 
 // Add event listeners for tab switching
@@ -512,8 +517,12 @@ document.getElementById('search-tab').addEventListener('click', () => {
 document.getElementById('customer-info-tab').addEventListener('click', () => {
   document.getElementById('customerInfoView').classList.add('show', 'active');
   document.getElementById('searchView').classList.remove('show', 'active');
-  // Initially hide customer details when switching to Customer Info tab
-  document.getElementById("customerDetailsRow").style.display = 'none';
+  
+  // Hide customer details content when switching to Customer Info tab
+  document.getElementById("customerOrderHistoryContainer").classList.add('customer-info-content-hidden');
+  document.getElementById("customerFieldsContainer").classList.add('customer-info-content-hidden');
+  document.getElementById("contactCardsContainer").classList.add('customer-info-content-hidden');
+
   // Clear customer search on tab switch
   document.getElementById("customerInfoSearch").value = "";
   document.getElementById("customerInfoDropdown").innerHTML = "";
