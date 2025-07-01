@@ -22,6 +22,47 @@ function fmtPrice(value) {
   return isFinite(num) ? moneyFmt.format(num) : "-";
 }
 
+function asLink(url) {
+  if (!url) return "N/A";
+  const safe = url.startsWith("http") ? url : `https://${url}`;
+  return `<a href="${safe}" target="_blank" rel="noopener">${safe.replace(/^https?:\/\//,"")}</a>`;
+}
+
+function emailLink(addr) {
+  return addr ? `<a href="mailto:${addr}">${addr}</a>` : "N/A";
+}
+
+/* keep one Chart.js instance per tab load */
+let salesChart = null;
+function drawSalesChart(salesByYearObj) {
+  const years  = Object.keys(salesByYearObj);
+  const values = years.map(y => Number(salesByYearObj[y]) || 0);
+
+  const ctx = document.getElementById("salesByYearChart");
+  if (!ctx) return;
+
+  // destroy old chart to avoid ghost canvases
+  if (salesChart) salesChart.destroy();
+
+  salesChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: years,
+      datasets: [{
+        data: values,
+        borderWidth: 1
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales : {
+        x: { ticks: { font:{size:10} } },
+        y: { display:false, beginAtZero:true }
+      }
+    }
+  });
+}
+
 // Global variable to store the current customer's full order history
 window.currentOrderHistory = null;
 // Global variable to store the current customer's full customer info
@@ -241,41 +282,31 @@ async function selectCustomerInfo(customerName) {
 
   // Populate Customer Fields
   if (customerDetails) {
-    document.getElementById("salesByYear").textContent = customerDetails["Sales by Year"] || "N/A";
-    document.getElementById("customerLocation").textContent = customerDetails["Location"] || "N/A";
-    document.getElementById("customerBusiness").textContent = customerDetails["Business"] || "N/A";
-    document.getElementById("customerType").textContent = customerDetails["Type"] || "N/A";
-    document.getElementById("customerRemarks").textContent = customerDetails["Remarks"] || "N/A";
-    document.getElementById("customerWebsite").textContent = customerDetails["Website"] || "N/A";
+    drawSalesChart(customerDetails.salesByYear);
+    document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
+    document.getElementById("customerBusiness").textContent = customerDetails.business || "N/A";
+    document.getElementById("customerType").textContent = customerDetails.type || "N/A";
+    document.getElementById("customerRemarks").textContent = customerDetails.remarks || "N/A";
+    document.getElementById("customerWebsite").innerHTML  = asLink(customerDetails.website);
 
-    // Populate Contact Cards (assuming customerDetails.Contacts is an array of contact objects)
+    // contacts
     const contactCardsContainer = document.getElementById("contactCardsContainer");
-    contactCardsContainer.innerHTML = ''; // Clear previous contacts
-    if (customerDetails.Contacts && customerDetails.Contacts.length > 0) {
-      customerDetails.Contacts.forEach(contact => {
-        const card = `
+    contactCardsContainer.innerHTML = customerDetails.contacts.length
+      ? customerDetails.contacts.map(c => `
           <div class="contact-card">
-            <h6>${contact.Name || 'N/A'}</h6>
-            <p><strong>Title:</strong> ${contact.Title || 'N/A'}</p>
-            <p><strong>Email:</strong> ${contact.Email || 'N/A'}</p>
-            <p><strong>Phone:</strong> ${contact.Phone || 'N/A'}</p>
+            <h6>${c.Name || "N/A"}</h6>
+            <p><strong>Title:</strong> ${c.Title || "N/A"}</p>
+            <p><strong>Email:</strong> ${emailLink(c.Email)}</p>
           </div>
-        `;
-        contactCardsContainer.innerHTML += card;
-      });
-    } else {
-      contactCardsContainer.innerHTML = '<p class="text-muted fst-italic">No contacts available</p>';
-    }
-
+        `).join("")
+      : '<p class="text-muted fst-italic">No contacts available</p>';
   } else {
-    // Clear fields if no details found
-    document.getElementById("salesByYear").textContent = "N/A";
-    document.getElementById("customerLocation").textContent = "N/A";
-    document.getElementById("customerBusiness").textContent = "N/A";
-    document.getElementById("customerType").textContent = "N/A";
-    document.getElementById("customerRemarks").textContent = "N/A";
-    document.getElementById("customerWebsite").textContent = "N/A";
-    document.getElementById("contactCardsContainer").innerHTML = '<p class="text-muted fst-italic">No contacts available</p>';
+    // clear everything (chart, text, contacts)
+    if (salesChart) salesChart.destroy();
+    ["customerLocation","customerBusiness","customerType","customerRemarks","customerWebsite"]
+      .forEach(id => document.getElementById(id).textContent = "N/A");
+    document.getElementById("contactCardsContainer").innerHTML =
+      '<p class="text-muted fst-italic">No contacts available</p>';
   }
 }
 

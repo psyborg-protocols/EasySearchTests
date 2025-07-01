@@ -544,7 +544,10 @@
             <div class="col-md-5">
               <h4 class="mb-3">Customer Details</h4>
               <div id="customerFieldsContainer" class="customer-info-content-hidden mt-3"> <!-- Added mt-3 here -->
-                <div class="customer-info-field"><strong>Sales by Year:</strong> <span id="salesByYear">N/A</span></div>
+                <div class="customer-info-field d-flex flex-column">
+                  <strong>Sales by Year:</strong>
+                  <canvas id="salesByYearChart" style="width:100%;max-width:320px;aspect-ratio:2/1"></canvas>
+                </div>
                 <div class="customer-info-field"><strong>Location:</strong> <span id="customerLocation">N/A</span></div>
                 <div class="customer-info-field"><strong>Business:</strong> <span id="customerBusiness">N/A</span></div>
                 <div class="customer-info-field"><strong>Type:</strong> <span id="customerType">N/A</span></div>
@@ -643,6 +646,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/javascript/javascript.min.js"></script>
   <script src="codeConsole.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://alcdn.msauth.net/browser/2.32.0/js/msal-browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6"></script>
