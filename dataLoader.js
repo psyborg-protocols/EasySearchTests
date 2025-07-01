@@ -253,6 +253,16 @@ async function processFiles() {
           continue;
         }
 
+        if (key === "CustomerContacts") {
+          const map   = normaliseCustomerContacts(frame);
+          const stored = { dataframe: map, metadata: md };
+          ds[key] = map;                           // keep mapping only
+          await idbUtil.setDataset(storageKey, stored);
+          console.log(`[CustomerContacts] ${Object.keys(map).length} companies loaded.`);
+          continue;
+        }
+
+        
         // generic sheet (Sales, DB, …)
         const cleaned = key === "Sales"
                         ? filterOutValues(fillDownColumn(frame, "Customer"),
@@ -440,6 +450,47 @@ function toNumber(val) {
   return isFinite(num) ? num : null;  // null is better than NaN or undefined later
 }
 
+// Helper function to normalize customer contacts from the "Customer Contacts" sheet.
+function normaliseCustomerContacts(frame) {
+  const YEARS = ["2019","2020","2021","2022","2023","2024","2025"];
+  const map = {};
+
+  for (const row of frame) {
+    const company = String(row.Company || "").trim();
+    if (!company) continue;
+
+    /* — sales by year — */
+    const sales = {};
+    YEARS.forEach(y => { sales[y] = row[`${y} Sales`] ?? null; });
+
+    /* — contacts (1‒3) — */
+    const contacts = [];
+    for (let i = 1; i <= 3; i++) {
+      const name   = row[`Contact Name ${i}`]  || "";
+      const title  = row[`Contact Title ${i}`] || "";
+      const email  = row[`Email ${i}`]         || "";
+      if (name || title || email) {
+        contacts.push({ Name: name, Title: title, Email: email });
+      }
+    }
+
+    map[company] = {
+      SalesByYear : sales,
+      Location    : row.Location    || "",
+      Business    : row.Business    || "",
+      Type        : row.Type        || "",
+      Remarks     : row.Remarks     || "",
+      Website     : row.Website     || "",
+      Contacts    : contacts
+    };
+  }
+  return map;
+}
+
+// Exports a function to get customer details by company name.
+function getCustomerDetails(company) {
+  return (window.dataStore["CustomerContacts"] || {})[company] || null;
+}
 // Global storage for parsed data
 window.dataStore = {}; 
 window.dataStore.fileLinks = {}; // for sheet links
@@ -449,5 +500,6 @@ window.dataLoader = {
   fetchLatestFileMetadata,
   downloadExcelFile,
   parseExcelData,
-  processFiles
+  processFiles,
+  getCustomerDetails
 };

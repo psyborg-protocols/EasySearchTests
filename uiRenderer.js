@@ -532,49 +532,9 @@ document.getElementById('customer-info-tab').addEventListener('click', () => {
 });
 
 
-// Temporary mock function for getCustomerDetails
-// YOU WILL NEED TO REPLACE THIS WITH ACTUAL DATA FETCHING LOGIC
 async function getCustomerDetails(customerName) {
-  // Mock data for demonstration
-  const mockCustomerData = {
-    "Acme Corp": {
-      "Sales by Year": "$1,200,000 (2024)",
-      "Location": "New York, USA",
-      "Business": "Manufacturing",
-      "Type": "B2B",
-      "Remarks": "Key account, high potential for growth.",
-      "Website": "https://www.acmecorp.com",
-      "Contacts": [
-        { Name: "John Doe", Title: "Purchasing Manager", Email: "john.doe@acme.com", Phone: "555-123-4567" },
-        { Name: "Jane Smith", Title: "CEO", Email: "jane.smith@acme.com", Phone: "555-987-6543" }
-      ]
-    },
-    "Global Solutions": {
-      "Sales by Year": "$500,000 (2024)",
-      "Location": "London, UK",
-      "Business": "Software Development",
-      "Type": "B2B",
-      "Remarks": "New client, growing steadily.",
-      "Website": "https://www.globalsolutions.co.uk",
-      "Contacts": [
-        { Name: "Alice Brown", Title: "CTO", Email: "alice.brown@global.com", Phone: "020-7946-0123" }
-      ]
-    }
-  };
-
-  // Return specific mock data if found, otherwise return generic data
-  return mockCustomerData[customerName] || {
-    "Sales by Year": "N/A (Generic)",
-    "Location": "Unknown",
-    "Business": "Various",
-    "Type": "Mixed",
-    "Remarks": "Generic customer profile.",
-    "Website": "N/A",
-    "Contacts": [
-      { Name: "Generic Contact 1", Title: "Manager", Email: "generic1@example.com", Phone: "555-000-1111" },
-      { Name: "Generic Contact 2", Title: "Specialist", Email: "generic2@example.com", Phone: "555-000-2222" }
-    ]
-  };
+  // thin wrapper around dataLoader => keeps rest of code unchanged
+  return window.dataLoader.getCustomerDetails(customerName);
 }
 
 

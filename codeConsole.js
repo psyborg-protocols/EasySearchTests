@@ -18,7 +18,7 @@ document.getElementById('codeModal').addEventListener('shown.bs.modal', () => {
       lineNumbers:true,
       value:`// Example: list inventory SKUs with <10 on hand\n
 const lowStock = dataStore.DB.dataframe.filter(r => r.QtyOnHand - r.QtyCommited < 10);\n
-console.table(lowStock.slice(0,20));`
+console.table(lowStock.slice(0,20));\n\n// Console output will appear in the development console ('F12' or 'Ctrl+Shift+I')\n\n// You can access the dataStore, idbUtil, and dataLoader objects directly\n// For example: console.log(dataStore.DB.dataframe.head(5));`
     });
   }
   cm.refresh();   // fix sizing quirk inside Bootstrap modal
