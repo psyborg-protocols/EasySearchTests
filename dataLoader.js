@@ -475,13 +475,13 @@ function normaliseCustomerContacts(frame) {
     }
 
     map[company] = {
-      SalesByYear : sales,
-      Location    : row.Location    || "",
-      Business    : row.Business    || "",
-      Type        : row.Type        || "",
-      Remarks     : row.Remarks     || "",
-      Website     : row.Website     || "",
-      Contacts    : contacts
+      salesByYear : sales,
+      location    : row.Location    || "",
+      business    : row.Business    || "",
+      type        : row.Type        || "",
+      remarks     : row.Remarks     || "",
+      website     : row.Website     || "",
+      contacts    : contacts
     };
   }
   return map;
