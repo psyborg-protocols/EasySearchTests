@@ -75,7 +75,7 @@ document.getElementById("customerInfoSearch").addEventListener("input", async (e
   }
 
   try {
-    const results = await searchCustomers(query); // Assuming searchCustomers can be reused
+    const results = await searchCustomers(query);
     const uniqueResults = [...new Set(results)];
 
     if (uniqueResults.length > 0) {
@@ -236,7 +236,7 @@ async function selectCustomerInfo(customerName) {
   updateOrderTable("customerInfoOrderHistoryTable"); // Update order table for customer info tab
 
   // Fetch customer details (assuming there's a function like getCustomerDetails)
-  const customerDetails = await getCustomerDetails(customerName); // This function needs to be implemented
+  const customerDetails = await getCustomerDetails(customerName);
   window.currentCustomerInfo = customerDetails; // Store for potential future use
 
   // Populate Customer Fields

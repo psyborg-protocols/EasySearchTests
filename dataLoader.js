@@ -456,7 +456,7 @@ function normaliseCustomerContacts(frame) {
   const map = {};
 
   for (const row of frame) {
-    const company = String(row.Company || "").trim();
+    const company = String(row.Company || "").trim().replace(/\s+/g, " ").toLowerCase();
     if (!company) continue;
 
     /* — sales by year — */
@@ -489,8 +489,10 @@ function normaliseCustomerContacts(frame) {
 
 // Exports a function to get customer details by company name.
 function getCustomerDetails(company) {
-  return (window.dataStore["CustomerContacts"] || {})[company] || null;
+  const key = company.trim().replace(/\s+/g, " ").toLowerCase();
+  return (window.dataStore["CustomerContacts"] || {})[key] || null;
 }
+
 // Global storage for parsed data
 window.dataStore = {}; 
 window.dataStore.fileLinks = {}; // for sheet links
