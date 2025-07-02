@@ -29,21 +29,46 @@ function asLink(url) {
 }
 
 function emailLink(addr) {
-  return addr ? `<a href="mailto:${addr}">${addr}</a>` : "N/A";
+  if (!addr) return "N/A";
+  // Outlook Web deeplink — opens the user’s O365 / personal account
+  const url = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(addr)}`;
+  return `<a href="${url}" target="_blank" rel="noopener">${addr}</a>`;
 }
 
 /* keep one Chart.js instance per tab load */
 let salesChart = null;
 function drawSalesChart(salesByYearObj) {
-  const years  = Object.keys(salesByYearObj);
-  const values = years.map(y => Number(salesByYearObj[y]) || 0);
+  const safe = salesByYearObj || {};
 
+  /* ---- build ordered arrays of years & values ---- */
+  const YEARS  = ["2019","2020","2021","2022","2023","2024","2025"];
+  const years  = [];
+  const values = [];
+
+  YEARS.forEach(y => {
+    if (Object.prototype.hasOwnProperty.call(safe, y)) {
+      // strip commas, currency symbols, spaces -> float
+      const num = parseFloat(String(safe[y]).replace(/[^0-9.\-]/g, ""));
+      if (!isNaN(num)) {
+        years.push(y);
+        values.push(num);
+      }
+    }
+  });
+
+  /* ---- nothing to plot? clear & bail ---- */
+  if (years.length === 0) {
+    if (salesChart) salesChart.destroy();
+    return;
+  }
+
+  /* ---- prepare canvas ---- */
   const ctx = document.getElementById("salesByYearChart");
   if (!ctx) return;
 
-  // destroy old chart to avoid ghost canvases
-  if (salesChart) salesChart.destroy();
+  if (salesChart) salesChart.destroy();            // remove previous instance
 
+  /* ---- create new bar chart ---- */
   salesChart = new Chart(ctx, {
     type: "bar",
     data: {
@@ -56,8 +81,13 @@ function drawSalesChart(salesByYearObj) {
     options: {
       plugins: { legend: { display: false } },
       scales : {
-        x: { ticks: { font:{size:10} } },
-        y: { display:false, beginAtZero:true }
+        x: {
+          ticks: { font: { size: 10 } }
+        },
+        y: {
+          display: false,
+          beginAtZero: true
+        }
       }
     }
   });
