@@ -75,7 +75,7 @@
     "columns": [
       "Company", "2019 Sales", "2020 Sales", "2021 Sales", "2022 Sales",
       "2023 Sales", "2024 Sales", "2025 Sales",
-      "Location", "Business", "Type", "Remarks", "Website", "N", "O", "P",
+      "Location", "Business", "Type", "Special Discount", "Remarks", "Website", "N", "O", "P",
       "Contact Name 1", "Contact Title 1", "Email 1",
       "Contact Name 2", "Contact Title 2", "Email 2",
       "Contact Name 3", "Contact Title 3", "Email 3"
