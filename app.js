@@ -1,5 +1,21 @@
 // app.js
+const APP_VERSION = "1.0.1";
+
 document.addEventListener('DOMContentLoaded', async function () {
+  // Version check
+  const currentVersion = localStorage.getItem("APP_VERSION");
+  if (currentVersion !== APP_VERSION) {
+    console.log(`[Version Check] Detected app update: ${currentVersion} → ${APP_VERSION}`);
+
+    // Purge all IndexedDB datasets
+    await idbUtil.clearDatasets();
+    localStorage.setItem("APP_VERSION", APP_VERSION);
+
+    // Reload the page to start fresh with new assets and clean cache
+    location.reload();
+    return;  // prevent rest of DOMContentLoaded from running
+  }
+
   initializeAuth();
 
   // If we already have a valid token, fetch fresh data immediately
