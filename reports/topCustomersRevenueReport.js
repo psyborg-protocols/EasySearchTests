@@ -18,9 +18,20 @@ window.buildTopCustomersByRevenueReport = function buildTopCustomersByRevenueRep
     /* --- little helpers --- */
     const parseDate = (str) => {
       if (!str) return null;
-      const [m,d,y] = str.split('/').map(s => +s.trim());
-      return (m && d && y) ? new Date(y, m - 1, d) : null;
+
+      // 1️⃣ strip commas and normalise M/D/YY → M/D/YYYY
+      const cleaned = str.trim()
+                        .replace(/,/g, '')
+                        .replace(/(\d{1,2})\/(\d{1,2})\/(\d{2})$/, '$1/$2/20$3');
+
+      // 2️⃣ allow “Jul 9 2025” or “2025‑07‑09”
+      const ts = Date.parse(cleaned);
+      return isNaN(ts) ? null : new Date(ts);
     };
+
+    const cleanAmount = v =>
+      parseFloat(String(v).replace(/[^0-9.-]/g, '')) || 0;
+
     const toCSV = (rows) => {
       if (!rows.length) return '';
       const cols = Object.keys(rows[0]);
@@ -54,7 +65,7 @@ window.buildTopCustomersByRevenueReport = function buildTopCustomersByRevenueRep
           const cust   = row.Customer?.trim();
           if (!cust) continue;
 
-          const amount = +String(row.Total_Amount).replace(/\s/g,'') || 0;
+          const amount = cleanAmount(row.Total_Amount);
           if (!totals[cust]) totals[cust] = { revenue:0, orders:0 };
           totals[cust].revenue += amount;
           totals[cust].orders  += 1;
