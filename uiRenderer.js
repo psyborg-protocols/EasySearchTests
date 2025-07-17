@@ -186,14 +186,14 @@ document.addEventListener('click', (e) => {
 function updatePricingTable(partNumber) {
   const pricingData = window.dataStore["Pricing"]?.dataframe || [];
   const pricingEntry = pricingData.find(row => String(row["Product"]).trim() === partNumber);
-  const isB2C = document.getElementById("pricingToggle").checked;
+  const isB2B = document.getElementById("pricingToggle").checked;
   
   let tableHTML = "";
 
   if (pricingEntry) {
-    const priceFB = isB2C ? pricingEntry["DISTR FB"] : pricingEntry["USER FB"];
-    const priceHB = isB2C ? pricingEntry["DISTR HB"] : pricingEntry["USER HB"];
-    const priceLTB = isB2C ? pricingEntry["DISTR LTB"] : pricingEntry["USER LTB"];
+    const priceFB = isB2B ? pricingEntry["DISTR FB"] : pricingEntry["USER FB"];
+    const priceHB = isB2B ? pricingEntry["DISTR HB"] : pricingEntry["USER HB"];
+    const priceLTB = isB2B ? pricingEntry["DISTR LTB"] : pricingEntry["USER LTB"];
     
     tableHTML = `
     <tr>
@@ -280,7 +280,7 @@ async function selectCustomer(customerName) {
   // Save full order history for later filtering
   window.currentOrderHistory = orderHistory;
 
-  // Optionally, you can also store the current customer name
+  // store the current customer name
   window.currentCustomer = customerName;
 
   // Sort orders by ascending date if needed
@@ -288,6 +288,15 @@ async function selectCustomer(customerName) {
 
   // Render orders (this will apply filtering if the toggle is on)
   updateOrderTable("orderHistoryTable");
+
+  const details = await getCustomerDetails(customerName);
+  if (details) {
+    const toggle = document.getElementById("pricingToggle");
+    const isDistributor = String(details.business).trim().toLowerCase() === "distributor";
+    toggle.checked = isDistributor;
+
+    // Optionally update pricing table if product is already selected
+    if (window.currentProduct) updatePricingTable(window.currentProduct);
 }
 
 // Handle Customer Selection for Customer Info Tab
@@ -578,18 +587,21 @@ document.getElementById('search-tab').addEventListener('click', () => {
 document.getElementById('customer-info-tab').addEventListener('click', () => {
   document.getElementById('customerInfoView').classList.add('show', 'active');
   document.getElementById('searchView').classList.remove('show', 'active');
-  
-  // Hide customer details content when switching to Customer Info tab
-  document.getElementById("customerOrderHistoryContainer").classList.add('customer-info-content-hidden');
-  document.getElementById("customerFieldsContainer").classList.add('customer-info-content-hidden');
-  document.getElementById("contactCardsContainer").classList.add('customer-info-content-hidden');
 
-  // Clear customer search on tab switch
-  document.getElementById("customerInfoSearch").value = "";
-  document.getElementById("customerInfoDropdown").innerHTML = "";
-  document.getElementById("customerInfoOrderHistoryTable").innerHTML = `<tr><td colspan="5" class="text-muted fst-italic">
+  // NEW: if a customer is selected in the Search tab, show them in Customer Info
+  if (window.currentCustomer) {
+    selectCustomerInfo(window.currentCustomer);
+  } else {
+    // fallback: blank out content if no customer was selected
+    ["customerOrderHistoryContainer", "customerFieldsContainer", "contactCardsContainer"]
+      .forEach(id => document.getElementById(id).classList.add('customer-info-content-hidden'));
+
+    document.getElementById("customerInfoSearch").value = "";
+    document.getElementById("customerInfoDropdown").innerHTML = "";
+    document.getElementById("customerInfoOrderHistoryTable").innerHTML = `<tr><td colspan="5" class="text-muted fst-italic">
       select a customer to display order history
     </td></tr>`;
+  }
 });
 
 
