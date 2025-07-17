@@ -297,6 +297,7 @@ async function selectCustomer(customerName) {
 
     // Optionally update pricing table if product is already selected
     if (window.currentProduct) updatePricingTable(window.currentProduct);
+  }
 }
 
 // Handle Customer Selection for Customer Info Tab
