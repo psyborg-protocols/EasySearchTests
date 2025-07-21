@@ -32,7 +32,7 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
         const parseDate = ReportUtils.parseDate;
 
         const salesByCustomer = rawSalesData.reduce((acc, sale) => {
-          const customerName = ReportUtils.normalize(sale.Customer);
+          const customerName = ReportUtils.normalise(sale.Customer);
           if (!acc[customerName]) acc[customerName] = [];
           const saleDate = parseDate(sale.Date);
           if (saleDate && !isNaN(saleDate.getTime())) {
