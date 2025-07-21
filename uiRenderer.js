@@ -5,6 +5,24 @@ const moneyFmt = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2
 });
 
+/**
+ * Safely converts a value to a number, handling strings with currency symbols.
+ * @param {*} val - The value to convert.
+ * @returns {number} The converted number, or 0 if conversion fails.
+ */
+function toNumber(val) {
+  if (typeof val === 'number') {
+    return isFinite(val) ? val : 0;
+  }
+  if (typeof val === "string") {
+    // Remove characters that aren't digits, decimal point, or negative sign.
+    const sanitized = val.replace(/[^0-9.-]/g, '');
+    const num = parseFloat(sanitized);
+    return isFinite(num) ? num : 0;
+  }
+  return 0;
+}
+
 function getCountryName(code) {
   const map = {
     CN: "China",
@@ -414,13 +432,11 @@ async function selectProduct(encodedPartNumber, options = {}) {
     );
 
     if (selectedProduct) {
-      const qtyOnHand = parseFloat(selectedProduct["QtyOnHand"]) || 0;
-      const qtyCommitted = parseFloat(selectedProduct["QtyCommited"]) || 0;
+      const qtyOnHand = toNumber(selectedProduct["QtyOnHand"]);
+      const qtyCommitted = toNumber(selectedProduct["QtyCommited"]);
       const qtyAvailable = qtyOnHand - qtyCommitted;
-      const reorderLevel = parseFloat(selectedProduct["ReOrder Level"]) || 0;
-      const qtyOnOrder = parseFloat(selectedProduct["QtyOnOrder"]) || 0;
+      const qtyOnOrder = toNumber(selectedProduct["QtyOnOrder"]);
   
-      console.debug(`[selectProduct] Qty Available: ${qtyAvailable}, Reorder Level: ${reorderLevel}, Qty On Order: ${qtyOnOrder}`);
       // Prepare the cell content with a truck icon
       let qtyAvailableCellContent = `${qtyAvailable}`;
       const truckColorClass = qtyOnOrder > 0 ? "truck-bright-green" : "truck-faded-grey";
@@ -432,10 +448,10 @@ async function selectProduct(encodedPartNumber, options = {}) {
         </i>`;
   
       // Prepare Unit Cost with a tooltip for price raises
-      const baseUnitCost = selectedProduct["UnitCost"];
+      const baseUnitCost = toNumber(selectedProduct["UnitCost"]);
       const raiseInfo = window.dataStore["PriceRaise"]?.dataframe[partNumber];
 
-      let unitCostCellContent = parseFloat(baseUnitCost || 0).toFixed(2);
+      let unitCostCellContent = baseUnitCost.toFixed(2);
 
       if (raiseInfo) {
         // Bootstrap needs <br> and data-bs-html="true" for line-breaks
@@ -472,15 +488,14 @@ async function selectProduct(encodedPartNumber, options = {}) {
       // Update the pricing table with the selected product’s pricing info
       updatePricingTable(partNumber);
 
-      // --- NEW: Populate Quote Calculator ---
+      // --- Populate Quote Calculator ---
       const quoteInfo = {
           PartNumber: selectedProduct["PartNumber"],
-          UnitCost: selectedProduct["UnitCost"],
+          UnitCost: baseUnitCost, // Use the parsed number
           Quantity: options.quantity, // from the clicked order row
           Price: options.price        // from the clicked order row
       };
       quoteCalculator.populate(quoteInfo);
-      // --- END NEW ---
 
 
       // Retrieve the replacements mapping for this product
@@ -625,7 +640,7 @@ async function getCustomerDetails(customerName) {
   return window.dataLoader.getCustomerDetails(customerName);
 }
 
-// --- NEW: Quote Calculator Object ---
+// --- Quote Calculator Object ---
 const quoteCalculator = {
     /**
      * Updates a single row in the quote calculator table based on its editable inputs.
@@ -640,10 +655,8 @@ const quoteCalculator = {
         const getNumeric = (selector) => {
             const el = rowElement.querySelector(`[data-col="${selector}"]`);
             if (!el) return 0;
-            // Sanitize input: remove $, commas, and non-numeric characters except for the decimal point
-            const sanitized = String(el.textContent).replace(/[^0-9.]/g, '');
-            const num = parseFloat(sanitized);
-            return isNaN(num) ? 0 : num;
+            // Use the global toNumber helper for safe parsing
+            return toNumber(el.textContent);
         };
 
         const quantity = getNumeric('quantity');
@@ -671,21 +684,28 @@ const quoteCalculator = {
         const firstRow = tableBody.rows[0];
         const secondRow = tableBody.rows[1];
 
+        const unitCost = toNumber(productInfo.UnitCost);
+        const price = toNumber(productInfo.Price);
+        const quantity = productInfo.Quantity || '1';
+
         // --- Populate the first row ---
         firstRow.querySelector('[data-col="product"]').textContent = productInfo.PartNumber;
-        firstRow.querySelector('[data-col="quantity"]').textContent = productInfo.Quantity || '1';
-        firstRow.querySelector('[data-col="unitcost"]').textContent = productInfo.UnitCost ? parseFloat(productInfo.UnitCost).toFixed(2) : '0.00';
-        firstRow.querySelector('[data-col="price"]').textContent = productInfo.Price ? parseFloat(productInfo.Price).toFixed(2) : '0.00';
-        this.updateRow(firstRow);
-        firstRow.classList.remove('placeholder-row');
+        firstRow.querySelector('[data-col="quantity"]').textContent = quantity;
+        firstRow.querySelector('[data-col="unitcost"]').textContent = unitCost.toFixed(2);
+        firstRow.querySelector('[data-col="price"]').textContent = price.toFixed(2);
+        this.updateRow(firstRow); // This calculates totals and removes placeholder style
 
-        // --- Populate the second row (now a duplicate) ---
+        // --- Populate the second (placeholder) row ---
         secondRow.querySelector('[data-col="product"]').textContent = productInfo.PartNumber;
-        secondRow.querySelector('[data-col="quantity"]').textContent = productInfo.Quantity || '1';
-        secondRow.querySelector('[data-col="unitcost"]').textContent = productInfo.UnitCost ? parseFloat(productInfo.UnitCost).toFixed(2) : '0.00';
-        secondRow.querySelector('[data-col="price"]').textContent = productInfo.Price ? parseFloat(productInfo.Price).toFixed(2) : '0.00';
-        this.updateRow(secondRow);
-        secondRow.classList.remove('placeholder-row');
+        secondRow.querySelector('[data-col="quantity"]').textContent = quantity;
+        secondRow.querySelector('[data-col="unitcost"]').textContent = unitCost.toFixed(2);
+        secondRow.querySelector('[data-col="price"]').textContent = price.toFixed(2);
+        
+        // Clear calculated fields and ensure placeholder style is set
+        secondRow.querySelector('[data-col="ordertotal"]').textContent = '';
+        secondRow.querySelector('[data-col="margin"]').textContent = '';
+        secondRow.querySelector('[data-col="totalprofit"]').textContent = '';
+        secondRow.classList.add('placeholder-row');
 
         // Expand the accordion if it's not already open
         const collapseElement = document.getElementById('quoteCalculatorCollapse');

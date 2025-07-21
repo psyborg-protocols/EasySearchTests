@@ -297,7 +297,7 @@
       display: none;
     }
     
-    /* --- NEW: Quote Calculator Styles --- */
+    /* --- Quote Calculator Styles --- */
     #quoteCalculatorTable [contenteditable="true"] {
         background-color: #eef2ff;
         outline: 1px dashed #aabaff;
@@ -320,10 +320,12 @@
   <h1 class="app-title text-center my-3 glowing-text">BrandyWise</h1>
   <button id="userDisplayName" class="btn btn-outline-secondary position-absolute top-0 end-0 m-3"></button>
   
+  <!-- Logout Button (moved outside appContainer) -->
   <button id="signOutButton" class="btn btn-outline-secondary position-absolute top-0 start-0 m-3">
     <i class="fas fa-sign-out-alt"></i> Sign Out
   </button>
 
+  <!-- Login Container -->
   <div id="loginContainer">
     <div class="card shadow" style="max-width: 400px; width: 100%; margin-top: 30px;">
       <div class="card-body text-center p-5">
@@ -336,12 +338,15 @@
     </div>
   </div>
 
+  <!-- App Container -->
   <div id="appContainer" class="container py-4 position-relative" style="display:none; margin-top: 30px;">
+    <!-- Floating Reports Button -->
     <button id="generateReportsBtn" title="Generate Reports" class="generate-reports-btn" style="right: 10px;">
       <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368">
         <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h360v80H200v560h560v-360h80v360q0 33-23.5 56.5T760-120H200Zm80-160h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160Zm80-320v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80ZM480-480Z"/>
       </svg>
     </button>
+    <!-- Code-Console button -->
     <button id="openCodeBtn"
             title="Open Code Console"
             class="generate-reports-btn"
@@ -351,6 +356,7 @@
       <i class="fa-solid fa-terminal"></i>
     </button>
     
+    <!-- Tabs for Search and Customer Info (moved outside the card) -->
     <ul class="nav nav-tabs" id="mainTabs" role="tablist">
       <li class="nav-item" role="presentation">
         <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#searchView" type="button" role="tab" aria-controls="searchView" aria-selected="true">Search</button>
@@ -361,205 +367,216 @@
     </ul>
 
     <div class="card bg-white p-4 rounded shadow">
+      <!-- Tab Content -->
       <div class="tab-content" id="mainTabsContent">
+        <!-- Search View Tab Pane -->
         <div class="tab-pane fade show active" id="searchView" role="tabpanel" aria-labelledby="search-tab">
+          
+          <!-- Main Structural Row -->
           <div class="row">
-            <div class="col-md-4 d-flex align-items-center gap-2">
-              <h4 class="m-0">Customer</h4>
-              <a id="salesFileLink" class="file-link d-none" target="_blank"
-                title="Open latest Sales workbook">
-                <i class="fa-solid fa-link"></i>
-              </a>
-            </div>
-
-            <div class="col-md-5 d-flex align-items-center justify-content-between">
+            
+            <!-- ====== Left Column: Customer & Order History ====== -->
+            <div class="col-md-4">
+              <!-- Customer Title -->
               <div class="d-flex align-items-center gap-2">
-                <h4 class="m-0">Product</h4>
-                <a id="dbFileLink" class="file-link d-none" target="_blank"
-                  title="Open latest Inventory workbook">
+                <h4 class="m-0">Customer</h4>
+                <a id="salesFileLink" class="file-link d-none" target="_blank" title="Open latest Sales workbook">
                   <i class="fa-solid fa-link"></i>
                 </a>
               </div>
-              <div class="form-check form-switch m-0">
-                <label class="form-check-label" for="filterOrdersToggle">Filter Orders</label>
-                <input class="form-check-input" type="checkbox" id="filterOrdersToggle">
-              </div>
-            </div>
-
-            <div class="col-md-3 d-flex align-items-center gap-2">
-              <h4 class="m-0">Pricing</h4>
-              <a id="pricingFileLink" class="file-link d-none" target="_blank"
-                title="Open latest Pricing workbook">
-                <i class="fa-solid fa-link"></i>
-              </a>
-            </div>
-          </div>
-
-          <div class="row mt-3">
-            <div class="col-md-4">
-              <div class="dropdown position-relative mb-3">
+              <!-- Customer Dropdown -->
+              <div class="dropdown position-relative my-3">
                 <input type="text" id="customerSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
                 <ul id="customerDropdown" class="dropdown-menu w-100"></ul>
               </div>
-            </div>
-            <div class="col-md-5">
-              <div class="dropdown position-relative mb-3">
-                <input type="text" id="productSearch" class="form-control" placeholder="Search Product...">
-                <ul id="productDropdown" class="dropdown-menu w-100"></ul>
+              <!-- Order History Subtitle -->
+              <h5 class="mt-3">Order History</h5>
+              <!-- Order History Table -->
+              <div class="table-responsive" style="max-height: 500px;">
+                <table class="table table-bordered table-striped">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Product</th>
+                      <th>Description</th>
+                      <th>Qty</th>
+                      <th>Price</th>
+                    </tr>
+                  </thead>
+                  <tbody id="orderHistoryTable">
+                    <tr>
+                      <td colspan="5" class="text-muted fst-italic">
+                        search for a customer to display order history
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div class="col-md-3">
-              <div class="toggle-container">
-                <input type="checkbox" class="toggle-checkbox" id="pricingToggle">
-                <label for="pricingToggle" class="toggle-label">
-                  <div class="toggle-switch"></div>
-                  <span class="b2b">B2C</span>
-                  <span class="b2c">B2B</span>
-                </label>
-              </div>
-            </div>
-          </div>
 
-          <div class="row mt-3">
-            <div class="col-md-4">
-              <h5>Order History</h5>
-            </div>
-            <div class="col-md-5">
-              <h5 class="d-flex align-items-center gap-2">
-                Matching Products
-                <div id="genericContainer" class="position-relative" style="display: none; margin-left: auto;">
-                  <i id="genericBulb" class="fas fa-lightbulb text-warning" style="cursor: pointer;"></i>
-                  <div id="genericSlideText" class="generic-slide-text fst-italic">Generic: XYZ123</div>
-                </div>
-              </h5>
-            </div>
-            <div class="col-md-3">
-              <h5>Prices</h5>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="col-md-4 table-responsive" style="max-height: 300px;">
-              <table class="table table-bordered table-striped">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Product</th>
-                    <th>Description</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                  </tr>
-                </thead>
-                <tbody id="orderHistoryTable">
-                  <tr>
-                    <td colspan="5" class="text-muted fst-italic">
-                      search for a customer to display order history
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="col-md-5 table-responsive" style="max-height: 300px;">
-              <table class="table table-bordered table-striped">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Description</th>
-                    <th>QtyAvailable</th>
-                    <th>UnitCost</th>
-                    <th>Units/Box</th>
-                  </tr>
-                </thead>
-                <tbody id="productTable">
-                  <tr>
-                    <td colspan="5" class="text-muted fst-italic">
-                      search for a product
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="col-md-3 table-responsive" style="max-height: 300px;">
-              <table class="table table-bordered table-striped">
-                <thead>
-                  <tr>
-                    <th>FB Price</th>
-                    <th>HB Price</th>
-                    <th>LTB Price</th>
-                  </tr>
-                </thead>
-                <tbody id="priceTable">
-                  <tr>
-                    <td colspan="3" class="text-muted fst-italic">
-                      select a product
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          <div class="row mt-4">
-            <div class="col-md-4">
-                </div>
+            <!-- ====== Right Column: Product, Pricing, Calculator ====== -->
             <div class="col-md-8">
-              <div class="accordion" id="quoteAccordion">
-                <div class="accordion-item">
-                  <h2 class="accordion-header" id="quoteAccordionHeader">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#quoteCalculatorCollapse" aria-expanded="false" aria-controls="quoteCalculatorCollapse">
-                      <strong>Quote &amp; Profit Calculator</strong>
-                    </button>
-                  </h2>
-                  <div id="quoteCalculatorCollapse" class="accordion-collapse collapse" aria-labelledby="quoteAccordionHeader">
-                    <div class="accordion-body">
-                      <div class="table-responsive">
-                        <table class="table table-bordered" id="quoteCalculatorTable">
-                          <thead class="table-light">
-                            <tr>
-                              <th style="width: 15%;">Product</th>
-                              <th style="width: 10%;">Quantity</th>
-                              <th style="width: 10%;">Unit Cost</th>
-                              <th style="width: 10%;">Price</th>
-                              <th style="width: 15%;">Order Total</th>
-                              <th style="width: 10%;">% Margin</th>
-                              <th style="width: 15%;">Total Profit</th>
-                            </tr>
-                          </thead>
-                          <tbody id="quoteCalculatorBody">
-                            <tr>
-                              <td data-col="product"></td>
-                              <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
-                              <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
-                              <td data-col="price" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
-                              <td data-col="ordertotal" class="fw-bold"></td>
-                              <td data-col="margin" class="fw-bold"></td>
-                              <td data-col="totalprofit" class="fw-bold"></td>
-                            </tr>
-                            <tr class="placeholder-row">
-                              <td data-col="product"></td>
-                              <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
-                              <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
-                              <td data-col="price" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
-                              <td data-col="ordertotal" class="fw-bold"></td>
-                              <td data-col="margin" class="fw-bold"></td>
-                              <td data-col="totalprofit" class="fw-bold"></td>
-                            </tr>
-                          </tbody>
-                        </table>
+              <!-- Nested Row for Titles -->
+              <div class="row">
+                <!-- Product Title & Search -->
+                <div class="col-md-7">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                      <h4 class="m-0">Product</h4>
+                      <a id="dbFileLink" class="file-link d-none" target="_blank" title="Open latest Inventory workbook">
+                        <i class="fa-solid fa-link"></i>
+                      </a>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                      <label class="form-check-label" for="filterOrdersToggle">Filter Orders</label>
+                      <input class="form-check-input" type="checkbox" id="filterOrdersToggle">
+                    </div>
+                  </div>
+                   <div class="dropdown position-relative my-3">
+                    <input type="text" id="productSearch" class="form-control" placeholder="Search Product...">
+                    <ul id="productDropdown" class="dropdown-menu w-100"></ul>
+                  </div>
+                </div>
+                <!-- Pricing Title & Toggle -->
+                <div class="col-md-5">
+                   <div class="d-flex align-items-center gap-2">
+                    <h4 class="m-0">Pricing</h4>
+                    <a id="pricingFileLink" class="file-link d-none" target="_blank" title="Open latest Pricing workbook">
+                      <i class="fa-solid fa-link"></i>
+                    </a>
+                  </div>
+                  <div class="toggle-container my-3">
+                    <input type="checkbox" class="toggle-checkbox" id="pricingToggle">
+                    <label for="pricingToggle" class="toggle-label">
+                      <div class="toggle-switch"></div>
+                      <span class="b2b">B2C</span>
+                      <span class="b2c">B2B</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Nested Row for Tables -->
+              <div class="row">
+                <!-- Matching Products Table -->
+                <div class="col-md-7">
+                   <h5 class="d-flex align-items-center gap-2">
+                    Matching Products
+                    <div id="genericContainer" class="position-relative" style="display: none; margin-left: auto;">
+                      <i id="genericBulb" class="fas fa-lightbulb text-warning" style="cursor: pointer;"></i>
+                      <div id="genericSlideText" class="generic-slide-text fst-italic">Generic: XYZ123</div>
+                    </div>
+                  </h5>
+                  <div class="table-responsive" style="max-height: 300px;">
+                    <table class="table table-bordered table-striped">
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th>Description</th>
+                          <th>QtyAvailable</th>
+                          <th>UnitCost</th>
+                          <th>Units/Box</th>
+                        </tr>
+                      </thead>
+                      <tbody id="productTable">
+                        <tr>
+                          <td colspan="5" class="text-muted fst-italic">
+                            search for a product
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <!-- Prices Table -->
+                <div class="col-md-5">
+                  <h5>Prices</h5>
+                  <div class="table-responsive" style="max-height: 300px;">
+                    <table class="table table-bordered table-striped">
+                      <thead>
+                        <tr>
+                          <th>FB Price</th>
+                          <th>HB Price</th>
+                          <th>LTB Price</th>
+                        </tr>
+                      </thead>
+                      <tbody id="priceTable">
+                        <tr>
+                          <td colspan="3" class="text-muted fst-italic">
+                            select a product
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Nested Row for Quote Calculator -->
+              <div class="row mt-4">
+                <div class="col-12">
+                  <div class="accordion" id="quoteAccordion">
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="quoteAccordionHeader">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#quoteCalculatorCollapse" aria-expanded="false" aria-controls="quoteCalculatorCollapse">
+                          <strong>Quote &amp; Profit Calculator</strong>
+                        </button>
+                      </h2>
+                      <div id="quoteCalculatorCollapse" class="accordion-collapse collapse" aria-labelledby="quoteAccordionHeader">
+                        <div class="accordion-body">
+                          <div class="table-responsive">
+                            <table class="table table-bordered" id="quoteCalculatorTable">
+                              <thead class="table-light">
+                                <tr>
+                                  <th style="width: 15%;">Product</th>
+                                  <th style="width: 10%;">Quantity</th>
+                                  <th style="width: 10%;">Unit Cost</th>
+                                  <th style="width: 10%;">Price</th>
+                                  <th style="width: 15%;">Order Total</th>
+                                  <th style="width: 10%;">% Margin</th>
+                                  <th style="width: 15%;">Total Profit</th>
+                                </tr>
+                              </thead>
+                              <tbody id="quoteCalculatorBody">
+                                <!-- Row 1 (Main) -->
+                                <tr>
+                                  <td data-col="product"></td>
+                                  <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                                  <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                                  <td data-col="price" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                                  <td data-col="ordertotal" class="fw-bold"></td>
+                                  <td data-col="margin" class="fw-bold"></td>
+                                  <td data-col="totalprofit" class="fw-bold"></td>
+                                </tr>
+                                <!-- Row 2 (Placeholder) -->
+                                <tr class="placeholder-row">
+                                  <td data-col="product"></td>
+                                  <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                                  <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                                  <td data-col="price" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                                  <td data-col="ordertotal" class="fw-bold"></td>
+                                  <td data-col="margin" class="fw-bold"></td>
+                                  <td data-col="totalprofit" class="fw-bold"></td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
 
+            </div>
+
+          </div>
         </div>
 
+        <!-- Customer Info View Tab Pane -->
         <div class="tab-pane fade" id="customerInfoView" role="tabpanel" aria-labelledby="customer-info-tab">
           <div class="row">
+            <!-- Column 1: Customer Search and Order History -->
             <div class="col-md-4">
               <h4 class="mb-3">Customer</h4>
               <a id="salesFileLinkCustomerInfo" class="file-link d-none" target="_blank"
@@ -570,7 +587,8 @@
                 <input type="text" id="customerInfoSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
                 <ul id="customerInfoDropdown" class="dropdown-menu w-100"></ul>
               </div>
-              <div id="customerOrderHistoryContainer" class="customer-info-content-hidden mt-3"> <h5>Order History</h5>
+              <div id="customerOrderHistoryContainer" class="customer-info-content-hidden mt-3"> <!-- Added mt-3 here -->
+                <h5>Order History</h5>
                 <div class="table-responsive" style="max-height: 300px;">
                   <table class="table table-bordered table-striped">
                     <thead>
@@ -594,9 +612,11 @@
               </div>
             </div>
 
+            <!-- Column 2: Customer Details -->
             <div class="col-md-5">
               <h4 class="mb-3">Customer Details</h4>
-              <div id="customerFieldsContainer" class="customer-info-content-hidden mt-3"> <div class="customer-info-field d-flex flex-column">
+              <div id="customerFieldsContainer" class="customer-info-content-hidden mt-3"> <!-- Added mt-3 here -->
+                <div class="customer-info-field d-flex flex-column">
                   <strong>Sales by Year:</strong>
                   <canvas id="salesByYearChart" style="width:100%;max-width:320px;aspect-ratio:2/1"></canvas>
                 </div>
@@ -608,9 +628,11 @@
               </div>
             </div>
 
+            <!-- Column 3: Contact Cards -->
             <div class="col-md-3">
               <h4 class="mb-3">Contacts</h4>
-              <div id="contactCardsContainer" class="customer-info-content-hidden mt-3"> <p class="text-muted fst-italic">No contacts available</p>
+              <div id="contactCardsContainer" class="customer-info-content-hidden mt-3"> <!-- Added mt-3 here -->
+                <p class="text-muted fst-italic">No contacts available</p>
               </div>
             </div>
           </div>
@@ -619,6 +641,7 @@
     </div>
   </div>
   
+  <!-- Reports modal -->
   <div class="modal fade" id="reportsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -628,13 +651,16 @@
         </div>
         <div class="modal-body">
           <ul class="list-group">
-            </ul>
+            <!-- will be filled dynamically -->
+          </ul>
         </div>
         <div class="modal-footer">
-          </div>
+          <!-- will be filled dynamically -->
+        </div>
       </div>
     </div>
   </div>
+  <!-- Code Console modal -->
   <div class="modal fade" id="codeModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
       <div class="modal-content">
@@ -644,8 +670,10 @@
         </div>
 
         <div class="modal-body p-0">
+          <!-- editor pane -->
           <div id="codeEditor" style="height:300px;"></div>
 
+          <!-- controls -->
           <div class="d-flex border-top">
             <button id="runCodeBtn"   class="btn btn-success m-2">
               <i class="fa fa-play"></i> Run
@@ -655,15 +683,18 @@
             </button>
           </div>
 
+          <!-- terminal-style output -->
           <pre id="codeLog"
               class="bg-dark text-light m-0 p-3"
               style="height:200px; overflow-y:auto; font-size:.85rem;">
-  </pre>
+  <!-- logs will stream here -->
+          </pre>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Warning Modal -->
   <div class="modal fade show" id="pricingWarningModal" tabindex="-1" style="display: none;" aria-modal="true" role="dialog">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content" style="background-color: #fffbe6; border: 2px solid #ffe58f;">
@@ -681,6 +712,7 @@
   </div>
 
 
+  <!--CodeMirror CDN-->
   <link  href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/javascript/javascript.min.js"></script>
