@@ -675,58 +675,76 @@ const quoteCalculator = {
 
     /**
      * Populates the quote calculator with data from a selected product.
-     * @param {object} productInfo - Contains PartNumber, UnitCost, and optional Quantity & Price.
+     *  – If the selection came from **order‑history** (has Quantity & Price),
+     *    fill everything and precalculate profit.
+     *  – If the selection came from a **plain product search**, leave
+     *    Quantity/Price blank so the user can type them and calculations
+     *    will run only after input.
+     *
+     * @param {object} productInfo  {
+     *     PartNumber : string,            // required
+     *     UnitCost   : number|string,     // required
+     *     Quantity   : number|string,     // optional (order history only)
+     *     Price      : number|string      // optional (order history only)
+     * }
      */
-    populate: function(productInfo) {
+    populate: function (productInfo) {
         if (!productInfo || !productInfo.PartNumber) return;
 
         const tableBody = document.getElementById('quoteCalculatorBody');
-        const firstRow = tableBody.rows[0];
+        const firstRow  = tableBody.rows[0];
         const secondRow = tableBody.rows[1];
 
         const unitCost = toNumber(productInfo.UnitCost);
+
+        // ---------- decide whether this came from Order‑History ----------
         const hasOrder = productInfo.Quantity !== undefined &&
                         productInfo.Price    !== undefined;
 
-        // Fill product and unit cost in all cases
+        // ---------- FIRST ROW -------------------------------------------------
         firstRow.querySelector('[data-col="product"]').textContent  = productInfo.PartNumber;
         firstRow.querySelector('[data-col="unitcost"]').textContent = unitCost.toFixed(2);
 
         if (hasOrder) {
-          // Coming from order history: fill in qty and price too
-          firstRow.querySelector('[data-col="quantity"]').textContent = productInfo.Quantity;
-          firstRow.querySelector('[data-col="price"]').textContent    = toNumber(productInfo.Price).toFixed(2);
-          this.updateRow(firstRow);
+            // Pre‑fill everything and calculate profit
+            firstRow.querySelector('[data-col="quantity"]').textContent = productInfo.Quantity;
+            firstRow.querySelector('[data-col="price"]').textContent    = toNumber(productInfo.Price).toFixed(2);
+            this.updateRow(firstRow);                 // runs the math
         } else {
-          // Coming from product picker: leave editable fields blank
-          ['quantity','price','ordertotal','margin','totalprofit'].forEach(col => {
-            firstRow.querySelector(`[data-col="${col}"]`).textContent = '';
-          });
-          firstRow.classList.add('placeholder-row');
+            // Leave qty/price blank; clear all computed cells
+            ['quantity','price','ordertotal','margin','totalprofit'].forEach(c =>
+                firstRow.querySelector(`[data-col="${c}"]`).textContent = ''
+            );
         }
 
+        // ---------- SECOND ROW (grey placeholder) -----------------------------
+        const initPlaceholder = (cloneQtyPrice) => {
+            secondRow.classList.add('placeholder-row');
+            secondRow.querySelector('[data-col="product"]').textContent  = productInfo.PartNumber;
+            secondRow.querySelector('[data-col="unitcost"]').textContent = unitCost.toFixed(2);
 
-        // --- Populate the second (placeholder) row ---
-        secondRow.querySelector('[data-col="product"]').textContent = productInfo.PartNumber;
-        secondRow.querySelector('[data-col="quantity"]').textContent = quantity;
-        secondRow.querySelector('[data-col="unitcost"]').textContent = unitCost.toFixed(2);
-        secondRow.querySelector('[data-col="price"]').textContent = price.toFixed(2);
-        
-        // Clear calculated fields and ensure placeholder style is set
-        secondRow.querySelector('[data-col="ordertotal"]').textContent = '';
-        secondRow.querySelector('[data-col="margin"]').textContent = '';
-        secondRow.querySelector('[data-col="totalprofit"]').textContent = '';
-        secondRow.classList.add('placeholder-row');
+            // copy or leave blank depending on click source
+            secondRow.querySelector('[data-col="quantity"]').textContent = cloneQtyPrice ? productInfo.Quantity : '';
+            secondRow.querySelector('[data-col="price"]').textContent    = cloneQtyPrice ? toNumber(productInfo.Price).toFixed(2) : '';
 
-        // Expand the accordion if it's not already open
-        const collapseElement = document.getElementById('quoteCalculatorCollapse');
-        const bsCollapse = bootstrap.Collapse.getInstance(collapseElement);
+            // always clear the computed columns
+            ['ordertotal','margin','totalprofit'].forEach(c =>
+                secondRow.querySelector(`[data-col="${c}"]`).textContent = ''
+            );
+        };
+
+        initPlaceholder(hasOrder);   // duplicate qty/price only for order‑history picks
+
+        // ---------- ensure accordion is open ----------------------------------
+        const collapseEl = document.getElementById('quoteCalculatorCollapse');
+        const bsCollapse = bootstrap.Collapse.getInstance(collapseEl);
         if (!bsCollapse) {
-             new bootstrap.Collapse(collapseElement, { toggle: true });
-        } else if (!collapseElement.classList.contains('show')) {
+            new bootstrap.Collapse(collapseEl, { toggle: true });
+        } else if (!collapseEl.classList.contains('show')) {
             bsCollapse.show();
         }
     }
+
 };
 
 
