@@ -120,7 +120,7 @@
     .order-row.selected-row td {
       background-color: #7f9db0 !important;
     }
-    .order-row {
+    .order-row, .product-row {
       cursor: pointer !important;
       transition: background-color 0.3s ease !important;
     }
@@ -295,6 +295,24 @@
     /* Styles for initially hidden content in Customer Info tab */
     .customer-info-content-hidden {
       display: none;
+    }
+    
+    /* --- NEW: Quote Calculator Styles --- */
+    #quoteCalculatorTable [contenteditable="true"] {
+        background-color: #eef2ff;
+        outline: 1px dashed #aabaff;
+        transition: background-color 0.2s ease, outline 0.2s ease;
+    }
+    #quoteCalculatorTable [contenteditable="true"]:focus {
+        background-color: #ffffff;
+        outline: 2px solid #5a67d8;
+    }
+    #quoteCalculatorTable .placeholder-row td {
+        color: #9ca3af;
+        font-style: italic;
+    }
+    #quoteCalculatorTable .placeholder-row [contenteditable="true"] {
+        background-color: #f9fafb;
     }
   </style>
 </head>
@@ -499,6 +517,63 @@
               </table>
             </div>
           </div>
+          
+          <!-- NEW: Quote Calculator Row -->
+          <div class="row mt-4">
+            <div class="col-12">
+              <div class="accordion" id="quoteAccordion">
+                <div class="accordion-item">
+                  <h2 class="accordion-header" id="quoteAccordionHeader">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#quoteCalculatorCollapse" aria-expanded="false" aria-controls="quoteCalculatorCollapse">
+                      <strong>Quote &amp; Profit Calculator</strong>
+                    </button>
+                  </h2>
+                  <div id="quoteCalculatorCollapse" class="accordion-collapse collapse" aria-labelledby="quoteAccordionHeader">
+                    <div class="accordion-body">
+                      <div class="table-responsive">
+                        <table class="table table-bordered" id="quoteCalculatorTable">
+                          <thead class="table-light">
+                            <tr>
+                              <th style="width: 15%;">Product</th>
+                              <th style="width: 10%;">Quantity</th>
+                              <th style="width: 10%;">Unit Cost</th>
+                              <th style="width: 10%;">Price</th>
+                              <th style="width: 15%;">Order Total</th>
+                              <th style="width: 10%;">% Margin</th>
+                              <th style="width: 15%;">Total Profit</th>
+                            </tr>
+                          </thead>
+                          <tbody id="quoteCalculatorBody">
+                            <!-- Row 1 (Main) -->
+                            <tr>
+                              <td data-col="product"></td>
+                              <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                              <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                              <td data-col="price" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                              <td data-col="ordertotal" class="fw-bold"></td>
+                              <td data-col="margin" class="fw-bold"></td>
+                              <td data-col="totalprofit" class="fw-bold"></td>
+                            </tr>
+                            <!-- Row 2 (Placeholder) -->
+                            <tr class="placeholder-row">
+                              <td data-col="product"></td>
+                              <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                              <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                              <td data-col="price" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
+                              <td data-col="ordertotal" class="fw-bold"></td>
+                              <td data-col="margin" class="fw-bold"></td>
+                              <td data-col="totalprofit" class="fw-bold"></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- Customer Info View Tab Pane -->

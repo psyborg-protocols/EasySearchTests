@@ -237,7 +237,7 @@ function updateOrderTable(targetTableId = "orderHistoryTable") {
   if (filteredOrders.length > 0) {
     tableBody.innerHTML = filteredOrders
     .map(order => `
-      <tr class="order-row" data-product="${order.Product_Service}" onclick="UIrenderer.orderRowClicked(this)">
+      <tr class="order-row" data-product="${order.Product_Service}" data-quantity="${order.Quantity}" data-price="${order.Sales_Price}" onclick="UIrenderer.orderRowClicked(this)">
         <td>${new Date(order.Date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
         <td>${order.Product_Service}</td>
         <td>${order.Memo_Description}</td>
@@ -261,13 +261,16 @@ function orderRowClicked(rowElement) {
   // Highlight the clicked row
   rowElement.classList.add("selected-row");
   
-  // Retrieve the product from the row's data attribute
-  const product = rowElement.getAttribute("data-product").trim();
+  // Retrieve data from the row's data attributes
+  const product = rowElement.dataset.product.trim();
+  const quantity = rowElement.dataset.quantity;
+  const price = rowElement.dataset.price;
   
-  // Set the product search input to the product and trigger search
+  // Set the product search input to the product
   document.getElementById("productSearch").value = product;
-  // Call selectProduct to update the product details and pricing info
-  selectProduct(encodeURIComponent(product));
+
+  // Call selectProduct, passing the extra info from the order
+  selectProduct(encodeURIComponent(product), { quantity, price });
 }
 
  
@@ -397,7 +400,7 @@ document.getElementById("productSearch").addEventListener("input", async (e) => 
   }
 });
 
-async function selectProduct(encodedPartNumber) {
+async function selectProduct(encodedPartNumber, options = {}) {
   const partNumber = decodeURIComponent(encodedPartNumber).toString().trim();
   document.getElementById("productSearch").value = partNumber;
   const dropdown = document.getElementById("productDropdown");
@@ -451,7 +454,7 @@ async function selectProduct(encodedPartNumber) {
       }
       
       document.getElementById("productTable").innerHTML = `
-        <tr>
+        <tr class="product-row" onclick="selectProduct('${encodeURIComponent(partNumber)}')">
           <td>${selectedProduct["PartNumber"]}</td>
           <td>${selectedProduct["Description"]}</td>
           <td>${qtyAvailableCellContent}</td>
@@ -468,6 +471,17 @@ async function selectProduct(encodedPartNumber) {
       window.currentProduct = partNumber;
       // Update the pricing table with the selected product’s pricing info
       updatePricingTable(partNumber);
+
+      // --- NEW: Populate Quote Calculator ---
+      const quoteInfo = {
+          PartNumber: selectedProduct["PartNumber"],
+          UnitCost: selectedProduct["UnitCost"],
+          Quantity: options.quantity, // from the clicked order row
+          Price: options.price        // from the clicked order row
+      };
+      quoteCalculator.populate(quoteInfo);
+      // --- END NEW ---
+
 
       // Retrieve the replacements mapping for this product
       const equivalentsMap = window.dataStore["Equivalents"] || {};
@@ -611,8 +625,85 @@ async function getCustomerDetails(customerName) {
   return window.dataLoader.getCustomerDetails(customerName);
 }
 
+// --- NEW: Quote Calculator Object ---
+const quoteCalculator = {
+    /**
+     * Updates a single row in the quote calculator table based on its editable inputs.
+     * @param {HTMLElement} rowElement - The <tr> element to update.
+     */
+    updateRow: function(rowElement) {
+        // If it was a placeholder, make it a normal row upon editing
+        if (rowElement.classList.contains('placeholder-row')) {
+            rowElement.classList.remove('placeholder-row');
+        }
 
-// Expose function globally
+        const getNumeric = (selector) => {
+            const el = rowElement.querySelector(`[data-col="${selector}"]`);
+            if (!el) return 0;
+            // Sanitize input: remove $, commas, and non-numeric characters except for the decimal point
+            const sanitized = String(el.textContent).replace(/[^0-9.]/g, '');
+            const num = parseFloat(sanitized);
+            return isNaN(num) ? 0 : num;
+        };
+
+        const quantity = getNumeric('quantity');
+        const unitCost = getNumeric('unitcost');
+        const price = getNumeric('price');
+
+        const orderTotal = quantity * price;
+        const totalProfit = (price - unitCost) * quantity;
+        const margin = (price > 0) ? ((price - unitCost) / price) * 100 : 0;
+
+        // Update the calculated cells with formatting
+        rowElement.querySelector('[data-col="ordertotal"]').textContent = moneyFmt.format(orderTotal);
+        rowElement.querySelector('[data-col="totalprofit"]').textContent = moneyFmt.format(totalProfit);
+        rowElement.querySelector('[data-col="margin"]').textContent = margin.toFixed(1) + '%';
+    },
+
+    /**
+     * Populates the quote calculator with data from a selected product.
+     * @param {object} productInfo - Contains PartNumber, UnitCost, and optional Quantity & Price.
+     */
+    populate: function(productInfo) {
+        if (!productInfo || !productInfo.PartNumber) return;
+
+        const tableBody = document.getElementById('quoteCalculatorBody');
+        const firstRow = tableBody.rows[0];
+        const secondRow = tableBody.rows[1];
+
+        // --- Populate the first row ---
+        firstRow.querySelector('[data-col="product"]').textContent = productInfo.PartNumber;
+        firstRow.querySelector('[data-col="quantity"]').textContent = productInfo.Quantity || '1';
+        firstRow.querySelector('[data-col="unitcost"]').textContent = productInfo.UnitCost ? parseFloat(productInfo.UnitCost).toFixed(2) : '0.00';
+        firstRow.querySelector('[data-col="price"]').textContent = productInfo.Price ? parseFloat(productInfo.Price).toFixed(2) : '0.00';
+        this.updateRow(firstRow);
+        firstRow.classList.remove('placeholder-row');
+
+        // --- Populate the second (placeholder) row ---
+        secondRow.querySelector('[data-col="product"]').textContent = productInfo.PartNumber;
+        secondRow.querySelector('[data-col="quantity"]').textContent = '';
+        secondRow.querySelector('[data-col="unitcost"]').textContent = productInfo.UnitCost ? parseFloat(productInfo.UnitCost).toFixed(2) : '0.00';
+        secondRow.querySelector('[data-col="price"]').textContent = '';
+        // Clear calculated fields for placeholder
+        secondRow.querySelector('[data-col="ordertotal"]').textContent = '';
+        secondRow.querySelector('[data-col="margin"]').textContent = '';
+        secondRow.querySelector('[data-col="totalprofit"]').textContent = '';
+        secondRow.classList.add('placeholder-row'); // Ensure it's styled as a placeholder
+
+        // Expand the accordion if it's not already open
+        const collapseElement = document.getElementById('quoteCalculatorCollapse');
+        const bsCollapse = bootstrap.Collapse.getInstance(collapseElement);
+        if (!bsCollapse) {
+             new bootstrap.Collapse(collapseElement, { toggle: true });
+        } else if (!collapseElement.classList.contains('show')) {
+            bsCollapse.show();
+        }
+    }
+};
+
+
+// Expose functions and objects globally
+window.quoteCalculator = quoteCalculator;
 window.UIrenderer = {
   updateUIForLoggedInUser,
   updateUIForLoggedOutUser,
