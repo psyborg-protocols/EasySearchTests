@@ -618,7 +618,7 @@ document.getElementById('customer-info-tab').addEventListener('click', () => {
   document.getElementById('customerInfoView').classList.add('show', 'active');
   document.getElementById('searchView').classList.remove('show', 'active');
 
-  // NEW: if a customer is selected in the Search tab, show them in Customer Info
+  // if a customer is selected in the Search tab, show them in Customer Info
   if (window.currentCustomer) {
     selectCustomerInfo(window.currentCustomer);
   } else {
@@ -685,15 +685,26 @@ const quoteCalculator = {
         const secondRow = tableBody.rows[1];
 
         const unitCost = toNumber(productInfo.UnitCost);
-        const price = toNumber(productInfo.Price);
-        const quantity = productInfo.Quantity || '1';
+        const hasOrder = productInfo.Quantity !== undefined &&
+                        productInfo.Price    !== undefined;
 
-        // --- Populate the first row ---
-        firstRow.querySelector('[data-col="product"]').textContent = productInfo.PartNumber;
-        firstRow.querySelector('[data-col="quantity"]').textContent = quantity;
+        // Fill product and unit cost in all cases
+        firstRow.querySelector('[data-col="product"]').textContent  = productInfo.PartNumber;
         firstRow.querySelector('[data-col="unitcost"]').textContent = unitCost.toFixed(2);
-        firstRow.querySelector('[data-col="price"]').textContent = price.toFixed(2);
-        this.updateRow(firstRow); // This calculates totals and removes placeholder style
+
+        if (hasOrder) {
+          // Coming from order history: fill in qty and price too
+          firstRow.querySelector('[data-col="quantity"]').textContent = productInfo.Quantity;
+          firstRow.querySelector('[data-col="price"]').textContent    = toNumber(productInfo.Price).toFixed(2);
+          this.updateRow(firstRow);
+        } else {
+          // Coming from product picker: leave editable fields blank
+          ['quantity','price','ordertotal','margin','totalprofit'].forEach(col => {
+            firstRow.querySelector(`[data-col="${col}"]`).textContent = '';
+          });
+          firstRow.classList.add('placeholder-row');
+        }
+
 
         // --- Populate the second (placeholder) row ---
         secondRow.querySelector('[data-col="product"]').textContent = productInfo.PartNumber;
