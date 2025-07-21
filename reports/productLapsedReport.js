@@ -17,11 +17,7 @@ window.buildProductLapsedReport = function buildProductLapsedReport(modalEl, rep
         }
 
         /* ---------- helpers ---------- */
-        const parseDate = s => {
-          if (typeof s !== 'string') return null;
-          const [m, d, y] = s.split('/').map(t => +t.trim());
-          return (m && d && y) ? new Date(y, m - 1, d) : null;
-        };
+        const parseDate = ReportUtils.parseDate;
 
         const today        = new Date();
         const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(today.getMonth() - 6);
@@ -37,7 +33,7 @@ window.buildProductLapsedReport = function buildProductLapsedReport(modalEl, rep
           (acc[prodNum] ||= { descr, rows: [] }).rows.push({
             date: saleDt,
             qty : +row.Quantity  || 0,
-            rev : +row.Total_Amount?.toString().replace(/\s/g, '') || 0
+            rev : +ReportUtils.parseNumber(row.Total_Amount)
           });
           return acc;
         }, {});

@@ -23,11 +23,7 @@ window.buildStuckInventoryReport = function buildStuckInventoryReport(modalEl, r
         const LAPSED_SALE_DAYS  = 180;  // no sale in 6 mo ⇒ “stuck”
 
         /* ---------- helpers ---------- */
-        const parseDate = s => {
-          if (typeof s !== 'string') return null;
-          const [m,d,y] = s.split('/').map(t => +t.trim());
-          return (m&&d&&y) ? new Date(y, m-1, d) : null;
-        };
+        const parseDate = ReportUtils.parseDate;
         const today = new Date();
         const yearAgo   = new Date(today); yearAgo.setDate(today.getDate()-DAYS_BACK_SALES);
         const sixMonths = new Date(today); sixMonths.setDate(today.getDate()-LAPSED_SALE_DAYS);

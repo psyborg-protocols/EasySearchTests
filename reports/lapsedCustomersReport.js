@@ -29,22 +29,15 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(today.getMonth() - 6);
 
-        const parseDate = (dateStr) => {
-          if (!dateStr || typeof dateStr !== 'string') return null;
-          const parts = dateStr.split('/');
-          if (parts.length !== 3) return null;
-          const [month, day, year] = parts.map(s => parseInt(s.trim(), 10));
-          if (isNaN(month) || isNaN(day) || isNaN(year)) return null;
-          return new Date(year, month - 1, day);
-        };
+        const parseDate = ReportUtils.parseDate;
 
         const salesByCustomer = rawSalesData.reduce((acc, sale) => {
-          const customerName = sale.Customer;
+          const customerName = ReportUtils.normalize(sale.Customer);
           if (!acc[customerName]) acc[customerName] = [];
           const saleDate = parseDate(sale.Date);
           if (saleDate && !isNaN(saleDate.getTime())) {
-            const salesPrice = parseFloat(String(sale.Sales_Price).replace(/\s/g, '')) || 0;
-            const totalAmount = parseFloat(String(sale.Total_Amount).replace(/\s/g, '')) || 0;
+            const salesPrice = ReportUtils.parseNumber(String(sale.Sales_Price).replace(/\s/g, '')) || 0;
+            const totalAmount = ReportUtils.parseNumber(String(sale.Total_Amount).replace(/\s/g, '')) || 0;
             const quantity = parseInt(sale.Quantity, 10) || 0;
             acc[customerName].push({
               date: saleDate, productService: sale.Product_Service,

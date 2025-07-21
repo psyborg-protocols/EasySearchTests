@@ -22,11 +22,7 @@ window.buildProductRevenueDropReport = function buildProductRevenueDropReport(mo
         }
 
         /* ---------- helpers ---------- */
-        const parseDate = s => {
-          if (typeof s !== 'string') return null;
-          const [m, d, y] = s.split('/').map(t => +t.trim());
-          return (m && d && y) ? new Date(y, m - 1, d) : null;
-        };
+        const parseDate = ReportUtils.parseDate;
         const msPerYr = 365.25 * 864e5;
 
         /* ---------- reshape ---------- */
@@ -37,7 +33,7 @@ window.buildProductRevenueDropReport = function buildProductRevenueDropReport(mo
             product : r.Product_Service,
             descr   : r.Memo_Description || r.Description || '',
             date    : dt,
-            rev     : +String(r.Total_Amount).replace(/\s/g,'') || 0
+            rev     : +ReportUtils.parseNumber(r.Total_Amount)
           };
         }).filter(Boolean);
 

@@ -30,23 +30,12 @@ window.buildRevenueDropReport = function buildRevenueDropReport(modalEl, reportI
         }
 
         const parsed = raw.map(r => {
-          // Basic validation for date format
-          const dateParts = r.Date && typeof r.Date === 'string' ? r.Date.split('/') : [];
-          if (dateParts.length !== 3) {
-            // console.warn(`Invalid date format: ${r.Date} for customer ${r.Customer}`);
-            return null; // Skip this record or handle as appropriate
-          }
-          const [m, d, y] = dateParts.map(s => s.trim());
-          const parsedDate = new Date(+y, +m - 1, +d);
-          if (isNaN(parsedDate.getTime())) {
-            // console.warn(`Invalid date after parsing: ${r.Date} for customer ${r.Customer}`);
-            return null; // Skip invalid date
-          }
+          const parsedDate = ReportUtils.parseDate(r.Date);
 
           return {
             customer: r.Customer,
             date: parsedDate,
-            revenue: parseFloat(String(r.Total_Amount).replace(/\s/g, '')) || 0
+            revenue: ReportUtils.parseNumber(r.Total_Amount)
           };
         }).filter(p => p !== null); // Filter out records with invalid dates
 
@@ -56,7 +45,7 @@ window.buildRevenueDropReport = function buildRevenueDropReport(modalEl, reportI
             return resolve({ reportId: reportId, status: 'success', message: 'No valid sales data after parsing' });
         }
 
-        const customers = Array.from(new Set(parsed.map(r => r.customer)));
+        const customers = Array.from(new Set(parsed.map(r => ReportUtils.normalise(r.customer))));
         const years = Array.from(new Set(parsed.map(r => r.date.getFullYear()))).sort();
 
         const totalRev = parsed.reduce((acc, r) => {

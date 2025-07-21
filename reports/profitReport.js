@@ -14,11 +14,7 @@ window.buildProfitReport = function buildProfitReport (modalEl, reportId, topN =
     return parseFloat(String(val).replace(/[^0-9.\-]/g, ''));
   };
 
-  const parseDate = s => {
-    if (typeof s !== 'string') return null;
-    const [m, d, y] = s.split('/').map(t => +t.trim());
-    return (m && d && y) ? new Date(y, m - 1, d) : null;
-  };
+  const parseDate = ReportUtils.parseDate;
 
   /* ---------- promise wrapper ---------- */
   return new Promise((resolve, reject) => {

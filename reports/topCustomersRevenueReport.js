@@ -16,18 +16,7 @@ window.buildTopCustomersByRevenueReport = function buildTopCustomersByRevenueRep
     }
 
     /* --- little helpers --- */
-    const parseDate = (str) => {
-      if (!str) return null;
-
-      // 1️⃣ strip commas and normalise M/D/YY → M/D/YYYY
-      const cleaned = str.trim()
-                        .replace(/,/g, '')
-                        .replace(/(\d{1,2})\/(\d{1,2})\/(\d{2})$/, '$1/$2/20$3');
-
-      // 2️⃣ allow “Jul 9 2025” or “2025‑07‑09”
-      const ts = Date.parse(cleaned);
-      return isNaN(ts) ? null : new Date(ts);
-    };
+    const parseDate = ReportUtils.parseDate;
 
     const cleanAmount = v =>
       parseFloat(String(v).replace(/[^0-9.-]/g, '')) || 0;
