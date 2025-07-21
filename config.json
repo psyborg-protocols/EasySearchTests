@@ -32,7 +32,7 @@
   {
     "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
     "filenamePrefix": "Quote Maker and Calculator",
-    "columns": ["Product", "Note", "Units per Box", "2024 Unit Cost", "2024 FB Cost", "H", "I", "J", "K", "L", "USER FB", "USER FB PROFIT", "USER HB", "USER LTB", "USER LTB PROFIT", "R", "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
+    "columns": ["Product", "Note", "Units per Box", "D", "E", "2024 Unit Cost", "2024 FB Cost", "H", "I", "J", "K", "L", "USER FB", "USER FB PROFIT", "USER HB", "USER LTB", "USER LTB PROFIT", "R", "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
     "skipRows": 3,
     "sheetName": "Medmix_Sulzer Master",
     "dataKey": "Pricing"	
