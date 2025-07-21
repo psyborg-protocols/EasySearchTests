@@ -672,57 +672,63 @@ const quoteCalculator = {
         rowElement.querySelector('[data-col="totalprofit"]').textContent = moneyFmt.format(totalProfit);
         rowElement.querySelector('[data-col="margin"]').textContent = margin.toFixed(1) + '%';
 
-        this.updatePriceDiff();
+        // Update the price difference indicator
+        this.updatePriceDifferenceIndicator();
     },
 
     /**
-     * Compares first‑row and second‑row prices and shows the %
-     * difference under the Price cell in the *second* row.
+     * Checks prices in the first two rows and displays a percentage difference
+     * indicator below the second row's price cell if they are different.
      */
-    updatePriceDiff: function () {
-        const tbody     = document.getElementById('quoteCalculatorBody');
-        const firstRow  = tbody?.rows[0];
-        const secondRow = tbody?.rows[1];
-        if (!firstRow || !secondRow) return;            // table not ready
+    updatePriceDifferenceIndicator: function() {
+        const tableBody = document.getElementById('quoteCalculatorBody');
+        if (tableBody.rows.length < 2) return; // Exit if there aren't at least two rows
 
-        const p1 = toNumber(firstRow .querySelector('[data-col="price"]').textContent);
-        const p2 = toNumber(secondRow.querySelector('[data-col="price"]').textContent);
+        const firstRow = tableBody.rows[0];
+        const secondRow = tableBody.rows[1];
+        const priceCellSecondRow = secondRow.querySelector('[data-col="price"]');
 
-        const priceCell = secondRow.querySelector('[data-col="price"]');
-        let   diffEl    = priceCell.querySelector('.price-diff');
-
-        // no valid comparison ⇒ remove the badge if it exists
-        if (!p1 || !p2 || p1 === p2) {
-            if (diffEl) diffEl.remove();
-            return;
+        // First, remove any existing indicator to ensure a clean slate
+        const existingIndicator = priceCellSecondRow.querySelector('.price-diff-indicator');
+        if (existingIndicator) {
+            existingIndicator.remove();
         }
 
-        // create the little <div> once
-        if (!diffEl) {
-            diffEl = document.createElement('div');
-            diffEl.classList.add('price-diff', 'fw-semibold');
-            priceCell.appendChild(diffEl);
-        }
+        const price1 = toNumber(firstRow.querySelector('[data-col="price"]').textContent);
+        const price2 = toNumber(secondRow.querySelector('[data-col="price"]').textContent);
 
-        const pct = ((p2 - p1) / p1) * 100;
-        diffEl.textContent = (pct > 0 ? '+' : '') + pct.toFixed(1) + '%';
-        diffEl.classList.toggle('text-success', pct > 0);
-        diffEl.classList.toggle('text-danger', pct < 0);
+        // Show indicator only if both prices are valid numbers and are different
+        if (price1 > 0 && price2 > 0 && price1 !== price2) {
+            const diff = ((price2 - price1) / price1) * 100;
+            
+            const indicator = document.createElement('div');
+            indicator.className = 'price-diff-indicator'; // For easy selection
+            
+            const sign = diff > 0 ? '+' : '';
+            indicator.textContent = `${sign}${diff.toFixed(1)}%`;
+            indicator.style.color = diff > 0 ? 'green' : 'red';
+            indicator.style.fontSize = '0.75rem';
+            indicator.style.fontWeight = 'bold';
+            indicator.style.textAlign = 'center';
+            indicator.style.marginTop = '4px';
+
+            priceCellSecondRow.appendChild(indicator);
+        }
     },
 
     /**
      * Populates the quote calculator with data from a selected product.
-     *  – If the selection came from **order‑history** (has Quantity & Price),
-     *    fill everything and precalculate profit.
-     *  – If the selection came from a **plain product search**, leave
-     *    Quantity/Price blank so the user can type them and calculations
-     *    will run only after input.
+     * – If the selection came from **order‑history** (has Quantity & Price),
+     * fill everything and precalculate profit.
+     * – If the selection came from a **plain product search**, leave
+     * Quantity/Price blank so the user can type them and calculations
+     * will run only after input.
      *
      * @param {object} productInfo  {
-     *     PartNumber : string,            // required
-     *     UnitCost   : number|string,     // required
-     *     Quantity   : number|string,     // optional (order history only)
-     *     Price      : number|string      // optional (order history only)
+     * PartNumber : string,            // required
+     * UnitCost   : number|string,     // required
+     * Quantity   : number|string,     // optional (order history only)
+     * Price      : number|string      // optional (order history only)
      * }
      */
     populate: function (productInfo) {
@@ -758,7 +764,7 @@ const quoteCalculator = {
         const initPlaceholder = (cloneQtyPrice) => {
             secondRow.classList.add('placeholder-row');
             secondRow.querySelector('[data-col="product"]').textContent  = productInfo.PartNumber;
-            secondRow.querySelector('[data-col="`unitcost"]').textContent = unitCost.toFixed(2);
+            secondRow.querySelector('[data-col="unitcost"]').textContent = unitCost.toFixed(2);
 
             // copy or leave blank depending on click source
             secondRow.querySelector('[data-col="quantity"]').textContent = cloneQtyPrice ? productInfo.Quantity : '';
