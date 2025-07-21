@@ -1,5 +1,5 @@
 // app.js
-const APP_VERSION = "1.0.1";
+const APP_VERSION = "1.0.2";
 
 document.addEventListener('DOMContentLoaded', async function () {
   // Version check
