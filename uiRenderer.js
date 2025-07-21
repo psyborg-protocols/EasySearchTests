@@ -451,7 +451,7 @@ async function selectProduct(encodedPartNumber, options = {}) {
       const baseUnitCost = toNumber(selectedProduct["UnitCost"]);
       const raiseInfo = window.dataStore["PriceRaise"]?.dataframe[partNumber];
 
-      let unitCostCellContent = baseUnitCost.toFixed(2);
+      let unitCostCellContent = baseUnitCost? `$${baseUnitCost.toFixed(2)}`: "N/A";
 
       if (raiseInfo) {
         // Bootstrap needs <br> and data-bs-html="true" for line-breaks
@@ -671,6 +671,43 @@ const quoteCalculator = {
         rowElement.querySelector('[data-col="ordertotal"]').textContent = moneyFmt.format(orderTotal);
         rowElement.querySelector('[data-col="totalprofit"]').textContent = moneyFmt.format(totalProfit);
         rowElement.querySelector('[data-col="margin"]').textContent = margin.toFixed(1) + '%';
+
+        this.updatePriceDiff();
+    },
+
+    /**
+     * Compares first‑row and second‑row prices and shows the %
+     * difference under the Price cell in the *second* row.
+     */
+    updatePriceDiff: function () {
+        const tbody     = document.getElementById('quoteCalculatorBody');
+        const firstRow  = tbody?.rows[0];
+        const secondRow = tbody?.rows[1];
+        if (!firstRow || !secondRow) return;            // table not ready
+
+        const p1 = toNumber(firstRow .querySelector('[data-col="price"]').textContent);
+        const p2 = toNumber(secondRow.querySelector('[data-col="price"]').textContent);
+
+        const priceCell = secondRow.querySelector('[data-col="price"]');
+        let   diffEl    = priceCell.querySelector('.price-diff');
+
+        // no valid comparison ⇒ remove the badge if it exists
+        if (!p1 || !p2 || p1 === p2) {
+            if (diffEl) diffEl.remove();
+            return;
+        }
+
+        // create the little <div> once
+        if (!diffEl) {
+            diffEl = document.createElement('div');
+            diffEl.classList.add('price-diff', 'fw-semibold');
+            priceCell.appendChild(diffEl);
+        }
+
+        const pct = ((p2 - p1) / p1) * 100;
+        diffEl.textContent = (pct > 0 ? '+' : '') + pct.toFixed(1) + '%';
+        diffEl.classList.toggle('text-success', pct > 0);
+        diffEl.classList.toggle('text-danger', pct < 0);
     },
 
     /**
@@ -721,7 +758,7 @@ const quoteCalculator = {
         const initPlaceholder = (cloneQtyPrice) => {
             secondRow.classList.add('placeholder-row');
             secondRow.querySelector('[data-col="product"]').textContent  = productInfo.PartNumber;
-            secondRow.querySelector('[data-col="unitcost"]').textContent = unitCost.toFixed(2);
+            secondRow.querySelector('[data-col="`unitcost"]').textContent = unitCost.toFixed(2);
 
             // copy or leave blank depending on click source
             secondRow.querySelector('[data-col="quantity"]').textContent = cloneQtyPrice ? productInfo.Quantity : '';
@@ -735,14 +772,6 @@ const quoteCalculator = {
 
         initPlaceholder(hasOrder);   // duplicate qty/price only for order‑history picks
 
-        // ---------- ensure accordion is open ----------------------------------
-        const collapseEl = document.getElementById('quoteCalculatorCollapse');
-        const bsCollapse = bootstrap.Collapse.getInstance(collapseEl);
-        if (!bsCollapse) {
-            new bootstrap.Collapse(collapseEl, { toggle: true });
-        } else if (!collapseEl.classList.contains('show')) {
-            bsCollapse.show();
-        }
     }
 
 };
