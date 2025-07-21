@@ -45,7 +45,7 @@ window.buildRevenueDropReport = function buildRevenueDropReport(modalEl, reportI
             return resolve({ reportId: reportId, status: 'success', message: 'No valid sales data after parsing' });
         }
 
-        const customers = Array.from(new Set(parsed.map(r => ReportUtils.normalise(r.customer))));
+        const customers = Array.from(new Set(parsed.map(r => r.customer)));
         const years = Array.from(new Set(parsed.map(r => r.date.getFullYear()))).sort();
 
         const totalRev = parsed.reduce((acc, r) => {
