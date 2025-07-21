@@ -435,7 +435,7 @@ async function selectProduct(encodedPartNumber, options = {}) {
       const baseUnitCost = selectedProduct["UnitCost"];
       const raiseInfo = window.dataStore["PriceRaise"]?.dataframe[partNumber];
 
-      let unitCostCellContent = baseUnitCost;
+      let unitCostCellContent = parseFloat(baseUnitCost || 0).toFixed(2);
 
       if (raiseInfo) {
         // Bootstrap needs <br> and data-bs-html="true" for line-breaks
@@ -679,16 +679,13 @@ const quoteCalculator = {
         this.updateRow(firstRow);
         firstRow.classList.remove('placeholder-row');
 
-        // --- Populate the second (placeholder) row ---
+        // --- Populate the second row (now a duplicate) ---
         secondRow.querySelector('[data-col="product"]').textContent = productInfo.PartNumber;
-        secondRow.querySelector('[data-col="quantity"]').textContent = '';
+        secondRow.querySelector('[data-col="quantity"]').textContent = productInfo.Quantity || '1';
         secondRow.querySelector('[data-col="unitcost"]').textContent = productInfo.UnitCost ? parseFloat(productInfo.UnitCost).toFixed(2) : '0.00';
-        secondRow.querySelector('[data-col="price"]').textContent = '';
-        // Clear calculated fields for placeholder
-        secondRow.querySelector('[data-col="ordertotal"]').textContent = '';
-        secondRow.querySelector('[data-col="margin"]').textContent = '';
-        secondRow.querySelector('[data-col="totalprofit"]').textContent = '';
-        secondRow.classList.add('placeholder-row'); // Ensure it's styled as a placeholder
+        secondRow.querySelector('[data-col="price"]').textContent = productInfo.Price ? parseFloat(productInfo.Price).toFixed(2) : '0.00';
+        this.updateRow(secondRow);
+        secondRow.classList.remove('placeholder-row');
 
         // Expand the accordion if it's not already open
         const collapseElement = document.getElementById('quoteCalculatorCollapse');
