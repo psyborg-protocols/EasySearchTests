@@ -206,9 +206,9 @@ const label = document.getElementById("pricingLabel");
 
 toggle.addEventListener("change", () => {
   if (toggle.checked) {
-    label.textContent = "Customer Pricing";
-  } else {
     label.textContent = "Distributor Pricing";
+  } else {
+    label.textContent = "Customer Pricing";
   }
 });
 

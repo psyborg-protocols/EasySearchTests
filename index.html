@@ -63,7 +63,8 @@
     .info-label {
       font-size: 0.9em;
       color: #666; /* subtle, same as "replacements found" */
-      font-style: italic-bold;
+      font-style: italic;
+      font-weight: bold;
       text-wrap: nowrap;
     }
     .toggle-checkbox {
@@ -86,9 +87,15 @@
       font-size: 14px;
       color: #aaa;
     }
-    .toggle-btn.selected {
-      font-weight: bold;
-      text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+    .toggle-checkbox:not(:checked) + .toggle-label .b2b {
+      font-weight: 700;
+      text-shadow: 0 0 6px rgba(255,255,255,0.8);
+    }
+
+    /* active = B2B when CHECKED */
+    .toggle-checkbox:checked + .toggle-label .b2c {
+      font-weight: 700;
+      text-shadow: 0 0 6px rgba(255,255,255,0.8);
     }
     .toggle-label span {
       z-index: 2;
@@ -466,7 +473,7 @@
                       <span class="b2b">B2C</span>
                       <span class="b2c">B2B</span>
                     </label>
-                    <span id="pricingLabel" class="info-label">Distributor Pricing</span>
+                    <span id="pricingLabel" class="info-label">Customer Pricing</span>
                   </div>
                 </div>
               </div>
