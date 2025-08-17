@@ -54,7 +54,7 @@
     }
     .toggle-container {
       position: relative;
-      width: 86px;
+      width: 150px;
       height: 24px;
       display: flex;
       align-items: center;
@@ -63,18 +63,20 @@
     .info-label {
       font-size: 0.9em;
       color: #666; /* subtle, same as "replacements found" */
-      font-style: italic;
+      font-style: italic-bold;
+      text-wrap: nowrap;
     }
     .toggle-checkbox {
       display: none;
     }
     .toggle-label {
       display: flex;
+      flex: 0 0 82px;
       align-items: center;
       justify-content: space-between;
       background-color: #e0e0e0;
       border-radius: 20px;
-      padding: 0 10px;
+      padding: 0 5px;
       width: 100%;
       height: 100%;
       cursor: pointer;
@@ -83,6 +85,10 @@
       transition: background-color 0.3s ease;
       font-size: 14px;
       color: #aaa;
+    }
+    .toggle-btn.selected {
+      font-weight: bold;
+      text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
     }
     .toggle-label span {
       z-index: 2;
@@ -94,7 +100,7 @@
       position: absolute;
       top: 2px;
       left: 2px;
-      width: 44px;
+      width: 35px;
       height: 20px;
       background-color: white;
       border-radius: 12px;
@@ -102,7 +108,7 @@
       z-index: 1;
     }
     .toggle-checkbox:checked + .toggle-label .toggle-switch {
-      left: 40px;
+      left: 45px;
     }
     .toggle-checkbox:not(:checked) + .toggle-label .b2b {
       color: #1f2937;
