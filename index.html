@@ -56,6 +56,14 @@
       position: relative;
       width: 86px;
       height: 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .info-label {
+      font-size: 0.9em;
+      color: #666; /* subtle, same as "replacements found" */
+      font-style: italic;
     }
     .toggle-checkbox {
       display: none;
@@ -452,6 +460,7 @@
                       <span class="b2b">B2C</span>
                       <span class="b2c">B2B</span>
                     </label>
+                    <span id="pricingLabel" class="info-label">Distributor Pricing</span>
                   </div>
                 </div>
               </div>
