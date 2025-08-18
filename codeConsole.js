@@ -119,7 +119,7 @@ function initializeConsole() {
   
   // The error was caused by event listeners being attached to a non-existent modal instance.
   // This ensures we have a valid Bootstrap modal instance to work with.
-  bsModal = new bootstrap.Modal(codeModalEl);
+  bsModal = bootstrap.Modal.getOrCreateInstance(codeModalEl);
 
   // Initialize CodeMirror when the modal is about to be shown
   codeModalEl.addEventListener('shown.bs.modal', initCodeMirror);
