@@ -409,16 +409,20 @@ document.getElementById("productSearch").addEventListener("input", async (e) => 
 
     if (products.length > 0) {
       dropdown.innerHTML = products
-        .map(product => `
+        .map(product => {
+          // Check if the product's PartNumber is an exact match (case-insensitive)
+          const isExact = product["PartNumber"].toLowerCase() === query.toLowerCase();
+          
+          return `
           <li>
-            <a class="dropdown-item" href="#"
-               onclick="event.stopPropagation(); selectProduct('${encodeURIComponent(product["PartNumber"])}');">
+            <a class="dropdown-item ${isExact ? 'fw-bold' : ''}" href="#"
+              onclick="event.stopPropagation(); selectProduct('${encodeURIComponent(product["PartNumber"])}');">
               ${product["PartNumber"]} - ${product["Description"]}
             </a>
-          </li>`)
+          </li>`;
+        })
         .join("");
       dropdown.classList.add('show');
-      console.log(`[productSearch input] Dropdown populated and shown.`);
     } else {
       console.log(`[productSearch input] No products found for query: "${query}"`);
       dropdown.innerHTML = "";
