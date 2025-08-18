@@ -327,6 +327,8 @@ async function selectCustomer(customerName) {
     const toggle = document.getElementById("pricingToggle");
     const isDistributor = String(details.business).trim().toLowerCase() === "distributor";
     toggle.checked = isDistributor;
+    // Update the label based on the toggle state
+    toggle.dispatchEvent(new Event('change'));
 
     // Optionally update pricing table if product is already selected
     if (window.currentProduct) updatePricingTable(window.currentProduct);
