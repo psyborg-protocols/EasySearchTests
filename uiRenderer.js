@@ -400,31 +400,34 @@ function showProductInfoModal(encodedPartNumber) {
   const modalTitle = document.getElementById('productInfoModalTitle');
   const modalBody = document.getElementById('productInfoModalBody');
 
-  // All available fields for a product from the DB workbook
   const fieldsToShow = [
-    "PartNumber", "Description", "Active", "QtyOnHand", "ReOrder Level", 
+    "PartNumber", "Description", "Active", "QtyOnHand", "ReOrder Level",
     "QtyCommited", "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue"
   ];
 
   let bodyHtml = '<dl class="row">';
   fieldsToShow.forEach(field => {
-    // Format the field name for display (e.g., "PartNumber" -> "Part Number")
     const displayName = field.replace(/([A-Z])/g, ' $1').trim();
-    let value = product[field];
+    const value = product[field];
+    let displayValue;
 
-    // Ensure empty values are displayed nicely
-    if (value === undefined || value === null || value === "") {
-      value = '<i class="text-muted">N/A</i>';
-    } else {
-       // Use the existing currency formatter for cost and value fields
-      if (field === 'UnitCost' || field === 'ExtValue') {
-        value = fmtPrice(value);
+    if (value === undefined || value === null || String(value).trim() === "") {
+      displayValue = '<i class="text-muted">N/A</i>';
+    } else if (field === 'UnitCost' || field === 'ExtValue') {
+      // If it's a number, format it. If it's a string, display it directly.
+      if (typeof value === 'number') {
+        displayValue = moneyFmt.format(value);
+      } else {
+        displayValue = value;
       }
+    } else {
+      // For all other non-currency fields
+      displayValue = value;
     }
 
     bodyHtml += `
       <dt class="col-sm-5">${displayName}</dt>
-      <dd class="col-sm-7">${value}</dd>
+      <dd class="col-sm-7">${displayValue}</dd>
     `;
   });
   bodyHtml += '</dl>';
