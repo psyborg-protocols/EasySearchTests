@@ -200,6 +200,18 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Handle the pricing toggle switch label
+const toggle = document.getElementById("pricingToggle");
+const label = document.getElementById("pricingLabel");
+
+toggle.addEventListener("change", () => {
+  if (toggle.checked) {
+    label.textContent = "Distributor Pricing";
+  } else {
+    label.textContent = "Customer Pricing";
+  }
+});
+
 // Helper function to update the pricing table based on pricing toggle and selected product
 function updatePricingTable(partNumber) {
   const pricingData = window.dataStore["Pricing"]?.dataframe || [];
