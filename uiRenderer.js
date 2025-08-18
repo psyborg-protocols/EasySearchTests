@@ -383,6 +383,58 @@ async function selectCustomerInfo(customerName) {
   }
 }
 
+/**
+ * Finds all data for a given product and displays it in a Bootstrap modal.
+ * @param {string} encodedPartNumber - The URI-encoded part number of the product.
+ */
+function showProductInfoModal(encodedPartNumber) {
+  const partNumber = decodeURIComponent(encodedPartNumber).toString().trim();
+  const inventoryData = window.dataStore["DB"]?.dataframe || [];
+  const product = inventoryData.find(item => String(item["PartNumber"]).trim() === partNumber);
+
+  if (!product) {
+    console.error("Could not find product details for modal:", partNumber);
+    return;
+  }
+
+  const modalTitle = document.getElementById('productInfoModalTitle');
+  const modalBody = document.getElementById('productInfoModalBody');
+
+  // All available fields for a product from the DB workbook
+  const fieldsToShow = [
+    "PartNumber", "Description", "Active", "QtyOnHand", "ReOrder Level", 
+    "QtyCommited", "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue"
+  ];
+
+  let bodyHtml = '<dl class="row">';
+  fieldsToShow.forEach(field => {
+    // Format the field name for display (e.g., "PartNumber" -> "Part Number")
+    const displayName = field.replace(/([A-Z])/g, ' $1').trim();
+    let value = product[field];
+
+    // Ensure empty values are displayed nicely
+    if (value === undefined || value === null || value === "") {
+      value = '<i class="text-muted">N/A</i>';
+    } else {
+       // Use the existing currency formatter for cost and value fields
+      if (field === 'UnitCost' || field === 'ExtValue') {
+        value = fmtPrice(value);
+      }
+    }
+
+    bodyHtml += `
+      <dt class="col-sm-5">${displayName}</dt>
+      <dd class="col-sm-7">${value}</dd>
+    `;
+  });
+  bodyHtml += '</dl>';
+
+  modalTitle.textContent = product.PartNumber;
+  modalBody.innerHTML = bodyHtml;
+
+  const modal = new bootstrap.Modal(document.getElementById('productInfoModal'));
+  modal.show();
+}
 
 // Add an event listener for changes on the filter toggle switch
 document.getElementById("filterOrdersToggle").addEventListener("change", () => {
