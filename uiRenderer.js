@@ -384,7 +384,7 @@ async function selectCustomerInfo(customerName) {
 }
 
 /**
- * Finds all data for a given product and displays it in a Bootstrap modal.
+ * Finds all data for a given product and displays it in a polished Bootstrap modal.
  * @param {string} encodedPartNumber - The URI-encoded part number of the product.
  */
 function showProductInfoModal(encodedPartNumber) {
@@ -397,42 +397,67 @@ function showProductInfoModal(encodedPartNumber) {
     return;
   }
 
-  const modalTitle = document.getElementById('productInfoModalTitle');
+  // Populate the new, styled header
+  document.getElementById('productInfoModalTitle').textContent = product.PartNumber || "N/A";
+  document.getElementById('productInfoModalDescription').textContent = product.Description || "";
+
   const modalBody = document.getElementById('productInfoModalBody');
 
+  // Fields to show in the main body (excluding ones now in the header)
   const fieldsToShow = [
-    "PartNumber", "Description", "Active", "QtyOnHand", "ReOrder Level",
-    "QtyCommited", "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue"
+    "Active", "QtyOnHand", "QtyCommited", "ReOrder Level",
+    "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue"
   ];
 
-  let bodyHtml = '<dl class="row">';
+  let bodyHtml = '';
   fieldsToShow.forEach(field => {
     const displayName = field.replace(/([A-Z])/g, ' $1').trim();
     const value = product[field];
     let displayValue;
 
+    // --- Special Formatting for specific fields ---
     if (value === undefined || value === null || String(value).trim() === "") {
       displayValue = '<i class="text-muted">N/A</i>';
-    } else if (field === 'UnitCost' || field === 'ExtValue') {
-      // If it's a number, format it. If it's a string, display it directly.
-      if (typeof value === 'number') {
-        displayValue = moneyFmt.format(value);
-      } else {
-        displayValue = value;
-      }
     } else {
-      // For all other non-currency fields
-      displayValue = value;
-    }
+      switch (field) {
+        case 'UnitCost':
+        case 'ExtValue':
+          displayValue = (typeof value === 'number') ? moneyFmt.format(value) : value;
+          break;
 
+        case 'Active':
+          // Display a colored badge for status
+          displayValue = String(value).toLowerCase() === 'active' 
+            ? '<span class="badge bg-success">Active</span>' 
+            : '<span class="badge bg-secondary">Inactive</span>';
+          break;
+
+        case 'QtyOnHand':
+          // Highlight quantity if it's at or below the re-order level
+          const qtyOnHand = toNumber(value);
+          const reOrderLevel = toNumber(product["ReOrder Level"]);
+          let qtyClass = '';
+          if (reOrderLevel > 0 && qtyOnHand <= reOrderLevel) {
+            qtyClass = 'text-danger fw-bold low-stock'; // Apply styling for low stock
+          }
+          displayValue = `<span class="${qtyClass}">${qtyOnHand}</span>`;
+          break;
+
+        default:
+          displayValue = value;
+          break;
+      }
+    }
+    
+    // Build the definition list row
     bodyHtml += `
-      <dt class="col-sm-5">${displayName}</dt>
-      <dd class="col-sm-7">${displayValue}</dd>
+      <div class="row">
+        <dt class="col-sm-5">${displayName}</dt>
+        <dd class="col-sm-7 mb-0">${displayValue}</dd>
+      </div>
     `;
   });
-  bodyHtml += '</dl>';
-
-  modalTitle.textContent = product.PartNumber;
+  
   modalBody.innerHTML = bodyHtml;
 
   const modal = new bootstrap.Modal(document.getElementById('productInfoModal'));

@@ -333,6 +333,36 @@
     #quoteCalculatorTable .placeholder-row [contenteditable="true"] {
         background-color: #f9fafb;
     }
+    /* Custom styles for the product info modal */
+    .modal-header-details {
+        padding: 1rem 1.5rem;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .modal-header-details .part-number {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #0d6efd;
+    }
+    .modal-header-details .description {
+        font-size: 1rem;
+        color: #6c757d;
+    }
+    .modal-dl .row {
+        padding: 0.75rem 0;
+        margin: 0;
+    }
+    .modal-dl .row:nth-of-type(odd) {
+        background-color: #f8f9fa;
+    }
+    .modal-dl dt {
+        font-weight: 600;
+    }
+    .low-stock {
+        background-color: #ffebe6;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
   </style>
 </head>
 <body>
@@ -717,14 +747,16 @@
 
   <!-- Product Info Modal-->
   <div class="modal fade" id="productInfoModal" tabindex="-1" aria-labelledby="productInfoModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="productInfoModalTitle">Product Details</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-header-details">
+          <div id="productInfoModalTitle" class="part-number">Product Details</div>
+          <div id="productInfoModalDescription" class="description"></div>
         </div>
-        <div class="modal-body" id="productInfoModalBody">
+        
+        <div class="modal-body modal-dl" id="productInfoModalBody">
           </div>
+        
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
