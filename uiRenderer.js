@@ -427,7 +427,7 @@ function showProductInfoModal(encodedPartNumber) {
 
         case 'Active':
           // Display a colored badge for status
-          displayValue = String(value).toLowerCase() === 'active' 
+          displayValue = String(value).toLowerCase() === 'true' 
             ? '<span class="badge bg-success">Active</span>' 
             : '<span class="badge bg-secondary">Inactive</span>';
           break;
