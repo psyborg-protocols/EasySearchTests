@@ -486,7 +486,7 @@ async function selectProduct(encodedPartNumber, options = {}) {
       }
       
       document.getElementById("productTable").innerHTML = `
-        <tr class="product-row" onclick="selectProduct('${encodeURIComponent(partNumber)}')">
+        <tr class="product-row" onclick="showProductInfoModal('${encodeURIComponent(partNumber)}')">
           <td>${selectedProduct["PartNumber"]}</td>
           <td>${selectedProduct["Description"]}</td>
           <td>${qtyAvailableCellContent}</td>
@@ -806,5 +806,6 @@ window.UIrenderer = {
   updateUIForLoggedOutUser,
   orderRowClicked,
   selectCustomer, // Expose selectCustomer for the Search tab
-  selectCustomerInfo // Expose selectCustomerInfo for the Customer Info tab
+  selectCustomerInfo, // Expose selectCustomerInfo for the Customer Info tab
+  showProductInfoModal
 };
