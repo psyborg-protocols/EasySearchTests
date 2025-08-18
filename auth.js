@@ -17,7 +17,8 @@ const msalConfig = {
 const scopes = [
     "User.Read",
     "Files.ReadWrite.All",
-    "Sites.Read.All"
+    "Sites.Read.All",
+    "OrgContact.Read.All"
 ];
 
 // Global variables for the MSAL instance and user account
