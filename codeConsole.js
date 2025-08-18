@@ -81,8 +81,9 @@ console.table(topProducts);
 
   /**
    * Executes the code from the editor, capturing and redirecting console output.
+   * Now an async function to handle promises from user scripts.
    */
-  function runCode() {
+  async function runCode() {
     const userCode = cm.getValue();
     appendLog('▶ Running…');
 
@@ -110,14 +111,18 @@ console.table(topProducts);
     Object.assign(console, consoleMethods);
 
     try {
-      // Execute code with app's global objects exposed
-      const fn = new Function('dataStore', 'idbUtil', 'dataLoader', userCode);
-      const result = fn(window.dataStore, window.idbUtil, window.dataLoader);
+      // Execute code with app's global objects exposed.
+      // We wrap the user's code in an async function to handle top-level awaits.
+      const asyncFn = new Function('dataStore', 'idbUtil', 'dataLoader', `return (async () => { ${userCode} })();`);
+      
+      // By awaiting the result, we ensure the try/catch block handles promise rejections.
+      const result = await asyncFn(window.dataStore, window.idbUtil, window.dataLoader);
+      
       if (result !== undefined) {
         appendLog('↩', result);
       }
     } catch (err) {
-      console.error(err); // Use the overridden error logger
+      console.error(err); // Use the overridden error logger to capture the async error
     } finally {
       Object.assign(console, originalConsole); // Restore original console methods
     }
