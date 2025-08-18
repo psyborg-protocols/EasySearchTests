@@ -385,6 +385,7 @@ async function selectCustomerInfo(customerName) {
   }
 }
 
+let productInfoModalInstance = null;
 /**
  * Finds all data for a given product and displays it in a polished Bootstrap modal.
  * @param {string} encodedPartNumber - The URI-encoded part number of the product.
@@ -399,25 +400,24 @@ function showProductInfoModal(encodedPartNumber) {
     return;
   }
 
-  // Populate the new, styled header
-  document.getElementById('productInfoModalTitle').textContent = product.PartNumber || "N/A";
+  // 2. Check if the modal instance has been created yet. If not, create it.
+  if (!productInfoModalInstance) {
+    productInfoModalInstance = new bootstrap.Modal(document.getElementById('productInfoModal'));
+  }
+
+  // --- (The rest of the function to populate the modal content remains the same) ---
+  document.getElementById('productInfoModalLabel').textContent = product.PartNumber || "N/A";
   document.getElementById('productInfoModalDescription').textContent = product.Description || "";
-
   const modalBody = document.getElementById('productInfoModalBody');
-
-  // Fields to show in the main body (excluding ones now in the header)
   const fieldsToShow = [
     "Active", "QtyOnHand", "QtyCommited", "ReOrder Level",
     "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue"
   ];
-
   let bodyHtml = '';
   fieldsToShow.forEach(field => {
     const displayName = field.replace(/([A-Z])/g, ' $1').trim();
     const value = product[field];
     let displayValue;
-
-    // --- Special Formatting for specific fields ---
     if (value === undefined || value === null || String(value).trim() === "") {
       displayValue = '<i class="text-muted">N/A</i>';
     } else {
@@ -426,32 +426,25 @@ function showProductInfoModal(encodedPartNumber) {
         case 'ExtValue':
           displayValue = (typeof value === 'number') ? moneyFmt.format(value) : value;
           break;
-
         case 'Active':
-          // Display a colored badge for status
-          displayValue = String(value).toLowerCase() === 'true' 
+          displayValue = String(value).toLowerCase() === 'active' 
             ? '<span class="badge bg-success">Active</span>' 
             : '<span class="badge bg-secondary">Inactive</span>';
           break;
-
         case 'QtyOnHand':
-          // Highlight quantity if it's at or below the re-order level
           const qtyOnHand = toNumber(value);
           const reOrderLevel = toNumber(product["ReOrder Level"]);
           let qtyClass = '';
           if (reOrderLevel > 0 && qtyOnHand <= reOrderLevel) {
-            qtyClass = 'text-danger fw-bold low-stock'; // Apply styling for low stock
+            qtyClass = 'text-danger fw-bold low-stock';
           }
           displayValue = `<span class="${qtyClass}">${qtyOnHand}</span>`;
           break;
-
         default:
           displayValue = value;
           break;
       }
     }
-    
-    // Build the definition list row
     bodyHtml += `
       <div class="row">
         <dt class="col-sm-5">${displayName}</dt>
@@ -459,11 +452,11 @@ function showProductInfoModal(encodedPartNumber) {
       </div>
     `;
   });
-  
   modalBody.innerHTML = bodyHtml;
+  // --- (End of content population logic) ---
 
-  const modal = new bootstrap.Modal(document.getElementById('productInfoModal'));
-  modal.show();
+  // 3. Now, just show the single, persistent modal instance.
+  productInfoModalInstance.show();
 }
 
 // Add an event listener for changes on the filter toggle switch
