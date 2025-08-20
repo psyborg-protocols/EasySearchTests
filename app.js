@@ -1,5 +1,5 @@
 // app.js
-const APP_VERSION = "1.0.4"; // Incremented version to ensure cache is cleared on next load
+const APP_VERSION = "1.0.5"; // Incremented version to ensure cache is cleared on next load
 
 document.addEventListener('DOMContentLoaded', async function () {
   // Version check
@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     const cachedPriceRaise = await idbUtil.getDataset("PriceRaiseData");
     const cachedContacts = await idbUtil.getDataset("CustomerContactsData");
     const cachedOrgContacts = await idbUtil.getDataset("OrgContactsData");
+    // Also load the metadata which contains the deltaLink
+    const cachedOrgContactsMetadata = await idbUtil.getDataset("OrgContactsMetadata");
+
 
     if (cachedDB && cachedSales && cachedPricing) {
       // ✅ Cache Hit: Populate the dataStore and make the UI interactive.
