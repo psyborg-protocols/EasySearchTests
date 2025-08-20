@@ -370,7 +370,7 @@ async function selectCustomerInfo(customerName) {
       .forEach(id => document.getElementById(id).textContent = "N/A");
   }
 
-  // --- NEW: Populate Contacts from GAL data ---
+  // --- NEW: Populate Contacts from GAL data with fuzzy search fallback ---
   const contactCardsContainer = document.getElementById("contactCardsContainer");
   const orgContacts = window.dataStore.OrgContacts; // This is a Map
   const companyKey = customerName.trim().toLowerCase();
@@ -385,7 +385,38 @@ async function selectCustomerInfo(customerName) {
         </div>
       `).join("");
   } else {
-    contactCardsContainer.innerHTML = '<p class="text-muted fst-italic">No contacts found in GAL for this company.</p>';
+    // Fuzzy search fallback
+    if (orgContacts && orgContacts.size > 0) {
+        const allCompanyNames = Array.from(orgContacts.keys());
+        // Fuse.js is loaded globally from the CDN
+        const fuse = new Fuse(allCompanyNames, { threshold: 0.4 });
+        const matches = fuse.search(companyKey).slice(0, 3); // Get top 3 matches
+
+        let suggestionsHTML = '';
+        if (matches.length > 0) {
+            suggestionsHTML = `
+                <p class="mt-3 mb-1">Possible matches:</p>
+                <div class="list-group list-group-flush">
+                    ${matches.map(match => {
+                        // Escape single quotes in company names for the onclick handler
+                        const safeName = match.item.replace(/'/g, "\\'");
+                        return `
+                        <a href="#" class="list-group-item list-group-item-action py-1" 
+                           onclick="event.preventDefault(); selectCustomerInfo('${safeName}')">
+                           ${match.item}
+                        </a>`;
+                    }).join('')}
+                </div>
+            `;
+        }
+        
+        contactCardsContainer.innerHTML = `
+            <p class="text-muted fst-italic">No contacts found in GAL for "${customerName}".</p>
+            ${suggestionsHTML}
+        `;
+    } else {
+        contactCardsContainer.innerHTML = '<p class="text-muted fst-italic">No contacts found in GAL for this company.</p>';
+    }
   }
 }
 
