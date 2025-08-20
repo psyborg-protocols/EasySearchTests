@@ -1,37 +1,25 @@
 // app.js
-const APP_VERSION = "1.0.3";
+const APP_VERSION = "1.0.4"; // Incremented version to ensure cache is cleared on next load
 
 document.addEventListener('DOMContentLoaded', async function () {
   // Version check
   const currentVersion = localStorage.getItem("APP_VERSION");
   if (currentVersion !== APP_VERSION) {
     console.log(`[Version Check] Detected app update: ${currentVersion} → ${APP_VERSION}`);
-
-    // Purge all IndexedDB datasets
     await idbUtil.clearDatasets();
     localStorage.setItem("APP_VERSION", APP_VERSION);
-
-    // Reload the page to start fresh with new assets and clean cache
     location.reload();
-    return;  // prevent rest of DOMContentLoaded from running
+    return;
   }
 
   initializeAuth();
 
-  // If we already have a valid token, fetch fresh data immediately
-  try {
-    const token = await getAccessToken();      
-    if (token) {
-      console.log("[DOMContentLoaded] Existing session, fetching fresh datasets...");
-      await dataLoader.processFiles(); 
-      console.log("[DOMContentLoaded] Fresh data loaded.");
-    }
-  } catch (authErr) {
-    console.warn("[DOMContentLoaded] No valid session yet:", authErr);
-  }
+  // --- OPTIMIZED STARTUP LOGIC ---
 
+  // 1. Immediately try to load data from the local cache to make the app usable ASAP.
+  let isCacheLoaded = false;
   try {
-    // Retrieve cached datasets from IndexedDB
+    console.log("[Startup] Attempting to load data from cache...");
     const cachedDB = await idbUtil.getDataset("DBData");
     const cachedSales = await idbUtil.getDataset("SalesData");
     const cachedPricing = await idbUtil.getDataset("PricingData");
@@ -40,68 +28,61 @@ document.addEventListener('DOMContentLoaded', async function () {
     const cachedContacts = await idbUtil.getDataset("CustomerContactsData");
     const cachedOrgContacts = await idbUtil.getDataset("OrgContactsData");
 
-    if (cachedDB && cachedSales && cachedPricing && cachedPriceRaise) {
-      // ✅ cached path: load datasets into the dataStore
+    if (cachedDB && cachedSales && cachedPricing) {
+      // ✅ Cache Hit: Populate the dataStore and make the UI interactive.
       window.dataStore["DB"] = cachedDB;
       window.dataStore["Sales"] = cachedSales;
       window.dataStore["Pricing"] = cachedPricing;
       window.dataStore["PriceRaise"] = cachedPriceRaise;
-      console.log("[DOMContentLoaded] Data loaded from IndexedDB cache.", {
-        DB: window.dataStore["DB"],
-        Sales: window.dataStore["Sales"],
-        Pricing: window.dataStore["Pricing"],
-        PriceRaise: window.dataStore["PriceRaise"]
-      });
-
-      if (cachedContacts) {
-        window.dataStore["CustomerContacts"] = cachedContacts.dataframe;
-        console.log("[DOMContentLoaded] Customer contacts loaded from cache.",
-                    Object.keys(window.dataStore["CustomerContacts"]).length);
-      }
+      if (cachedContacts) window.dataStore["CustomerContacts"] = cachedContacts.dataframe;
+      if (cachedEquivs) window.dataStore["Equivalents"] = cachedEquivs.dataframe;
+      if (cachedOrgContacts) window.dataStore["OrgContacts"] = new Map(Object.entries(cachedOrgContacts));
       
-      if (cachedOrgContacts) {
-        // Convert the stored object back to a Map for efficient lookups
-        window.dataStore["OrgContacts"] = new Map(Object.entries(cachedOrgContacts));
-        console.log("[DOMContentLoaded] Organizational contacts loaded from cache.", window.dataStore.OrgContacts.size);
-      }
-
-      // --- rebuild the three hrefs from what we just loaded ---
-      const links       = window.dataStore.fileLinks ||= {};
-
-      links.Sales = cachedSales?.metadata?.webUrl || null;
-      links.DB    = cachedDB?.metadata?.webUrl    || null;
-
-      // Pricing: scan the composite metadata and grab the first URL we find
-      if (cachedPricing?.metadata) {
-        for (const m of Object.values(cachedPricing.metadata)) {
-          if (m?.webUrl) { links.Pricing = m.webUrl; break; }
-        }
-      }
-
-      // ✅ cached path: tell the UI we’re good to go
+      console.log("[Startup] Success! Data loaded from cache. UI is now active.");
+      isCacheLoaded = true;
+      
+      // Make the app usable now
       window.reportsReady = true;
       document.dispatchEvent(new Event('reports-ready'));
     } else {
-      console.warn("[DOMContentLoaded] Cached data not found in IndexedDB.");
-    }
-
-    // Load cached equivalents data if available
-    if (cachedEquivs && cachedEquivs.metadata) {
-      window.dataStore["Equivalents"] = cachedEquivs.dataframe;
-      console.log("[DOMContentLoaded] Equivalents loaded from IndexedDB cache.", window.dataStore["Equivalents"]);
+      console.warn("[Startup] Cache miss or incomplete. Will rely on fresh data fetch.");
     }
   } catch (error) {
     console.error("Error loading datasets from IndexedDB:", error);
   }
+
+  // 2. After loading from cache, check for an active session and fetch fresh data in the background.
+  try {
+    const token = await getAccessToken();      
+    if (token) {
+      console.log("[Startup] Active session detected. Fetching fresh data in the background...");
+      await dataLoader.processFiles(); 
+      console.log("[Startup] Background data refresh complete.");
+      
+      // If cache hadn't loaded before, the app is now ready with fresh data.
+      if (!isCacheLoaded) {
+        window.reportsReady = true;
+        document.dispatchEvent(new Event('reports-ready'));
+      }
+    }
+  } catch (authErr) {
+    console.warn("[Startup] No active session. Waiting for user sign-in.", authErr);
+  }
+
+  // --- EVENT LISTENERS ---
 
   document.getElementById('signInButton').addEventListener('click', async () => {
     await signIn();
     console.log("[signInButton] Sign-in successful, processing fresh data...");
     await dataLoader.processFiles();
     console.log("[signInButton] Data processing completed after sign-in.");
+    // Ensure UI becomes ready if it wasn't from cache
+     if (!isCacheLoaded) {
+        window.reportsReady = true;
+        document.dispatchEvent(new Event('reports-ready'));
+      }
   });
 
-  /* ---------------- link-icon hookup ---------------- */
   const exposeFileLinks = () => {
     const { fileLinks = {} } = window.dataStore;
     const show = (id, url) => {
@@ -115,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     show('pricingFileLink', fileLinks.Pricing);
   };
   document.addEventListener('reports-ready', exposeFileLinks);
-  exposeFileLinks();
+  exposeFileLinks(); // Call it once in case the event fired before this listener was attached
 
   document.getElementById('signOutButton').addEventListener('click', async () => {
     signOut();
