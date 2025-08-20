@@ -351,11 +351,11 @@ async function selectCustomerInfo(customerName) {
   orderHistory.sort((a, b) => new Date(b.Date) - new Date(a.Date));
   updateOrderTable("customerInfoOrderHistoryTable"); // Update order table for customer info tab
 
-  // Fetch customer details (assuming there's a function like getCustomerDetails)
+  // Fetch customer details from the Excel file
   const customerDetails = await getCustomerDetails(customerName);
   window.currentCustomerInfo = customerDetails; // Store for potential future use
 
-  // Populate Customer Fields
+  // Populate Customer Fields from Excel data
   if (customerDetails) {
     drawSalesChart(customerDetails.salesByYear);
     document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
@@ -363,25 +363,29 @@ async function selectCustomerInfo(customerName) {
     document.getElementById("customerType").textContent = customerDetails.type || "N/A";
     document.getElementById("customerRemarks").textContent = customerDetails.remarks || "N/A";
     document.getElementById("customerWebsite").innerHTML  = asLink(customerDetails.website);
-
-    // contacts
-    const contactCardsContainer = document.getElementById("contactCardsContainer");
-    contactCardsContainer.innerHTML = customerDetails.contacts.length
-      ? customerDetails.contacts.map(c => `
-          <div class="contact-card">
-            <h6>${c.Name || "N/A"}</h6>
-            <p><strong>Title:</strong> ${c.Title || "N/A"}</p>
-            <p><strong>Email:</strong> ${emailLink(c.Email)}</p>
-          </div>
-        `).join("")
-      : '<p class="text-muted fst-italic">No contacts available</p>';
   } else {
-    // clear everything (chart, text, contacts)
+    // clear everything if no Excel data found
     if (salesChart) salesChart.destroy();
     ["customerLocation","customerBusiness","customerType","customerRemarks","customerWebsite"]
       .forEach(id => document.getElementById(id).textContent = "N/A");
-    document.getElementById("contactCardsContainer").innerHTML =
-      '<p class="text-muted fst-italic">No contacts available</p>';
+  }
+
+  // --- NEW: Populate Contacts from GAL data ---
+  const contactCardsContainer = document.getElementById("contactCardsContainer");
+  const orgContacts = window.dataStore.OrgContacts; // This is a Map
+  const companyKey = customerName.trim().toLowerCase();
+  
+  if (orgContacts && orgContacts.has(companyKey)) {
+    const contacts = orgContacts.get(companyKey);
+    contactCardsContainer.innerHTML = contacts.map(c => `
+        <div class="contact-card">
+          <h6>${c.Name || "N/A"}</h6>
+          <p><strong>Title:</strong> ${c.Title || "N/A"}</p>
+          <p><strong>Email:</strong> ${emailLink(c.Email)}</p>
+        </div>
+      `).join("");
+  } else {
+    contactCardsContainer.innerHTML = '<p class="text-muted fst-italic">No contacts found in GAL for this company.</p>';
   }
 }
 

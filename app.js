@@ -37,7 +37,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     const cachedPricing = await idbUtil.getDataset("PricingData");
     const cachedEquivs = await idbUtil.getDataset("EquivalentsData");
     const cachedPriceRaise = await idbUtil.getDataset("PriceRaiseData");
-    const cachedContacts     = await idbUtil.getDataset("CustomerContactsData");
+    const cachedContacts = await idbUtil.getDataset("CustomerContactsData");
+    const cachedOrgContacts = await idbUtil.getDataset("OrgContactsData");
 
     if (cachedDB && cachedSales && cachedPricing && cachedPriceRaise) {
       // ✅ cached path: load datasets into the dataStore
@@ -56,8 +57,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         window.dataStore["CustomerContacts"] = cachedContacts.dataframe;
         console.log("[DOMContentLoaded] Customer contacts loaded from cache.",
                     Object.keys(window.dataStore["CustomerContacts"]).length);
-      }  
+      }
       
+      if (cachedOrgContacts) {
+        // Convert the stored object back to a Map for efficient lookups
+        window.dataStore["OrgContacts"] = new Map(Object.entries(cachedOrgContacts));
+        console.log("[DOMContentLoaded] Organizational contacts loaded from cache.", window.dataStore.OrgContacts.size);
+      }
+
       // --- rebuild the three hrefs from what we just loaded ---
       const links       = window.dataStore.fileLinks ||= {};
 

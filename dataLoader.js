@@ -6,8 +6,8 @@ const DISALLOWED_PRODUCTS = [
 /**
  * Loads the configuration JSON file from the same directory.
  * The config file should be an array of objects, each containing:
- *   - directory: The directory path (e.g., "BrandyWine/Datasets")
- *   - filenamePrefix: The file name prefix to filter for (e.g., "Cleaned_Sales_Data")
+ * - directory: The directory path (e.g., "BrandyWine/Datasets")
+ * - filenamePrefix: The file name prefix to filter for (e.g., "Cleaned_Sales_Data")
  */
 async function loadConfig() {
   try {
@@ -131,6 +131,53 @@ return parsed;
 console.error("Error parsing Excel data:", err);
 throw err;
 }
+}
+
+/**
+ * Fetches all organizational contacts from MS Graph, handling pagination.
+ * @param {string} token - A valid MSAL access token.
+ * @returns {Promise<Map<string, object[]>>} A map where keys are company names
+ * and values are arrays of contact objects.
+ */
+async function fetchAndProcessOrgContacts(token) {
+    console.log("Fetching organizational contacts from Graph API...");
+    let allContacts = [];
+    let nextLink = 'https://graph.microsoft.com/v1.0/contacts?$select=displayName,companyName,jobTitle,mail';
+
+    try {
+        while (nextLink) {
+            const response = await fetch(nextLink, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error(`Graph API request failed: ${response.statusText}`);
+            const data = await response.json();
+            allContacts = allContacts.concat(data.value);
+            nextLink = data['@odata.nextLink'];
+        }
+
+        console.log(`Successfully fetched ${allContacts.length} total organizational contacts.`);
+
+        // Process into a map keyed by company name
+        const contactsByCompany = new Map();
+        for (const contact of allContacts) {
+            const company = (contact.companyName || 'Unknown').trim().toLowerCase();
+            if (!contactsByCompany.has(company)) {
+                contactsByCompany.set(company, []);
+            }
+            contactsByCompany.get(company).push({
+                Name: contact.displayName,
+                Title: contact.jobTitle,
+                Email: contact.mail
+            });
+        }
+        
+        console.log(`Processed contacts for ${contactsByCompany.size} unique companies.`);
+        return contactsByCompany;
+
+    } catch (error) {
+        console.error("Error fetching or processing organizational contacts:", error);
+        return new Map(); // Return an empty map on error
+    }
 }
 
 
@@ -289,7 +336,15 @@ async function processFiles() {
       console.log("[Pricing] cache valid – no parsing needed.");
     }
 
-    /* ── 5. done ─────────────────────────────────────────────── */
+    /* ── 5. Fetch and cache organizational contacts ────────── */
+    const orgContacts = await fetchAndProcessOrgContacts(token);
+    // Convert Map to a plain object for IndexedDB storage
+    const orgContactsForStorage = Object.fromEntries(orgContacts);
+    await idbUtil.setDataset("OrgContactsData", orgContactsForStorage);
+    ds["OrgContacts"] = orgContacts; // Keep as a Map in memory for efficient lookups
+    
+
+    /* ── 6. done ─────────────────────────────────────────────── */
     document.dispatchEvent(new Event("reports-ready"));
 
   } catch (err) {
@@ -323,8 +378,8 @@ function slimPriceRows(frame) {
 /**
  * Normalizes the replacements mapping from the "Equivalents (BT Master 2025)" sheet.
  * For each row, it aggregates:
- *   - The BM part (if it exists) as the first element.
- *   - The equivalent parts from other columns (as an array of 0, one, or more parts).
+ * - The BM part (if it exists) as the first element.
+ * - The equivalent parts from other columns (as an array of 0, one, or more parts).
  * Then, it maps every found part (BM or equivalent) to the full array of replacements.
  *
  * @param {Array<Object>} data - The parsed sheet data.
