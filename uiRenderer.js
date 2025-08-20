@@ -335,6 +335,36 @@ async function selectCustomer(customerName) {
   }
 }
 
+/**
+ * NEW: Renders only the contact cards for a given company name.
+ * This is called from the fuzzy search suggestions to avoid reloading all customer data.
+ * @param {string} companyName - The name of the company to display contacts for.
+ */
+function displayContactsForCompany(companyName) {
+    const contactCardsContainer = document.getElementById("contactCardsContainer");
+    const orgContacts = window.dataStore.OrgContacts; // This is a Map
+    const companyKey = companyName.trim().toLowerCase();
+
+    // Add a header to clarify which company's contacts are being shown
+    let contactsHTML = `<h5>Contacts for: ${companyName}</h5>`; 
+
+    if (orgContacts && orgContacts.has(companyKey)) {
+        const contacts = orgContacts.get(companyKey);
+        contactsHTML += contacts.map(c => `
+            <div class="contact-card">
+              <h6>${c.Name || "N/A"}</h6>
+              <p><strong>Title:</strong> ${c.Title || "N/A"}</p>
+              <p><strong>Email:</strong> ${emailLink(c.Email)}</p>
+            </div>
+        `).join("");
+    } else {
+        // This case is a fallback, though it shouldn't be hit if called from a valid suggestion
+        contactsHTML += '<p class="text-muted fst-italic">No contacts found for this selection.</p>';
+    }
+    contactCardsContainer.innerHTML = contactsHTML;
+}
+
+
 // Handle Customer Selection for Customer Info Tab
 async function selectCustomerInfo(customerName) {
   document.getElementById("customerInfoSearch").value = customerName;
@@ -370,14 +400,14 @@ async function selectCustomerInfo(customerName) {
       .forEach(id => document.getElementById(id).textContent = "N/A");
   }
 
-  // --- NEW: Populate Contacts from GAL data with fuzzy search fallback ---
+  // Populate Contacts from GAL data with fuzzy search fallback
   const contactCardsContainer = document.getElementById("contactCardsContainer");
   const orgContacts = window.dataStore.OrgContacts; // This is a Map
   const companyKey = customerName.trim().toLowerCase();
   
   if (orgContacts && orgContacts.has(companyKey)) {
     const contacts = orgContacts.get(companyKey);
-    contactCardsContainer.innerHTML = contacts.map(c => `
+    contactCardsContainer.innerHTML = `<h5>Contacts for: ${customerName}</h5>` + contacts.map(c => `
         <div class="contact-card">
           <h6>${c.Name || "N/A"}</h6>
           <p><strong>Title:</strong> ${c.Title || "N/A"}</p>
@@ -388,7 +418,6 @@ async function selectCustomerInfo(customerName) {
     // Fuzzy search fallback
     if (orgContacts && orgContacts.size > 0) {
         const allCompanyNames = Array.from(orgContacts.keys());
-        // Fuse.js is loaded globally from the CDN
         const fuse = new Fuse(allCompanyNames, { threshold: 0.4 });
         const matches = fuse.search(companyKey).slice(0, 3); // Get top 3 matches
 
@@ -398,11 +427,10 @@ async function selectCustomerInfo(customerName) {
                 <p class="mt-3 mb-1">Possible matches:</p>
                 <div class="list-group list-group-flush">
                     ${matches.map(match => {
-                        // Escape single quotes in company names for the onclick handler
                         const safeName = match.item.replace(/'/g, "\\'");
                         return `
                         <a href="#" class="list-group-item list-group-item-action py-1" 
-                           onclick="event.preventDefault(); selectCustomerInfo('${safeName}')">
+                           onclick="event.preventDefault(); UIrenderer.displayContactsForCompany('${safeName}')">
                            ${match.item}
                         </a>`;
                     }).join('')}
@@ -917,5 +945,6 @@ window.UIrenderer = {
   orderRowClicked,
   selectCustomer, // Expose selectCustomer for the Search tab
   selectCustomerInfo, // Expose selectCustomerInfo for the Customer Info tab
+  displayContactsForCompany, // Expose the new function
   showProductInfoModal
 };
