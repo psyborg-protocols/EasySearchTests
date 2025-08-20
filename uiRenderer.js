@@ -67,27 +67,26 @@ function drawSalesChart(salesByYearObj) {
   const isLeap = new Date(currentYear, 1, 29).getMonth() === 1;
   const daysInYear = isLeap ? 366 : 365;
 
-  const YEARS = ["2019", "2020", "2021", "2022", "2023", "2024", "2025"];
   const labels = [];
   const actualValues = [];
   const projectedValues = [];
+  
+  // Get all years from the data and sort them
+  const yearsInData = Object.keys(safe).sort();
 
-  YEARS.forEach(yearStr => {
+  yearsInData.forEach(yearStr => {
     const year = parseInt(yearStr, 10);
-    if (Object.prototype.hasOwnProperty.call(safe, yearStr)) {
-      const num = parseFloat(String(safe[yearStr]).replace(/[^0-9.\-]/g, ""));
-      if (!isNaN(num)) {
-        labels.push(yearStr);
-        actualValues.push(num);
+    const num = safe[yearStr];
+    
+    labels.push(yearStr);
+    actualValues.push(num);
 
-        if (year === currentYear && dayOfYear < daysInYear) {
-            const runRate = num / (dayOfYear / daysInYear);
-            const projection = runRate - num;
-            projectedValues.push(projection > 0 ? projection : 0);
-        } else {
-            projectedValues.push(0);
-        }
-      }
+    if (year === currentYear && dayOfYear > 0 && dayOfYear < daysInYear) {
+        const runRate = num / (dayOfYear / daysInYear);
+        const projection = runRate - num;
+        projectedValues.push(projection > 0 ? projection : 0);
+    } else {
+        projectedValues.push(0);
     }
   });
 
@@ -415,14 +414,28 @@ async function selectCustomerInfo(customerName) {
   orderHistory.sort((a, b) => new Date(b.Date) - new Date(a.Date));
   updateOrderTable("customerInfoOrderHistoryTable"); // Update order table for customer info tab
   
+  // --- CORRECTED: Calculate sales by year directly from the live sales data ---
+  const salesByYear = (window.dataStore.Sales?.dataframe || [])
+    .filter(sale => sale.Customer === customerName)
+    .reduce((acc, sale) => {
+        const date = new Date(sale.Date);
+        if (!isNaN(date)) {
+            const year = date.getFullYear();
+            const amount = toNumber(sale.Total_Amount);
+            acc[year] = (acc[year] || 0) + amount;
+        }
+        return acc;
+    }, {});
+  
+  drawSalesChart(salesByYear);
+
+
   // Fetch customer details from the Excel file for non-sales info
   const customerDetails = await getCustomerDetails(customerName);
   window.currentCustomerInfo = customerDetails; 
 
   // Populate Customer Fields from Excel data
   if (customerDetails) {
-    // RESTORED: Draw chart from Excel data first
-    drawSalesChart(customerDetails.salesByYear);
     document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
     document.getElementById("customerBusiness").textContent = customerDetails.business || "N/A";
     document.getElementById("customerType").textContent = customerDetails.type || "N/A";
@@ -430,7 +443,6 @@ async function selectCustomerInfo(customerName) {
     document.getElementById("customerWebsite").innerHTML  = asLink(customerDetails.website);
   } else {
     // clear everything if no Excel data found
-    if (salesChart) salesChart.destroy(); // Clear chart if no details
     ["customerLocation","customerBusiness","customerType","customerRemarks","customerWebsite"]
       .forEach(id => document.getElementById(id).textContent = "N/A");
   }
