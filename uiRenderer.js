@@ -414,7 +414,25 @@ async function selectCustomerInfo(customerName) {
   orderHistory.sort((a, b) => new Date(b.Date) - new Date(a.Date));
   updateOrderTable("customerInfoOrderHistoryTable"); // Update order table for customer info tab
   
-  // --- CORRECTED: Calculate sales by year directly from the live sales data ---
+  // --- CORRECTED LOGIC ---
+  // 1. Fetch customer details from the Excel file first.
+  const customerDetails = await getCustomerDetails(customerName);
+  window.currentCustomerInfo = customerDetails; 
+
+  // 2. Populate text-based fields from the customerDetails object.
+  if (customerDetails) {
+    document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
+    document.getElementById("customerBusiness").textContent = customerDetails.business || "N/A";
+    document.getElementById("customerType").textContent = customerDetails.type || "N/A";
+    document.getElementById("customerRemarks").textContent = customerDetails.remarks || "N/A";
+    document.getElementById("customerWebsite").innerHTML  = asLink(customerDetails.website);
+  } else {
+    // Clear fields if no details are found
+    ["customerLocation","customerBusiness","customerType","customerRemarks","customerWebsite"]
+      .forEach(id => document.getElementById(id).textContent = "N/A");
+  }
+
+  // 3. Now, perform the live calculation for the chart using raw sales data.
   const salesByYear = (window.dataStore.Sales?.dataframe || [])
     .filter(sale => sale.Customer === customerName)
     .reduce((acc, sale) => {
@@ -427,27 +445,11 @@ async function selectCustomerInfo(customerName) {
         return acc;
     }, {});
   
+  // 4. Draw the chart with the freshly calculated data.
   drawSalesChart(salesByYear);
 
 
-  // Fetch customer details from the Excel file for non-sales info
-  const customerDetails = await getCustomerDetails(customerName);
-  window.currentCustomerInfo = customerDetails; 
-
-  // Populate Customer Fields from Excel data
-  if (customerDetails) {
-    document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
-    document.getElementById("customerBusiness").textContent = customerDetails.business || "N/A";
-    document.getElementById("customerType").textContent = customerDetails.type || "N/A";
-    document.getElementById("customerRemarks").textContent = customerDetails.remarks || "N/A";
-    document.getElementById("customerWebsite").innerHTML  = asLink(customerDetails.website);
-  } else {
-    // clear everything if no Excel data found
-    ["customerLocation","customerBusiness","customerType","customerRemarks","customerWebsite"]
-      .forEach(id => document.getElementById(id).textContent = "N/A");
-  }
-
-  // Populate Contacts from GAL data with fuzzy search fallback
+  // 5. Populate Contacts from GAL data with fuzzy search fallback
   const contactCardsContainer = document.getElementById("contactCardsContainer");
   const orgContacts = window.dataStore.OrgContacts; // This is a Map
   const companyKey = customerName.trim().toLowerCase();
