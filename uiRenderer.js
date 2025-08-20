@@ -58,54 +58,88 @@ let salesChart = null;
 function drawSalesChart(salesByYearObj) {
   const safe = salesByYearObj || {};
 
-  /* ---- build ordered arrays of years & values ---- */
-  const YEARS  = ["2019","2020","2021","2022","2023","2024","2025"];
-  const years  = [];
-  const values = [];
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const startOfYear = new Date(today.getFullYear(), 0, 0);
+  const diff = today - startOfYear;
+  const oneDay = 1000 * 60 * 60 * 24;
+  const dayOfYear = Math.floor(diff / oneDay);
+  const isLeap = new Date(currentYear, 1, 29).getMonth() === 1;
+  const daysInYear = isLeap ? 366 : 365;
 
-  YEARS.forEach(y => {
-    if (Object.prototype.hasOwnProperty.call(safe, y)) {
-      // strip commas, currency symbols, spaces -> float
-      const num = parseFloat(String(safe[y]).replace(/[^0-9.\-]/g, ""));
+  const YEARS = ["2019", "2020", "2021", "2022", "2023", "2024", "2025"];
+  const labels = [];
+  const actualValues = [];
+  const projectedValues = [];
+
+  YEARS.forEach(yearStr => {
+    const year = parseInt(yearStr, 10);
+    if (Object.prototype.hasOwnProperty.call(safe, yearStr)) {
+      const num = parseFloat(String(safe[yearStr]).replace(/[^0-9.\-]/g, ""));
       if (!isNaN(num)) {
-        years.push(y);
-        values.push(num);
+        labels.push(yearStr);
+        actualValues.push(num);
+
+        if (year === currentYear && dayOfYear < daysInYear) {
+            const runRate = num / (dayOfYear / daysInYear);
+            const projection = runRate - num;
+            projectedValues.push(projection > 0 ? projection : 0);
+        } else {
+            projectedValues.push(0);
+        }
       }
     }
   });
 
-  /* ---- nothing to plot? clear & bail ---- */
-  if (years.length === 0) {
+  if (labels.length === 0) {
     if (salesChart) salesChart.destroy();
     return;
   }
 
-  /* ---- prepare canvas ---- */
   const ctx = document.getElementById("salesByYearChart");
   if (!ctx) return;
 
-  if (salesChart) salesChart.destroy();            // remove previous instance
+  if (salesChart) salesChart.destroy();
 
-  /* ---- create new bar chart ---- */
   salesChart = new Chart(ctx, {
     type: "bar",
     data: {
-      labels: years,
+      labels: labels,
       datasets: [{
-        data: values,
+        label: 'Actual',
+        data: actualValues,
+        backgroundColor: 'rgba(54, 162, 235, 0.8)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1
+      }, {
+        label: 'Projected',
+        data: projectedValues,
+        backgroundColor: 'rgba(255, 159, 64, 0.8)',
+        borderColor: 'rgba(255, 159, 64, 1)',
         borderWidth: 1
       }]
     },
     options: {
-      plugins: { legend: { display: false } },
-      scales : {
-        x: {
-          ticks: { font: { size: 10 } }
-        },
-        y: {
-          display: false,
-          beginAtZero: true
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
+        tooltip: {
+            callbacks: {
+                label: function(context) {
+                    let label = context.dataset.label || '';
+                    if (label) {
+                        label += ': ';
+                    }
+                    if (context.parsed.y !== null) {
+                        label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                    }
+                    return label;
+                }
+            }
         }
+      },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 10 } } },
+        y: { stacked: true, display: false, beginAtZero: true }
       }
     }
   });
@@ -424,14 +458,14 @@ async function selectCustomerInfo(customerName) {
         let suggestionsHTML = '';
         if (matches.length > 0) {
             suggestionsHTML = `
-                <p class="mt-3 mb-1">Possible matches:</p>
-                <div class="list-group list-group-flush">
+                <h6 class="mt-3 mb-2 text-muted">Did you mean?</h6>
+                <div class="list-group">
                     ${matches.map(match => {
                         const safeName = match.item.replace(/'/g, "\\'");
                         return `
-                        <a href="#" class="list-group-item list-group-item-action py-1" 
+                        <a href="#" class="list-group-item list-group-item-action py-2" 
                            onclick="event.preventDefault(); UIrenderer.displayContactsForCompany('${safeName}')">
-                           ${match.item}
+                           <i class="fas fa-search me-2 text-primary"></i>${match.item}
                         </a>`;
                     }).join('')}
                 </div>
@@ -439,7 +473,12 @@ async function selectCustomerInfo(customerName) {
         }
         
         contactCardsContainer.innerHTML = `
-            <p class="text-muted fst-italic">No contacts found in GAL for "${customerName}".</p>
+            <div class="alert alert-warning d-flex align-items-center" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <div>
+                    No contacts found in GAL for "<strong>${customerName}</strong>".
+                </div>
+            </div>
             ${suggestionsHTML}
         `;
     } else {
