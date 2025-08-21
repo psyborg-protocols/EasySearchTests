@@ -1,5 +1,5 @@
 // app.js
-const APP_VERSION = "1.0.5"; // Incremented version to ensure cache is cleared on next load
+const APP_VERSION = "1.0.6"; // Incremented version to ensure cache is cleared on next load
 
 document.addEventListener('DOMContentLoaded', async function () {
   // Version check

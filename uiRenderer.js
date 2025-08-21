@@ -502,79 +502,144 @@ async function selectCustomerInfo(customerName) {
   }
 }
 
+/**
+ * Calculates and displays the total sales for the last 12 months and the percent change
+ * from the prior 12 months.
+ * @param {string} partNumber - The product's part number.
+ */
+function calculateAndDisplayYoYSales(partNumber) {
+    setTimeout(() => {
+        const salesData = window.dataStore?.Sales?.dataframe || [];
+        const yoyEl = document.getElementById('yoySales'); // Changed ID for clarity
+
+        if (!salesData.length || !yoyEl) {
+            if (yoyEl) yoyEl.innerHTML = '<i class="text-muted">N/A</i>';
+            return;
+        }
+
+        const today = new Date();
+        const last12Start = new Date();
+        last12Start.setFullYear(today.getFullYear() - 1);
+        const prior12Start = new Date();
+        prior12Start.setFullYear(today.getFullYear() - 2);
+
+        let totalLast12 = 0;
+        let totalPrior12 = 0;
+
+        salesData.forEach(sale => {
+            if (sale.Product_Service !== partNumber) return;
+
+            const saleDate = new Date(sale.Date);
+            const quantity = parseInt(sale.Quantity) || 0;
+
+            if (saleDate >= last12Start && saleDate <= today) {
+                totalLast12 += quantity;
+            } else if (saleDate >= prior12Start && saleDate < last12Start) {
+                totalPrior12 += quantity;
+            }
+        });
+
+        let percentChange = 0;
+        if (totalPrior12 > 0) {
+            percentChange = ((totalLast12 - totalPrior12) / totalPrior12) * 100;
+        } else if (totalLast12 > 0) {
+            percentChange = 100; // Indicate growth from zero
+        }
+
+        const badgeColor = percentChange > 0 ? 'bg-success' : 'bg-danger';
+        const sign = percentChange > 0 ? '+' : '';
+        const changeHtml = totalLast12 > 0 || totalPrior12 > 0 ?
+            `<span class="badge ${badgeColor} ms-2">${sign}${percentChange.toFixed(0)}%</span>` : '';
+
+        yoyEl.innerHTML = `<span>${totalLast12} units ${changeHtml}</span>`;
+
+    }, 500); // Delay to show spinner
+}
+
 let productInfoModalInstance = null;
 /**
  * Finds all data for a given product and displays it in a polished Bootstrap modal.
  * @param {string} encodedPartNumber - The URI-encoded part number of the product.
  */
 function showProductInfoModal(encodedPartNumber) {
-  const partNumber = decodeURIComponent(encodedPartNumber).toString().trim();
-  const inventoryData = window.dataStore["DB"]?.dataframe || [];
-  const product = inventoryData.find(item => String(item["PartNumber"]).trim() === partNumber);
+    const partNumber = decodeURIComponent(encodedPartNumber).toString().trim();
+    const inventoryData = window.dataStore["DB"]?.dataframe || [];
+    const product = inventoryData.find(item => String(item["PartNumber"]).trim() === partNumber);
 
-  if (!product) {
-    console.error("Could not find product details for modal:", partNumber);
-    return;
-  }
-
-  // 2. Check if the modal instance has been created yet. If not, create it.
-  if (!productInfoModalInstance) {
-    productInfoModalInstance = new bootstrap.Modal(document.getElementById('productInfoModal'));
-  }
-
-  // --- (The rest of the function to populate the modal content remains the same) ---
-  document.getElementById('productInfoModalLabel').textContent = product.PartNumber || "N/A";
-  document.getElementById('productInfoModalDescription').textContent = product.Description || "";
-  const modalBody = document.getElementById('productInfoModalBody');
-  const fieldsToShow = [
-    "Active", "QtyOnHand", "QtyCommited", "ReOrder Level",
-    "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue"
-  ];
-  let bodyHtml = '';
-  fieldsToShow.forEach(field => {
-    const displayName = field.replace(/([A-Z])/g, ' $1').trim();
-    const value = product[field];
-    let displayValue;
-    if (value === undefined || value === null || String(value).trim() === "") {
-      displayValue = '<i class="text-muted">N/A</i>';
-    } else {
-      switch (field) {
-        case 'UnitCost':
-        case 'ExtValue':
-          displayValue = (typeof value === 'number') ? moneyFmt.format(value) : value;
-          break;
-        case 'Active':
-          displayValue = String(value).toLowerCase() === 'active' 
-            ? '<span class="badge bg-success">Active</span>' 
-            : '<span class="badge bg-secondary">Inactive</span>';
-          break;
-        case 'QtyOnHand':
-          const qtyOnHand = toNumber(value);
-          const reOrderLevel = toNumber(product["ReOrder Level"]);
-          let qtyClass = '';
-          if (reOrderLevel > 0 && qtyOnHand <= reOrderLevel) {
-            qtyClass = 'text-danger fw-bold low-stock';
-          }
-          displayValue = `<span class="${qtyClass}">${qtyOnHand}</span>`;
-          break;
-        default:
-          displayValue = value;
-          break;
-      }
+    if (!product) {
+        console.error("Could not find product details for modal:", partNumber);
+        return;
     }
-    bodyHtml += `
+
+    if (!productInfoModalInstance) {
+        productInfoModalInstance = new bootstrap.Modal(document.getElementById('productInfoModal'));
+    }
+
+    document.getElementById('productInfoModalLabel').textContent = product.PartNumber || "N/A";
+    document.getElementById('productInfoModalDescription').textContent = product.Description || "";
+    const modalBody = document.getElementById('productInfoModalBody');
+    const fieldsToShow = [
+        "Active", "QtyOnHand", "QtyCommited", "ReOrder Level",
+        "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue"
+    ];
+    let bodyHtml = '';
+    fieldsToShow.forEach(field => {
+        const displayName = field.replace(/([A-Z])/g, ' $1').trim();
+        const value = product[field];
+        let displayValue;
+        if (value === undefined || value === null || String(value).trim() === "") {
+            displayValue = '<i class="text-muted">N/A</i>';
+        } else {
+            switch (field) {
+                case 'UnitCost':
+                case 'ExtValue':
+                    displayValue = (typeof value === 'number') ? moneyFmt.format(value) : value;
+                    break;
+                case 'Active':
+                    displayValue = String(value).toLowerCase() === 'active' ?
+                        '<span class="badge bg-success">Active</span>' :
+                        '<span class="badge bg-secondary">Inactive</span>';
+                    break;
+                case 'QtyOnHand':
+                    const qtyOnHand = toNumber(value);
+                    const reOrderLevel = toNumber(product["ReOrder Level"]);
+                    let qtyClass = '';
+                    if (reOrderLevel > 0 && qtyOnHand <= reOrderLevel) {
+                        qtyClass = 'text-danger fw-bold low-stock';
+                    }
+                    displayValue = `<span class="${qtyClass}">${qtyOnHand}</span>`;
+                    break;
+                default:
+                    displayValue = value;
+                    break;
+            }
+        }
+        bodyHtml += `
       <div class="row">
         <dt class="col-sm-5">${displayName}</dt>
         <dd class="col-sm-7 mb-0">${displayValue}</dd>
       </div>
     `;
-  });
-  modalBody.innerHTML = bodyHtml;
-  // --- (End of content population logic) ---
+    });
 
-  // 3. Now, just show the single, persistent modal instance.
-  productInfoModalInstance.show();
+    // Add the placeholder for the new Year-over-Year sales metric
+    bodyHtml += `
+      <div class="row">
+        <dt class="col-sm-5">Sales (Last 12 Mo)</dt>
+        <dd class="col-sm-7 mb-0" id="yoySales">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        </dd>
+      </div>
+  `;
+
+    modalBody.innerHTML = bodyHtml;
+
+    // Calculate and display the new metric
+    calculateAndDisplayYoYSales(partNumber);
+
+    productInfoModalInstance.show();
 }
+
 
 // Add an event listener for changes on the filter toggle switch
 document.getElementById("filterOrdersToggle").addEventListener("change", () => {
