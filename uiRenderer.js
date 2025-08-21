@@ -596,7 +596,7 @@ function showProductInfoModal(encodedPartNumber) {
                     displayValue = (typeof value === 'number') ? moneyFmt.format(value) : value;
                     break;
                 case 'Active':
-                    displayValue = String(value).toLowerCase() === 'active' ?
+                    displayValue = String(value).toLowerCase() === 'true' ?
                         '<span class="badge bg-success">Active</span>' :
                         '<span class="badge bg-secondary">Inactive</span>';
                     break;
