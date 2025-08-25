@@ -286,14 +286,16 @@
       flex-direction: column;
       overflow: hidden;
     }
-    #codeEditor, #codeLog {
+    /* --- UPDATED FOR SCROLLING --- */
+    #codeEditor {
+      height: 60%; /* Initial height */
       flex-shrink: 0;
-      height: 60%; /* Initial height for editor */
-      overflow-y: auto;
+      overflow-y: auto; /* Make editor scrollable if code is long */
     }
     #codeLog {
-      height: auto; /* It will fill the remaining space */
-      flex-grow: 1;
+      flex-grow: 1; /* Fill remaining vertical space */
+      flex-basis: 0; /* Start with zero height, let flex-grow manage it */
+      overflow-y: auto; /* Add a scrollbar when content overflows */
       background-color: #21222c;
       font-family: monospace;
       font-size: 0.9rem;
@@ -856,6 +858,7 @@
   <script src="/EasySearchTests/reports/productStuckInventoryReport.js"></script>
   <script src="/EasySearchTests/reports/profitReport.js"></script>
   <script src="/EasySearchTests/reports/topCustomersRevenueReport.js"></script>
+  <script src="/EasySearchTests/reports/bmReplacementReport.js"></script>
   <script src="reports.js"></script>
   <script src="uiRenderer.js"></script>
   <script src="app.js"></script>

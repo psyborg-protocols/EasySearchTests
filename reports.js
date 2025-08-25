@@ -10,6 +10,11 @@ window.reportModules = [
     generatorFunctionName: 'buildRevenueDropReport'
   },
   {
+    id: 'bm-replacement',
+    title: 'BM Replacement Opportunities',
+    generatorFunctionName: 'buildBMReplacementReport'
+  },
+  {
     id: 'lapsed',
     title: 'Lapsed Customers (No Orders in 6 Months, Avg. Freq. > 1/6mo)',
     generatorFunctionName: 'buildLapsedCustomersReport'
