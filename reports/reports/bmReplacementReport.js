@@ -48,6 +48,15 @@ window.buildBMReplacementReport = function buildBMReplacementReport(
             const num = parseFloat(String(val).replace(/[^0-9.-]/g, ''));
             return isFinite(num) ? num : 0;
         };
+        
+        // Formats a number into a currency string.
+        const formatCurrency = (val) => {
+            const num = parseNumber(val);
+            return num.toLocaleString('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            });
+        };
 
         // Escapes a string for use in a CSV file.
         const toCsvField = (val) => {
@@ -149,9 +158,12 @@ window.buildBMReplacementReport = function buildBMReplacementReport(
         const csvRows = [];
 
         // Define the main headers for the file
+        // Note: Bolding/italics are not supported in the CSV format itself.
         const mainHeaders = [
             'Product', 'BM Replacement(s)', 'Total Product Revenue (12 Mo)',
-            'Purchasing Company', 'Company Revenue for Product', 'Contact 1', 'Contact 2', 'Contact 3'
+            'Purchasing Company', 'Company Revenue for Product', 
+            'Contact 1', 'Contact 2', 'Contact 3', 'Contact 4', 'Contact 5',
+            'Contact 6', 'Contact 7', 'Contact 8', 'Contact 9', 'Contact 10'
         ];
         csvRows.push(mainHeaders.join(','));
 
@@ -161,7 +173,7 @@ window.buildBMReplacementReport = function buildBMReplacementReport(
             const productRowData = [
                 productData.Product,
                 productData['BM Replacement(s)'],
-                productData['Revenue (12 Mo)']
+                formatCurrency(productData['Revenue (12 Mo)']) // Format revenue
             ];
             csvRows.push(productRowData.map(toCsvField).join(','));
 
@@ -176,11 +188,11 @@ window.buildBMReplacementReport = function buildBMReplacementReport(
                         '', // Indent
                         '', // Indent
                         company,
-                        companyRevenue,
+                        formatCurrency(companyRevenue), // Format revenue
                     ];
 
-                    // Add up to 3 contacts with HYPERLINK formulas
-                    for (let i = 0; i < 3; i++) {
+                    // Add up to 10 contacts with HYPERLINK formulas
+                    for (let i = 0; i < 10; i++) {
                         const contact = contacts[i];
                         if (contact) {
                             const displayName = contact.name || contact.email;
