@@ -13,13 +13,16 @@ const msalConfig = {
     }
 };
 
+// --- API Configuration ---
+// The scope required to call our backend API Gateway.
+const apiScope = `api://${msalConfig.auth.clientId}/Contacts.Update`;
+
 // MS Graph API scopes needed for accessing OneDrive files
-const scopes = [
+const graphScopes = [
     "User.Read",
     "Files.ReadWrite.All",
     "Sites.Read.All",
-    "OrgContact.Read.All",
-    "api://26f834bc-3365-486c-95ff-1a45a24488b5/Contacts.Update"
+    "OrgContact.Read.All"
 ];
 
 // Global variables for the MSAL instance and user account
@@ -121,32 +124,52 @@ function signOut() {
   }
   
 
-// Acquire an access token for MS Graph API calls
-async function getAccessToken() {
+/**
+ * Acquires an access token for a specific set of scopes.
+ * @param {string[]} scopes - An array of scopes to request for the token.
+ * @returns {Promise<string>} The access token.
+ */
+async function getScopedAccessToken(scopes) {
     if (!userAccount) {
-        throw new Error("User not logged in");
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+            userAccount = accounts[0];
+        } else {
+            throw new Error("User not logged in. Cannot acquire token.");
+        }
     }
 
     try {
-        // Try to get token silently
         const tokenResponse = await msalInstance.acquireTokenSilent({
             scopes,
             account: userAccount
         });
         return tokenResponse.accessToken;
     } catch (error) {
-        console.log("Silent token acquisition failed, forcing reauthentication...");
-        
-        // If silent token fails, force an interactive login
+        console.warn("Silent token acquisition failed, trying popup...", error);
         try {
-            const tokenResponse = await msalInstance.acquireTokenPopup({ 
-                scopes, 
-                forceRefresh: true 
-            });
+            const tokenResponse = await msalInstance.acquireTokenPopup({ scopes });
+            userAccount = tokenResponse.account;
             return tokenResponse.accessToken;
         } catch (err) {
             console.error("Error acquiring token interactively:", err);
             throw err;
         }
     }
+}
+
+/**
+ * Acquires an access token specifically for the Microsoft Graph API.
+ * @returns {Promise<string>} The access token for MS Graph.
+ */
+async function getAccessToken() {
+    return getScopedAccessToken(graphScopes);
+}
+
+/**
+ * Acquires an access token specifically for our backend AWS API Gateway.
+ * @returns {Promise<string>} The access token for the backend API.
+ */
+async function getApiAccessToken() {
+    return getScopedAccessToken([apiScope]);
 }

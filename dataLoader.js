@@ -1,3 +1,6 @@
+// --- AWS API Endpoint ---
+const apiUrl = 'https://0bzlvszjzl.execute-api.us-east-1.amazonaws.com/updateContact';
+
 const DISALLOWED_PRODUCTS = [
   "", "Credit Card Fees", "Cost of Goods Sold", "Freight", "Health Insurance", "Amazon Fees", "Bank Fees", "Bad Debit", "PmntDiscount_Customer Discounts",
   "Misc", "PmntDiscount_Bank Service Charges", "Testing", "Restock", "Testing-Bio", "Testing-Endo", "Services", "Sales"
@@ -445,19 +448,18 @@ function getCustomerDetails(company) {
  * @param {string} newCompanyName - The correct company name from the sales data.
  */
 async function updateContactCompany(email, newCompanyName) {
-  // API Gateway endpoint
-  const apiUrl = 'https://0bzlvszjzl.execute-api.us-east-1.amazonaws.com/updateContact';
-
   try {
-    // Use the existing getAccessToken function from auth.js
-    const accessToken = await getAccessToken();
+    // 1. Get an access token for our API using the new helper function from auth.js.
+    const accessToken = await getApiAccessToken();
 
+    // 2. Define the payload
     const payload = {
       action: 'updateCompany',
       email: email,
       companyName: newCompanyName
     };
 
+    // 3. Make the secure fetch call with the Authorization header
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -469,15 +471,18 @@ async function updateContactCompany(email, newCompanyName) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to update contact: ${errorText}`);
+      // Throwing an error here will allow the caller to catch it
+      throw new Error(`API Error: ${response.status} - ${errorText}`);
     }
 
-    console.log('Successfully updated contact.');
-    return true; // Return success
-    
+    const result = await response.text();
+    console.log('Successfully sent update request:', result);
+    return result;
+
   } catch (error) {
-    console.error('Error updating contact:', error);
-    throw error; // Re-throw the error to be handled by the caller
+    console.error('Error in updateContactCompany:', error);
+    // Re-throw the error so the calling function knows something went wrong
+    throw error;
   }
 }
 
