@@ -62,7 +62,8 @@ function initializeAuth() {
 // Sign in using a popup window
 async function signIn() {
     try {
-        const response = await msalInstance.loginPopup({ scopes });
+        // CORRECTED: Use 'graphScopes' which contains the necessary permissions for the app to function.
+        const response = await msalInstance.loginPopup({ scopes: graphScopes });
         handleLoginResponse(response.account);
         return response.account; // Ensure the caller can wait for authentication
     } catch (error) {
@@ -167,7 +168,7 @@ async function getAccessToken() {
 }
 
 /**
- * Acquires an access token specifically for our backend AWS API Gateway.
+ * Acquires an access token specifically for our backend API Gateway.
  * @returns {Promise<string>} The access token for the backend API.
  */
 async function getApiAccessToken() {
