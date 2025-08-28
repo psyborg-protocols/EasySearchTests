@@ -439,6 +439,49 @@ function getCustomerDetails(company) {
   return (window.dataStore["CustomerContacts"] || {})[key] || null;
 }
 
+/**
+ * Calls the AWS Lambda endpoint to update a contact's company name.
+ * @param {string} email - The primary email of the contact to update.
+ * @param {string} newCompanyName - The correct company name from the sales data.
+ */
+async function updateContactCompany(email, newCompanyName) {
+  // API Gateway endpoint
+  const apiUrl = 'https://0bzlvszjzl.execute-api.us-east-1.amazonaws.com/updateContact';
+
+  try {
+    // Use the existing getAccessToken function from auth.js
+    const accessToken = await getAccessToken();
+
+    const payload = {
+      action: 'updateCompany',
+      email: email,
+      companyName: newCompanyName
+    };
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to update contact: ${errorText}`);
+    }
+
+    console.log('Successfully updated contact.');
+    return true; // Return success
+    
+  } catch (error) {
+    console.error('Error updating contact:', error);
+    throw error; // Re-throw the error to be handled by the caller
+  }
+}
+
+
 window.dataStore = {}; 
 window.dataStore.fileLinks = {};
 window.dataLoader = {
@@ -447,5 +490,6 @@ window.dataLoader = {
   downloadExcelFile,
   parseExcelData,
   processFiles,
-  getCustomerDetails
+  getCustomerDetails,
+  updateContactCompany 
 };

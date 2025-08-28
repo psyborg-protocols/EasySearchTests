@@ -18,7 +18,8 @@ const scopes = [
     "User.Read",
     "Files.ReadWrite.All",
     "Sites.Read.All",
-    "OrgContact.Read.All"
+    "OrgContact.Read.All",
+    "api://26f834bc-3365-486c-95ff-1a45a24488b5/Contacts.Update"
 ];
 
 // Global variables for the MSAL instance and user account
