@@ -370,17 +370,18 @@ async function selectCustomer(customerName) {
 
 /**
  * Handles the logic for merging/updating contacts when the user confirms.
- * @param {HTMLElement} buttonElement - The button element that was clicked.
  * @param {string} correctCompanyName - The company name from Sales data.
  * @param {string} mismatchedCompanyName - The company name found in the GAL.
  */
-async function handleContactMerge(buttonElement, correctCompanyName, mismatchedCompanyName) {
-    const actionDiv = buttonElement.parentElement;
-    if (!actionDiv) return;
+async function handleContactMerge(correctCompanyName, mismatchedCompanyName) {
+    const cardId = `merge-card-${mismatchedCompanyName.replace(/[^a-zA-Z0-9]/g, '')}`;
+    const mergeCard = document.getElementById(cardId);
+    if (!mergeCard) return;
 
+    const actionDiv = mergeCard.querySelector('.merge-actions');
     actionDiv.innerHTML = `
-        <div class="d-flex align-items-center text-primary">
-            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
             <span>Updating contacts...</span>
         </div>`;
 
@@ -394,37 +395,26 @@ async function handleContactMerge(buttonElement, correctCompanyName, mismatchedC
         
         await Promise.all(updatePromises);
 
-        // --- NEW: Update the in-memory dataStore to reflect the change ---
-        console.log(`Updating in-memory state: moving ${contactsToUpdate.length} contacts from '${mismatchedCompanyName}' to '${correctCompanyName}'.`);
-        const correctCompanyKey = correctCompanyName.trim().toLowerCase();
-
-        // Get the existing contacts for the correct company, or initialize an empty array
-        const existingContacts = orgContacts.get(correctCompanyKey) || [];
-
-        // Add the newly updated contacts
-        const updatedContactsList = existingContacts.concat(contactsToUpdate);
-
-        // Set the new, combined list for the correct company
-        orgContacts.set(correctCompanyKey, updatedContactsList);
-
-        // Remove the old, mismatched company entry
-        orgContacts.delete(mismatchedCompanyName);
-        console.log(`State update complete. '${correctCompanyKey}' now has ${updatedContactsList.length} contacts.`);
-
-
-        // --- Success UI ---
-        actionDiv.innerHTML = `<div class="d-flex align-items-center text-success fw-bold"><i class="fas fa-check-circle me-2"></i> Update Complete!</div>`;
+        // --- Success ---
+        mergeCard.classList.remove('alert-warning');
+        mergeCard.classList.add('alert-success');
+        mergeCard.querySelector('.alert-heading').textContent = 'Update Complete!';
+        actionDiv.innerHTML = `<i class="fas fa-check-circle me-2"></i> All contacts for "${mismatchedCompanyName}" have been updated.`;
         
-        // --- Refresh UI ---
+        // --- Optional: Refresh data in the background ---
+        // This is advanced, but good UX. It re-fetches contacts so the UI is fresh.
         setTimeout(() => {
-            console.log("Refreshing UI with updated state...");
-            selectCustomerInfo(correctCompanyName); // Re-run the search, which will now find the correct entry
-        }, 1500);
+            console.log("Refreshing contact data after merge...");
+            dataLoader.processFiles(); // This will re-run the delta query
+        }, 1000);
 
     } catch (error) {
         // --- Error ---
         console.error("Failed to update contacts:", error);
-        actionDiv.innerHTML = `<div class="d-flex align-items-center text-danger fw-bold"><i class="fas fa-times-circle me-2"></i> Update Failed.</div>`;
+        mergeCard.classList.remove('alert-warning');
+        mergeCard.classList.add('alert-danger');
+         mergeCard.querySelector('.alert-heading').textContent = 'Update Failed';
+        actionDiv.innerHTML = `An error occurred. Please check the console for details.`;
     }
 }
 
@@ -473,7 +463,7 @@ async function selectCustomerInfo(customerName) {
   
   drawSalesChart(salesByYear);
 
-  // --- HYBRID CONTACTS & MERGE LOGIC (BEST OF BOTH VERSIONS) ---
+  // --- ENHANCED CONTACTS & MERGE LOGIC ---
   const contactCardsContainer = document.getElementById("contactCardsContainer");
   const orgContacts = window.dataStore.OrgContacts; // This is a Map
   const companyKey = customerName.trim().toLowerCase();
@@ -495,56 +485,44 @@ async function selectCustomerInfo(customerName) {
         const matches = fuse.search(companyKey).slice(0, 3);
 
         if (matches.length > 0) {
-            const safeCorrectName = customerName.replace(/'/g, "\\'");
-            const accordionId = `mergeAccordion-${safeCorrectName.replace(/[^a-zA-Z0-9]/g, '')}`;
-
-            const accordionItemsHTML = matches.map((match, index) => {
+            // A mismatch was found, render the new Merge UI
+            let mergeUIHTML = '';
+            matches.forEach(match => {
                 const mismatchedName = match.item;
                 const contactsUnderMismatch = orgContacts.get(mismatchedName);
+                const cardId = `merge-card-${mismatchedName.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+                // Sanitize parameters for the onclick handler
+                const safeCorrectName = correctCompanyName.replace(/'/g, "\\'");
                 const safeMismatchedName = mismatchedName.replace(/'/g, "\\'");
-                const contactCount = contactsUnderMismatch.length;
-                const contactOrContacts = contactCount === 1 ? 'contact' : 'contacts';
-                const collapseId = `collapse-${accordionId}-${index}`;
 
-                return `
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading-${collapseId}">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
-                            <strong>${mismatchedName}</strong>&nbsp;(${contactCount} ${contactOrContacts} found)
-                        </button>
-                    </h2>
-                    <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="heading-${collapseId}" data-bs-parent="#${accordionId}">
-                        <div class="accordion-body">
-                            <p>The following contacts will be updated to match the sales name "<strong>${customerName}</strong>":</p>
-                            <div class="mb-3">
-                                ${contactsUnderMismatch.map(c => `
-                                    <div class="contact-card bg-light border-warning mb-2 py-2">
-                                        <h6>${c.Name}</h6>
-                                        <p class="mb-0 small"><strong>Email:</strong> ${c.Email}</p>
-                                    </div>
-                                `).join('')}
+                mergeUIHTML += `
+                <div id="${cardId}" class="alert alert-warning mt-3">
+                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Data Mismatch Detected</h5>
+                    <p class="mb-1">
+                        The company name in Sales is <strong>"${customerName}"</strong>.
+                    </p>
+                    <p>
+                        However, we found the following contacts under the name <strong>"${mismatchedName}"</strong>.
+                    </p>
+                    <hr>
+                    <div class="mb-3">
+                        ${contactsUnderMismatch.map(c => `
+                            <div class="contact-card bg-light border-warning mb-2">
+                                <h6>${c.Name}</h6>
+                                <p class="mb-0"><strong>Email:</strong> ${c.Email}</p>
                             </div>
-                            <div class="merge-actions">
-                                <button class="btn btn-primary" onclick="UIrenderer.handleContactMerge(this, '${safeCorrectName}', '${safeMismatchedName}')">
-                                    <i class="fas fa-sync-alt me-2"></i>Update ${contactCount} ${contactOrContacts}
-                                </button>
-                            </div>
-                        </div>
+                        `).join('')}
                     </div>
-                </div>`;
-            }).join('');
-
-            const mergeUIHTML = `
-            <div class="card mt-3">
-                <div class="card-header bg-light">
-                    <i class="fas fa-search me-2 text-primary"></i>
-                    <strong>No exact contact match found. Did you mean?</strong>
+                    <div class="merge-actions">
+                        <p>Would you like to update these contacts to match the Sales name?</p>
+                        <button class="btn btn-primary" onclick="UIrenderer.handleContactMerge('${safeCorrectName}', '${safeMismatchedName}')">
+                            <i class="fas fa-sync-alt me-2"></i>Update ${contactsUnderMismatch.length} Contacts
+                        </button>
+                    </div>
                 </div>
-                <div class="accordion" id="${accordionId}">
-                    ${accordionItemsHTML}
-                </div>
-            </div>`;
-            
+                `;
+            });
             contactCardsContainer.innerHTML = mergeUIHTML;
 
         } else {
@@ -826,7 +804,7 @@ async function selectProduct(encodedPartNumber, options = {}) {
 
 
       // Retrieve the replacements mapping for this product
-      const equivalentsMap = window.dataStore["Equivalents"] || {};
+      const equivalentsMap = window.dataStore.Equivalents?.dataframe || {};
       const replacements = equivalentsMap[partNumber];
       const bulbIcon = document.getElementById("genericBulb");
       const container = document.getElementById("genericContainer");
@@ -1121,3 +1099,4 @@ window.UIrenderer = {
   handleContactMerge, // Expose the new merge handler
   showProductInfoModal
 };
+

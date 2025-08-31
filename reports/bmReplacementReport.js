@@ -19,9 +19,9 @@ window.buildBMReplacementReport = function buildBMReplacementReport(
     setTimeout(() => {
       try {
         // Access the necessary data stores, providing empty objects as fallbacks.
-        const equivalents = dataStore.Equivalents || {};
+        const equivalents = dataStore.Equivalents?.dataframe || {};
         const salesData = dataStore.Sales?.dataframe || [];
-        const customerContacts = dataStore.CustomerContacts || {};
+        const customerContacts = dataStore.CustomerContacts?.dataframe || {};
         const orgContacts = dataStore.OrgContacts || new Map();
 
 

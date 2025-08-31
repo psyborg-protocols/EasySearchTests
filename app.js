@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async function () {
       window.dataStore["Pricing"] = cachedPricing;
       window.dataStore["PriceRaise"] = cachedPriceRaise;
       if (cachedContacts) window.dataStore["CustomerContacts"] = cachedContacts;
-      if (cachedEquivs) window.dataStore["Equivalents"] = cachedEquivs.dataframe;
+      if (cachedEquivs) window.dataStore["Equivalents"] = cachedEquivs;
       if (cachedOrgContacts) window.dataStore["OrgContacts"] = new Map(Object.entries(cachedOrgContacts));
       
       console.log("[Startup] Success! Data loaded from cache. UI is now active.");

@@ -268,7 +268,7 @@ async function processFiles() {
         if (key === "Equivalents") {
           const map = normalizeEquivalents(frame);
           const stored = { dataframe: map, metadata: md };
-          ds[key] = map;
+          ds[key] = stored;
           await idbUtil.setDataset(storageKey, stored);
           continue;
         }
