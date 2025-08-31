@@ -485,44 +485,39 @@ async function selectCustomerInfo(customerName) {
         const matches = fuse.search(companyKey).slice(0, 3);
 
         if (matches.length > 0) {
-            // A mismatch was found, render the new Merge UI
-            let mergeUIHTML = '';
-            matches.forEach(match => {
+            // --- NEW: A single, consolidated UI for all possible matches ---
+            const safeCorrectName = customerName.replace(/'/g, "\\'");
+
+            const listItemsHTML = matches.map(match => {
                 const mismatchedName = match.item;
                 const contactsUnderMismatch = orgContacts.get(mismatchedName);
-                const cardId = `merge-card-${mismatchedName.replace(/[^a-zA-Z0-9]/g, '')}`;
-
-                // Sanitize parameters for the onclick handler
-                const safeCorrectName = customerName.replace(/'/g, "\\'");
                 const safeMismatchedName = mismatchedName.replace(/'/g, "\\'");
+                const contactCount = contactsUnderMismatch.length;
+                const contactOrContacts = contactCount === 1 ? 'contact' : 'contacts';
 
-                mergeUIHTML += `
-                <div id="${cardId}" class="alert alert-warning mt-3">
-                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Data Mismatch Detected</h5>
-                    <p class="mb-1">
-                        The company name in Sales is <strong>"${customerName}"</strong>.
-                    </p>
-                    <p>
-                        However, we found the following contacts under the name <strong>"${mismatchedName}"</strong>.
-                    </p>
-                    <hr>
-                    <div class="mb-3">
-                        ${contactsUnderMismatch.map(c => `
-                            <div class="contact-card bg-light border-warning mb-2">
-                                <h6>${c.Name}</h6>
-                                <p class="mb-0"><strong>Email:</strong> ${c.Email}</p>
-                            </div>
-                        `).join('')}
+                return `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">${mismatchedName}</h6>
+                        <small class="text-muted">${contactCount} ${contactOrContacts} found</small>
                     </div>
-                    <div class="merge-actions">
-                        <p>Would you like to update these contacts to match the Sales name?</p>
-                        <button class="btn btn-primary" onclick="UIrenderer.handleContactMerge('${safeCorrectName}', '${safeMismatchedName}')">
-                            <i class="fas fa-sync-alt me-2"></i>Update ${contactsUnderMismatch.length} Contacts
-                        </button>
-                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="UIrenderer.handleContactMerge('${safeCorrectName}', '${safeMismatchedName}')">
+                        <i class="fas fa-sync-alt me-1"></i> Update ${contactOrContacts}
+                    </button>
+                </li>`;
+            }).join('');
+
+            const mergeUIHTML = `
+            <div class="card mt-3">
+                <div class="card-header bg-light">
+                    <i class="fas fa-search me-2 text-primary"></i>
+                    <strong>No exact contact match found. Did you mean?</strong>
                 </div>
-                `;
-            });
+                <ul class="list-group list-group-flush" id="merge-card-${safeCorrectName.replace(/[^a-zA-Z0-9]/g, '')}">
+                    ${listItemsHTML}
+                </ul>
+            </div>`;
+            
             contactCardsContainer.innerHTML = mergeUIHTML;
 
         } else {
