@@ -370,18 +370,19 @@ async function selectCustomer(customerName) {
 
 /**
  * Handles the logic for merging/updating contacts when the user confirms.
+ * This version is designed to work with the accordion UI.
+ * @param {HTMLElement} buttonElement - The button that was clicked.
  * @param {string} correctCompanyName - The company name from Sales data.
  * @param {string} mismatchedCompanyName - The company name found in the GAL.
  */
-async function handleContactMerge(correctCompanyName, mismatchedCompanyName) {
-    const cardId = `merge-card-${mismatchedCompanyName.replace(/[^a-zA-Z0-9]/g, '')}`;
-    const mergeCard = document.getElementById(cardId);
-    if (!mergeCard) return;
+async function handleContactMerge(buttonElement, correctCompanyName, mismatchedCompanyName) {
+    const actionDiv = buttonElement.parentElement;
+    if (!actionDiv) return;
 
-    const actionDiv = mergeCard.querySelector('.merge-actions');
+    // 1. Show spinner
     actionDiv.innerHTML = `
-        <div class="d-flex align-items-center">
-            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+        <div class="d-flex align-items-center text-primary">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
             <span>Updating contacts...</span>
         </div>`;
 
@@ -389,36 +390,58 @@ async function handleContactMerge(correctCompanyName, mismatchedCompanyName) {
     const contactsToUpdate = orgContacts.get(mismatchedCompanyName) || [];
     
     try {
+        // 2. Call the backend for each contact
         const updatePromises = contactsToUpdate.map(contact => 
             dataLoader.updateContactCompany(contact.Email, correctCompanyName)
         );
-        
         await Promise.all(updatePromises);
 
-        // --- Success ---
-        mergeCard.classList.remove('alert-warning');
-        mergeCard.classList.add('alert-success');
-        mergeCard.querySelector('.alert-heading').textContent = 'Update Complete!';
-        actionDiv.innerHTML = `<i class="fas fa-check-circle me-2"></i> All contacts for "${mismatchedCompanyName}" have been updated.`;
+        // --- 3. Handle Success ---
         
-        // --- Optional: Refresh data in the background ---
-        // This is advanced, but good UX. It re-fetches contacts so the UI is fresh.
+        // a. Update UI to show success
+        actionDiv.innerHTML = `<div class="text-success fw-bold"><i class="fas fa-check-circle me-2"></i>Contacts updated successfully!</div>`;
+        const accordionItem = actionDiv.closest('.accordion-item');
+        if (accordionItem) {
+            const headerButton = accordionItem.querySelector('.accordion-button');
+            headerButton.classList.add('text-muted');
+            headerButton.innerHTML += ` <span class="badge bg-success ms-auto">Updated</span>`;
+        }
+
+        // b. Update in-memory data store to prevent re-suggestion
+        const correctKey = correctCompanyName.trim().toLowerCase();
+        const correctContactsList = orgContacts.get(correctKey) || [];
+        
+        contactsToUpdate.forEach(contact => {
+            if (!correctContactsList.some(c => c.Email.toLowerCase() === contact.Email.toLowerCase())) {
+                 correctContactsList.push(contact);
+            }
+        });
+
+        orgContacts.set(correctKey, correctContactsList);
+        orgContacts.delete(mismatchedCompanyName);
+
+        console.log(`In-memory store updated. Moved ${contactsToUpdate.length} contacts from "${mismatchedCompanyName}" to "${correctCompanyName}".`);
+        
+        // c. After a delay, refresh the whole view to reflect the changes cleanly
         setTimeout(() => {
-            console.log("Refreshing contact data after merge...");
-            dataLoader.processFiles(); // This will re-run the delta query
-        }, 1000);
+            selectCustomerInfo(correctCompanyName);
+        }, 2000);
 
     } catch (error) {
-        // --- Error ---
+        // --- 4. Handle Error ---
         console.error("Failed to update contacts:", error);
-        mergeCard.classList.remove('alert-warning');
-        mergeCard.classList.add('alert-danger');
-         mergeCard.querySelector('.alert-heading').textContent = 'Update Failed';
-        actionDiv.innerHTML = `An error occurred. Please check the console for details.`;
+        const safeCorrectName = correctCompanyName.replace(/'/g, "\\'");
+        const safeMismatchedName = mismatchedCompanyName.replace(/'/g, "\\'");
+        actionDiv.innerHTML = `
+            <div class="text-danger">
+                <i class="fas fa-times-circle me-2"></i>Update Failed.
+                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="UIrenderer.handleContactMerge(this, '${safeCorrectName}', '${safeMismatchedName}')">Retry</button>
+            </div>`;
     }
 }
 
 
+// Handle Customer Selection for Customer Info Tab
 async function selectCustomerInfo(customerName) {
   document.getElementById("customerInfoSearch").value = customerName;
   document.getElementById("customerInfoDropdown").innerHTML = "";
@@ -428,7 +451,6 @@ async function selectCustomerInfo(customerName) {
   document.getElementById("customerFieldsContainer").classList.remove('customer-info-content-hidden');
   document.getElementById("contactCardsContainer").classList.remove('customer-info-content-hidden');
 
-  // ... (order history, customer details, and chart logic remains the same) ...
   // Fetch order history
   const orderHistory = await getOrderHistory(customerName);
   window.currentOrderHistory = orderHistory; // Update global for filtering
