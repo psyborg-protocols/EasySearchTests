@@ -276,7 +276,7 @@ async function processFiles() {
         if (key === "CustomerContacts") {
           const map = normaliseCustomerContacts(frame);
           const stored = { dataframe: map, metadata: md };
-          ds[key] = map;
+          ds[key] = stored; // Corrected: Store the whole object, not just the map
           await idbUtil.setDataset(storageKey, stored);
           console.log(`[CustomerContacts] ${Object.keys(map).length} companies loaded.`);
           continue;
@@ -439,7 +439,7 @@ function normaliseCustomerContacts(frame) {
 
 function getCustomerDetails(company) {
   const key = company.trim().replace(/\s+/g, " ").toLowerCase();
-  return (window.dataStore["CustomerContacts"] || {})[key] || null;
+  return (window.dataStore.CustomerContacts?.dataframe || {})[key] || null;
 }
 
 /**

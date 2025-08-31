@@ -1,5 +1,5 @@
 // app.js
-const APP_VERSION = "1.0.7"; // Incremented version to ensure cache is cleared on next load
+const APP_VERSION = "1.0.8"; // Incremented version to ensure cache is cleared on next load
 
 document.addEventListener('DOMContentLoaded', async function () {
   // Version check
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', async function () {
       window.dataStore["Sales"] = cachedSales;
       window.dataStore["Pricing"] = cachedPricing;
       window.dataStore["PriceRaise"] = cachedPriceRaise;
-      if (cachedContacts) window.dataStore["CustomerContacts"] = cachedContacts.dataframe;
+      if (cachedContacts) window.dataStore["CustomerContacts"] = cachedContacts;
       if (cachedEquivs) window.dataStore["Equivalents"] = cachedEquivs.dataframe;
       if (cachedOrgContacts) window.dataStore["OrgContacts"] = new Map(Object.entries(cachedOrgContacts));
       
