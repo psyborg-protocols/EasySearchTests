@@ -419,7 +419,6 @@ async function handleContactMerge(correctCompanyName, mismatchedCompanyName) {
 }
 
 
-// Handle Customer Selection for Customer Info Tab
 async function selectCustomerInfo(customerName) {
   document.getElementById("customerInfoSearch").value = customerName;
   document.getElementById("customerInfoDropdown").innerHTML = "";
@@ -485,7 +484,6 @@ async function selectCustomerInfo(customerName) {
         const matches = fuse.search(companyKey).slice(0, 3);
 
         if (matches.length > 0) {
-            // A mismatch was found, render the new Merge UI
             let mergeUIHTML = '';
             matches.forEach(match => {
                 const mismatchedName = match.item;
@@ -493,7 +491,7 @@ async function selectCustomerInfo(customerName) {
                 const cardId = `merge-card-${mismatchedName.replace(/[^a-zA-Z0-9]/g, '')}`;
 
                 // Sanitize parameters for the onclick handler
-                const safeCorrectName = correctCompanyName.replace(/'/g, "\\'");
+                const safeCorrectName = customerName.replace(/'/g, "\\'");
                 const safeMismatchedName = mismatchedName.replace(/'/g, "\\'");
 
                 mergeUIHTML += `
@@ -508,9 +506,9 @@ async function selectCustomerInfo(customerName) {
                     <hr>
                     <div class="mb-3">
                         ${contactsUnderMismatch.map(c => `
-                            <div class="contact-card bg-light border-warning mb-2">
+                            <div class="contact-card bg-light border-warning mb-2 py-2">
                                 <h6>${c.Name}</h6>
-                                <p class="mb-0"><strong>Email:</strong> ${c.Email}</p>
+                                <p class="mb-0 small"><strong>Email:</strong> ${c.Email}</p>
                             </div>
                         `).join('')}
                     </div>
