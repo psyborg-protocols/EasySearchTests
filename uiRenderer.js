@@ -493,7 +493,7 @@ async function selectCustomerInfo(customerName) {
                 const cardId = `merge-card-${mismatchedName.replace(/[^a-zA-Z0-9]/g, '')}`;
 
                 // Sanitize parameters for the onclick handler
-                const safeCorrectName = correctCompanyName.replace(/'/g, "\\'");
+                const safeCorrectName = customerName.replace(/'/g, "\\'");
                 const safeMismatchedName = mismatchedName.replace(/'/g, "\\'");
 
                 mergeUIHTML += `
