@@ -394,13 +394,31 @@ async function handleContactMerge(buttonElement, correctCompanyName, mismatchedC
         
         await Promise.all(updatePromises);
 
-        // --- Success ---
+        // --- NEW: Update the in-memory dataStore to reflect the change ---
+        console.log(`Updating in-memory state: moving ${contactsToUpdate.length} contacts from '${mismatchedCompanyName}' to '${correctCompanyName}'.`);
+        const correctCompanyKey = correctCompanyName.trim().toLowerCase();
+
+        // Get the existing contacts for the correct company, or initialize an empty array
+        const existingContacts = orgContacts.get(correctCompanyKey) || [];
+
+        // Add the newly updated contacts
+        const updatedContactsList = existingContacts.concat(contactsToUpdate);
+
+        // Set the new, combined list for the correct company
+        orgContacts.set(correctCompanyKey, updatedContactsList);
+
+        // Remove the old, mismatched company entry
+        orgContacts.delete(mismatchedCompanyName);
+        console.log(`State update complete. '${correctCompanyKey}' now has ${updatedContactsList.length} contacts.`);
+
+
+        // --- Success UI ---
         actionDiv.innerHTML = `<div class="d-flex align-items-center text-success fw-bold"><i class="fas fa-check-circle me-2"></i> Update Complete!</div>`;
         
-        // --- Optional: Refresh data in the background ---
+        // --- Refresh UI ---
         setTimeout(() => {
-            console.log("Refreshing contact data after merge...");
-            selectCustomerInfo(correctCompanyName); // Re-run the search to show the updated state
+            console.log("Refreshing UI with updated state...");
+            selectCustomerInfo(correctCompanyName); // Re-run the search, which will now find the correct entry
         }, 1500);
 
     } catch (error) {
