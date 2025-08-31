@@ -369,32 +369,53 @@ async function selectCustomer(customerName) {
 }
 
 /**
- * Renders only the contact cards for a given company name.
- * This is called from the fuzzy search suggestions to avoid reloading all customer data.
- * @param {string} companyName - The name of the company to display contacts for.
+ * Handles the logic for merging/updating contacts when the user confirms.
+ * @param {string} correctCompanyName - The company name from Sales data.
+ * @param {string} mismatchedCompanyName - The company name found in the GAL.
  */
-function displayContactsForCompany(companyName) {
-    const contactCardsContainer = document.getElementById("contactCardsContainer");
-    const orgContacts = window.dataStore.OrgContacts; // This is a Map
-    const companyKey = companyName.trim().toLowerCase();
+async function handleContactMerge(correctCompanyName, mismatchedCompanyName) {
+    const cardId = `merge-card-${mismatchedCompanyName.replace(/[^a-zA-Z0-9]/g, '')}`;
+    const mergeCard = document.getElementById(cardId);
+    if (!mergeCard) return;
 
-    // Add a header to clarify which company's contacts are being shown
-    let contactsHTML = `<h5>Contacts for: ${companyName}</h5>`; 
+    const actionDiv = mergeCard.querySelector('.merge-actions');
+    actionDiv.innerHTML = `
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+            <span>Updating contacts...</span>
+        </div>`;
 
-    if (orgContacts && orgContacts.has(companyKey)) {
-        const contacts = orgContacts.get(companyKey);
-        contactsHTML += contacts.map(c => `
-            <div class="contact-card">
-              <h6>${c.Name || "N/A"}</h6>
-              <p><strong>Title:</strong> ${c.Title || "N/A"}</p>
-              <p><strong>Email:</strong> ${emailLink(c.Email)}</p>
-            </div>
-        `).join("");
-    } else {
-        // This case is a fallback, though it shouldn't be hit if called from a valid suggestion
-        contactsHTML += '<p class="text-muted fst-italic">No contacts found for this selection.</p>';
+    const orgContacts = window.dataStore.OrgContacts;
+    const contactsToUpdate = orgContacts.get(mismatchedCompanyName) || [];
+    
+    try {
+        const updatePromises = contactsToUpdate.map(contact => 
+            dataLoader.updateContactCompany(contact.Email, correctCompanyName)
+        );
+        
+        await Promise.all(updatePromises);
+
+        // --- Success ---
+        mergeCard.classList.remove('alert-warning');
+        mergeCard.classList.add('alert-success');
+        mergeCard.querySelector('.alert-heading').textContent = 'Update Complete!';
+        actionDiv.innerHTML = `<i class="fas fa-check-circle me-2"></i> All contacts for "${mismatchedCompanyName}" have been updated.`;
+        
+        // --- Optional: Refresh data in the background ---
+        // This is advanced, but good UX. It re-fetches contacts so the UI is fresh.
+        setTimeout(() => {
+            console.log("Refreshing contact data after merge...");
+            dataLoader.processFiles(); // This will re-run the delta query
+        }, 1000);
+
+    } catch (error) {
+        // --- Error ---
+        console.error("Failed to update contacts:", error);
+        mergeCard.classList.remove('alert-warning');
+        mergeCard.classList.add('alert-danger');
+         mergeCard.querySelector('.alert-heading').textContent = 'Update Failed';
+        actionDiv.innerHTML = `An error occurred. Please check the console for details.`;
     }
-    contactCardsContainer.innerHTML = contactsHTML;
 }
 
 
@@ -414,12 +435,9 @@ async function selectCustomerInfo(customerName) {
   orderHistory.sort((a, b) => new Date(b.Date) - new Date(a.Date));
   updateOrderTable("customerInfoOrderHistoryTable"); // Update order table for customer info tab
   
-  // --- CORRECTED LOGIC ---
-  // 1. Fetch customer details from the Excel file first.
   const customerDetails = await getCustomerDetails(customerName);
   window.currentCustomerInfo = customerDetails; 
 
-  // 2. Populate text-based fields from the customerDetails object.
   if (customerDetails) {
     document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
     document.getElementById("customerBusiness").textContent = customerDetails.business || "N/A";
@@ -427,12 +445,10 @@ async function selectCustomerInfo(customerName) {
     document.getElementById("customerRemarks").textContent = customerDetails.remarks || "N/A";
     document.getElementById("customerWebsite").innerHTML  = asLink(customerDetails.website);
   } else {
-    // Clear fields if no details are found
     ["customerLocation","customerBusiness","customerType","customerRemarks","customerWebsite"]
       .forEach(id => document.getElementById(id).textContent = "N/A");
   }
 
-  // 3. Now, perform the live calculation for the chart using raw sales data.
   const salesByYear = (window.dataStore.Sales?.dataframe || [])
     .filter(sale => sale.Customer === customerName)
     .reduce((acc, sale) => {
@@ -445,18 +461,16 @@ async function selectCustomerInfo(customerName) {
         return acc;
     }, {});
   
-  // 4. Draw the chart with the freshly calculated data.
   drawSalesChart(salesByYear);
 
-
-  // 5. Populate Contacts from GAL data with fuzzy search fallback
+  // --- ENHANCED CONTACTS & MERGE LOGIC ---
   const contactCardsContainer = document.getElementById("contactCardsContainer");
   const orgContacts = window.dataStore.OrgContacts; // This is a Map
   const companyKey = customerName.trim().toLowerCase();
   
   if (orgContacts && orgContacts.has(companyKey)) {
     const contacts = orgContacts.get(companyKey);
-    contactCardsContainer.innerHTML = `<h5>Contacts for: ${customerName}</h5>` + contacts.map(c => `
+    contactCardsContainer.innerHTML = contacts.map(c => `
         <div class="contact-card">
           <h6>${c.Name || "N/A"}</h6>
           <p><strong>Title:</strong> ${c.Title || "N/A"}</p>
@@ -464,40 +478,58 @@ async function selectCustomerInfo(customerName) {
         </div>
       `).join("");
   } else {
-    // Fuzzy search fallback
+    // Fuzzy search for potential mismatches
     if (orgContacts && orgContacts.size > 0) {
         const allCompanyNames = Array.from(orgContacts.keys());
         const fuse = new Fuse(allCompanyNames, { threshold: 0.4 });
-        const matches = fuse.search(companyKey).slice(0, 3); // Get top 3 matches
+        const matches = fuse.search(companyKey).slice(0, 3);
 
-        let suggestionsHTML = '';
         if (matches.length > 0) {
-            suggestionsHTML = `
-                <h6 class="mt-3 mb-2 text-muted">Did you mean?</h6>
-                <div class="list-group">
-                    ${matches.map(match => {
-                        const safeName = match.item.replace(/'/g, "\\'");
-                        return `
-                        <a href="#" class="list-group-item list-group-item-action py-2" 
-                           onclick="event.preventDefault(); UIrenderer.displayContactsForCompany('${safeName}')">
-                           <i class="fas fa-search me-2 text-primary"></i>${match.item}
-                        </a>`;
-                    }).join('')}
+            // A mismatch was found, render the new Merge UI
+            let mergeUIHTML = '';
+            matches.forEach(match => {
+                const mismatchedName = match.item;
+                const contactsUnderMismatch = orgContacts.get(mismatchedName);
+                const cardId = `merge-card-${mismatchedName.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+                // Sanitize parameters for the onclick handler
+                const safeCorrectName = correctCompanyName.replace(/'/g, "\\'");
+                const safeMismatchedName = mismatchedName.replace(/'/g, "\\'");
+
+                mergeUIHTML += `
+                <div id="${cardId}" class="alert alert-warning mt-3">
+                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Data Mismatch Detected</h5>
+                    <p class="mb-1">
+                        The company name in Sales is <strong>"${customerName}"</strong>.
+                    </p>
+                    <p>
+                        However, we found the following contacts under the name <strong>"${mismatchedName}"</strong>.
+                    </p>
+                    <hr>
+                    <div class="mb-3">
+                        ${contactsUnderMismatch.map(c => `
+                            <div class="contact-card bg-light border-warning mb-2">
+                                <h6>${c.Name}</h6>
+                                <p class="mb-0"><strong>Email:</strong> ${c.Email}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="merge-actions">
+                        <p>Would you like to update these contacts to match the Sales name?</p>
+                        <button class="btn btn-primary" onclick="UIrenderer.handleContactMerge('${safeCorrectName}', '${safeMismatchedName}')">
+                            <i class="fas fa-sync-alt me-2"></i>Update ${contactsUnderMismatch.length} Contacts
+                        </button>
+                    </div>
                 </div>
-            `;
+                `;
+            });
+            contactCardsContainer.innerHTML = mergeUIHTML;
+
+        } else {
+            contactCardsContainer.innerHTML = '<p class="text-muted fst-italic">No contacts found in GAL for this company.</p>';
         }
-        
-        contactCardsContainer.innerHTML = `
-            <div class="alert alert-warning d-flex align-items-center" role="alert">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <div>
-                    No contacts found in GAL for "<strong>${customerName}</strong>".
-                </div>
-            </div>
-            ${suggestionsHTML}
-        `;
     } else {
-        contactCardsContainer.innerHTML = '<p class="text-muted fst-italic">No contacts found in GAL for this company.</p>';
+        contactCardsContainer.innerHTML = '<p class="text-muted fst-italic">Contact data is not available.</p>';
     }
   }
 }
@@ -1064,6 +1096,6 @@ window.UIrenderer = {
   orderRowClicked,
   selectCustomer, // Expose selectCustomer for the Search tab
   selectCustomerInfo, // Expose selectCustomerInfo for the Customer Info tab
-  displayContactsForCompany, // Expose the new function
+  handleContactMerge, // Expose the new merge handler
   showProductInfoModal
 };
