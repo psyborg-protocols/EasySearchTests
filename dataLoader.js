@@ -1,5 +1,5 @@
 // --- AWS API Endpoint ---
-const apiUrl = 'https://0bzlvszjzl.execute-api.us-east-1.amazonaws.com/updateContact';
+const apiUrl = 'https://0bzlvszjzl.execute-api.us-east-1.amazonaws.com';
 
 const DISALLOWED_PRODUCTS = [
   "", "Credit Card Fees", "Cost of Goods Sold", "Freight", "Health Insurance", "Amazon Fees", "Bank Fees", "Bad Debit", "PmntDiscount_Customer Discounts",
@@ -460,7 +460,9 @@ async function updateContactCompany(email, newCompanyName) {
     };
 
     // 3. Make the secure fetch call with the Authorization header
-    const response = await fetch(apiUrl, {
+    const contactUrl = `${apiUrl}/updateContact`;
+    
+    const response = await fetch(contactUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -492,7 +494,7 @@ async function updateContactCompany(email, newCompanyName) {
  * @returns {Promise<object>} A promise that resolves to the JSON object with company details.
  */
 async function getCompanyResearch(companyName) {
-  const apiUrl = `${dataLoader.apiUrl}/llm-proxy`; 
+  const llmProxyUrl = `${apiUrl}/llm-proxy`; 
 
   try {
     const accessToken = await getApiAccessToken(); // from auth.js
@@ -502,7 +504,7 @@ async function getCompanyResearch(companyName) {
       companyName: companyName
     };
 
-    const response = await fetch(apiUrl, {
+    const response = await fetch(llmProxyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
