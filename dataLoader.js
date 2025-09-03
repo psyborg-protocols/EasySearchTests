@@ -497,7 +497,7 @@ async function getCompanyResearch(companyName) {
   const llmProxyUrl = `${apiUrl}/llm-proxy`; 
 
   try {
-    const accessToken = await getApiAccessToken(); // from auth.js
+    const accessToken = await getPerplexityAccessToken(); // from auth.js
 
     const payload = {
       action: 'llmProxy',

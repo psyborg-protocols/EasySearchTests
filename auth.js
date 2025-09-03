@@ -172,6 +172,6 @@ async function getApiAccessToken() {
  * NEW: Acquires an access token for the LLM proxy via our backend API.
  * @returns {Promise<string>} The access token for the backend LLM feature.
  */
-async function getLlmAccessToken() {
+async function getPerplexityAccessToken() {
     return getScopedAccessToken([companyResearchScope]);
 }
