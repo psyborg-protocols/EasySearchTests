@@ -487,20 +487,19 @@ async function updateContactCompany(email, newCompanyName) {
 }
 
 /**
- * Sends a prompt to the backend LLM proxy for processing.
- * @param {string} prompt - The user's query for the LLM.
- * @returns {Promise<string>} The response text from the LLM.
+ * Gets structured company information from the backend research agent.
+ * @param {string} companyName - The name of the company to research.
+ * @returns {Promise<object>} A promise that resolves to the JSON object with company details.
  */
-async function callLlm(prompt) {
-  // Use the same API URL as the contact update, but a different route
-  const apiUrl = `${dataLoader.apiUrl}/llm-proxy`; // Assuming apiUrl is defined
+async function getCompanyResearch(companyName) {
+  const apiUrl = `${dataLoader.apiUrl}/llm-proxy`; 
 
   try {
     const accessToken = await getApiAccessToken(); // from auth.js
 
     const payload = {
       action: 'llmProxy',
-      prompt: prompt
+      companyName: companyName
     };
 
     const response = await fetch(apiUrl, {
@@ -514,14 +513,13 @@ async function callLlm(prompt) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`LLM API call failed: ${errorText}`);
+      throw new Error(`Company research failed: ${errorText}`);
     }
 
-    const result = await response.json();
-    return result;
+    return response.json(); // The backend now returns a JSON object directly
 
   } catch (error) {
-    console.error('Error calling LLM proxy:', error);
+    console.error('Error getting company research:', error);
     throw error;
   }
 }
@@ -536,5 +534,5 @@ window.dataLoader = {
   processFiles,
   getCustomerDetails,
   updateContactCompany,
-  callLlm 
+  getCompanyResearch 
 };
