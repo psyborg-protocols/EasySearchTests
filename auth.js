@@ -14,8 +14,8 @@ const msalConfig = {
 };
 
 // --- API Configuration ---
-// The scope required to call our backend API Gateway.
-const apiScope = `api://${msalConfig.auth.clientId}/Contacts.Update`;
+const contactUpdateScope = `api://${msalConfig.auth.clientId}/Contacts.Update`;
+const companyResearchScope = `api://${msalConfig.auth.clientId}/Company.Research`; // NEW: Scope for the LLM feature
 
 // MS Graph API scopes needed for accessing OneDrive files
 const graphScopes = [
@@ -62,10 +62,9 @@ function initializeAuth() {
 // Sign in using a popup window
 async function signIn() {
     try {
-        // CORRECTED: Use 'graphScopes' which contains the necessary permissions for the app to function.
         const response = await msalInstance.loginPopup({ scopes: graphScopes });
         handleLoginResponse(response.account);
-        return response.account; // Ensure the caller can wait for authentication
+        return response.account;
     } catch (error) {
         console.error("Sign-in error:", error);
         throw error;
@@ -79,7 +78,6 @@ function signOut() {
       const accounts = msalInstance.getAllAccounts();
   
       if (accounts.length > 0) {
-        // Explicitly remove accounts from MSAL cache
         accounts.forEach(account => {
           msalInstance.logoutPopup({
             account: account,
@@ -107,12 +105,8 @@ function signOut() {
   
   function clearMSALStorage() {
     console.log("[clearMSALStorage] Clearing MSAL caches and storages.");
-  
-    // Clears both sessionStorage and localStorage used by MSAL
     sessionStorage.clear();
     localStorage.clear();
-  
-    // Double-check for any MSAL-specific keys that might linger
     Object.keys(sessionStorage)
       .filter(key => key.includes('msal'))
       .forEach(key => sessionStorage.removeItem(key));
@@ -124,7 +118,6 @@ function signOut() {
     console.log("[clearMSALStorage] All MSAL storage cleared.");
   }
   
-
 /**
  * Acquires an access token for a specific set of scopes.
  * @param {string[]} scopes - An array of scopes to request for the token.
@@ -168,9 +161,17 @@ async function getAccessToken() {
 }
 
 /**
- * Acquires an access token specifically for our backend API Gateway.
+ * Acquires an access token for updating contacts via our backend API.
  * @returns {Promise<string>} The access token for the backend API.
  */
 async function getApiAccessToken() {
-    return getScopedAccessToken([apiScope]);
+    return getScopedAccessToken([contactUpdateScope]);
+}
+
+/**
+ * NEW: Acquires an access token for the LLM proxy via our backend API.
+ * @returns {Promise<string>} The access token for the backend LLM feature.
+ */
+async function getLlmAccessToken() {
+    return getScopedAccessToken([companyResearchScope]);
 }

@@ -486,6 +486,45 @@ async function updateContactCompany(email, newCompanyName) {
   }
 }
 
+/**
+ * Sends a prompt to the backend LLM proxy for processing.
+ * @param {string} prompt - The user's query for the LLM.
+ * @returns {Promise<string>} The response text from the LLM.
+ */
+async function callLlm(prompt) {
+  // Use the same API URL as the contact update, but a different route
+  const apiUrl = `${dataLoader.apiUrl}/llm-proxy`; // Assuming apiUrl is defined
+
+  try {
+    const accessToken = await getApiAccessToken(); // from auth.js
+
+    const payload = {
+      action: 'llmProxy',
+      prompt: prompt
+    };
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`LLM API call failed: ${errorText}`);
+    }
+
+    const result = await response.json();
+    return result;
+
+  } catch (error) {
+    console.error('Error calling LLM proxy:', error);
+    throw error;
+  }
+}
 
 window.dataStore = {}; 
 window.dataStore.fileLinks = {};
@@ -496,5 +535,6 @@ window.dataLoader = {
   parseExcelData,
   processFiles,
   getCustomerDetails,
-  updateContactCompany 
+  updateContactCompany,
+  callLlm 
 };
