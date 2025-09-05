@@ -494,10 +494,10 @@ async function updateContactCompany(email, newCompanyName) {
  * @returns {Promise<object>} A promise that resolves to the JSON object with company details.
  */
 async function getCompanyResearch(companyName) {
-  const llmProxyUrl = `${apiUrl}/llm-proxy`; 
+  const llmProxyUrl = `${apiUrl}/llm-proxy`;
 
   try {
-    const accessToken = await getPerplexityAccessToken(); // from auth.js
+    const accessToken = await getLLMAccessToken(); // from auth.js
 
     const payload = {
       action: 'llmProxy',
@@ -518,7 +518,26 @@ async function getCompanyResearch(companyName) {
       throw new Error(`Company research failed: ${errorText}`);
     }
 
-    return response.json(); // The backend now returns a JSON object directly
+
+    // 1. Parse the full response from the backend
+    const apiResponse = await response.json();
+
+    // 2. Destructure the response to get the model's data and the reliable citations
+    const { model_data, citations } = apiResponse;
+
+    // 3. Create the final data object, starting with the AI's analysis
+    const finalCompanyData = { ...model_data };
+
+    // 4. Prioritize the citation link. If a reliable link exists in the
+    //    citations array, use it to overwrite the model's potentially
+    //    hallucinated 'website' link.
+    if (citations && citations.length > 0 && citations[0].url) {
+      finalCompanyData.website = citations[0].url;
+    }
+
+    // 5. Return the final, cleaned-up data object to the application
+    return finalCompanyData;
+
 
   } catch (error) {
     console.error('Error getting company research:', error);
