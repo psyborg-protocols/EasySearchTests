@@ -549,6 +549,56 @@ async function getCompanyResearch(companyName) {
   }
 }
 
+/**
+ * Updates a customer's details in the in-memory dataStore and attempts a write-back.
+ * @param {string} customerName - The name of the customer to update.
+ * @param {object} updatedDetails - The full, updated customer details object.
+ */
+async function updateCustomerDetails(customerName, updatedDetails) {
+    const key = customerName.trim().replace(/\s+/g, " ").toLowerCase();
+    
+    // 1. Update in-memory dataStore
+    if (window.dataStore.CustomerContacts && window.dataStore.CustomerContacts.dataframe) {
+        window.dataStore.CustomerContacts.dataframe[key] = updatedDetails;
+        console.log(`[updateCustomerDetails] In-memory datastore updated for "${customerName}".`);
+    } else {
+        console.error("[updateCustomerDetails] CustomerContacts dataframe not found in dataStore.");
+        return; // Can't proceed
+    }
+
+    // 2. (Future Implementation) Write back to the Excel file on SharePoint
+    await writeCustomerDetailsToSharePoint(customerName, updatedDetails);
+}
+
+/**
+ * (Placeholder) Writes updated customer details back to the source Excel file.
+ * This requires using the Microsoft Graph API to update a specific row in an Excel file.
+ * NOTE: This is a complex operation and is not fully implemented.
+ * @param {string} customerName - The name of the customer (for finding the row).
+ * @param {object} updatedDetails - The data to write.
+ */
+async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
+    console.warn("--- Write-back to SharePoint is NOT yet implemented. ---");
+    // To implement this, you would need to:
+    // 1. Get the file metadata (driveId, itemId) for the "Customer Contacts" file from dataStore.fileLinks and metadata.
+    // 2. Use the Graph API's "find row" or "match row" functionality to locate the row for `customerName`.
+    // 3. Use the "update row" API call with the row index and the new data.
+    // This is a significant engineering task. For now, we'll log the intent.
+    console.log("--> Intent to write back the following data for", customerName, updatedDetails);
+    
+    // This is where the MS Graph API call would go.
+    // For example:
+    // const token = await getAccessToken();
+    // const endpoint = `https://graph.microsoft.com/v1.0/sites/{site-id}/drives/{drive-id}/items/{item-id}/workbook/worksheets('Sheet1')/tables('Table1')/rows/{row-id}`;
+    // await fetch(endpoint, {
+    //   method: 'PATCH',
+    //   headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ values: [[ ... values from updatedDetails ... ]] })
+    // });
+
+    return Promise.resolve(); // Simulate success
+}
+
 window.dataStore = {}; 
 window.dataStore.fileLinks = {};
 window.dataLoader = {
@@ -559,5 +609,6 @@ window.dataLoader = {
   processFiles,
   getCustomerDetails,
   updateContactCompany,
-  getCompanyResearch 
+  getCompanyResearch,
+  updateCustomerDetails
 };

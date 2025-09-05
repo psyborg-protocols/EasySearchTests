@@ -457,19 +457,69 @@ async function selectCustomerInfo(customerName) {
   orderHistory.sort((a, b) => new Date(b.Date) - new Date(a.Date));
   updateOrderTable("customerInfoOrderHistoryTable"); // Update order table for customer info tab
   
-  const customerDetails = await getCustomerDetails(customerName);
-  window.currentCustomerInfo = customerDetails; 
+  let customerDetails = await getCustomerDetails(customerName);
+  window.currentCustomerInfo = customerDetails;
 
-  if (customerDetails) {
-    document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
-    document.getElementById("customerBusiness").textContent = customerDetails.business || "N/A";
-    document.getElementById("customerType").textContent = customerDetails.type || "N/A";
-    document.getElementById("customerRemarks").textContent = customerDetails.remarks || "N/A";
-    document.getElementById("customerWebsite").innerHTML  = asLink(customerDetails.website);
-  } else {
-    ["customerLocation","customerBusiness","customerType","customerRemarks","customerWebsite"]
-      .forEach(id => document.getElementById(id).textContent = "N/A");
+  if (!customerDetails) {
+    customerDetails = {}; // Create an empty object if no details exist
   }
+
+  const fields = {
+    location: customerDetails.location || "",
+    business: customerDetails.business || "",
+    type: customerDetails.type || "",
+    website: customerDetails.website || "",
+    remarks: customerDetails.remarks || ""
+  };
+
+  const needsResearch = !fields.location || !fields.business || !fields.type || !fields.website;
+
+  if (needsResearch) {
+    try {
+      console.log(`[selectCustomerInfo] Missing info for ${customerName}. Calling getCompanyResearch.`);
+      const researchResults = await dataLoader.getCompanyResearch(customerName);
+      let updated = false;
+
+      if (researchResults) {
+        if (!fields.website && researchResults.website) {
+          fields.website = researchResults.website;
+          updated = true;
+        }
+        if (!fields.business && researchResults.description) {
+          fields.business = researchResults.description;
+          updated = true;
+        }
+        if (!fields.location && researchResults.location) {
+          fields.location = researchResults.location;
+          updated = true;
+        }
+        // Assuming 'type' isn't something the AI can easily determine.
+
+        if (updated) {
+          const disclaimer = "AI-suggested data may be inaccurate.";
+          fields.remarks = fields.remarks ? `${fields.remarks}\n${disclaimer}` : disclaimer;
+          
+          // Create the new details object to save
+          const updatedDetails = { ...customerDetails, ...fields };
+
+          // Update in-memory datastore and (pseudo) write-back
+          await dataLoader.updateCustomerDetails(customerName, updatedDetails);
+          
+          // Re-assign to customerDetails to flow to the UI update below
+          customerDetails = updatedDetails;
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching or applying company research:", error);
+    }
+  }
+
+  // Update UI with the (potentially updated) details
+  document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
+  document.getElementById("customerBusiness").textContent = customerDetails.business || "N/A";
+  document.getElementById("customerType").textContent = customerDetails.type || "N/A";
+  document.getElementById("customerRemarks").textContent = customerDetails.remarks || "N/A";
+  document.getElementById("customerWebsite").innerHTML = asLink(customerDetails.website);
 
   const salesByYear = (window.dataStore.Sales?.dataframe || [])
     .filter(sale => sale.Customer === customerName)
@@ -1133,4 +1183,3 @@ window.UIrenderer = {
   handleContactMerge, // Expose the new merge handler
   showProductInfoModal
 };
-
