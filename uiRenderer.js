@@ -451,76 +451,26 @@ async function selectCustomerInfo(customerName) {
   document.getElementById("customerFieldsContainer").classList.remove('customer-info-content-hidden');
   document.getElementById("contactCardsContainer").classList.remove('customer-info-content-hidden');
 
-  // Fetch order history
+  // --- IMMEDIATE UI UPDATES ---
+  // Fetch and display everything we already have, right away.
+
+  // 1. Fetch and display order history
   const orderHistory = await getOrderHistory(customerName);
-  window.currentOrderHistory = orderHistory; // Update global for filtering
+  window.currentOrderHistory = orderHistory;
   orderHistory.sort((a, b) => new Date(b.Date) - new Date(a.Date));
-  updateOrderTable("customerInfoOrderHistoryTable"); // Update order table for customer info tab
-  
-  let customerDetails = await getCustomerDetails(customerName);
+  updateOrderTable("customerInfoOrderHistoryTable");
+
+  // 2. Fetch existing details and display them immediately
+  let customerDetails = (await getCustomerDetails(customerName)) || {};
   window.currentCustomerInfo = customerDetails;
 
-  if (!customerDetails) {
-    customerDetails = {}; // Create an empty object if no details exist
-  }
-
-  const fields = {
-    location: customerDetails.location || "",
-    business: customerDetails.business || "",
-    type: customerDetails.type || "",
-    website: customerDetails.website || "",
-    remarks: customerDetails.remarks || ""
-  };
-
-  const needsResearch = !fields.location || !fields.business || !fields.type || !fields.website;
-
-  if (needsResearch) {
-    try {
-      console.log(`[selectCustomerInfo] Missing info for ${customerName}. Calling getCompanyResearch.`);
-      const researchResults = await dataLoader.getCompanyResearch(customerName);
-      let updated = false;
-
-      if (researchResults) {
-        if (!fields.website && researchResults.website) {
-          fields.website = researchResults.website;
-          updated = true;
-        }
-        if (!fields.business && researchResults.description) {
-          fields.business = researchResults.description;
-          updated = true;
-        }
-        if (!fields.location && researchResults.location) {
-          fields.location = researchResults.location;
-          updated = true;
-        }
-        // Assuming 'type' isn't something the AI can easily determine.
-
-        if (updated) {
-          const disclaimer = "AI-suggested data may be inaccurate.";
-          fields.remarks = fields.remarks ? `${fields.remarks}\n${disclaimer}` : disclaimer;
-          
-          // Create the new details object to save
-          const updatedDetails = { ...customerDetails, ...fields };
-
-          // Update in-memory datastore and (pseudo) write-back
-          await dataLoader.updateCustomerDetails(customerName, updatedDetails);
-          
-          // Re-assign to customerDetails to flow to the UI update below
-          customerDetails = updatedDetails;
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching or applying company research:", error);
-    }
-  }
-
-  // Update UI with the (potentially updated) details
   document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
   document.getElementById("customerBusiness").textContent = customerDetails.business || "N/A";
   document.getElementById("customerType").textContent = customerDetails.type || "N/A";
   document.getElementById("customerRemarks").textContent = customerDetails.remarks || "N/A";
   document.getElementById("customerWebsite").innerHTML = asLink(customerDetails.website);
 
+  // 3. Render Sales Chart
   const salesByYear = (window.dataStore.Sales?.dataframe || [])
     .filter(sale => sale.Customer === customerName)
     .reduce((acc, sale) => {
@@ -532,10 +482,112 @@ async function selectCustomerInfo(customerName) {
         }
         return acc;
     }, {});
-  
   drawSalesChart(salesByYear);
 
-  // --- HYBRID CONTACTS & MERGE LOGIC (BEST OF BOTH VERSIONS) ---
+  // 4. Render Contacts
+  renderContactCards(customerName);
+
+
+  // --- ASYNCHRONOUS ENHANCEMENT ---
+  // Now, check if we need to fetch more data in the background.
+
+  const needsResearch = !customerDetails.location || !customerDetails.business || !customerDetails.type || !customerDetails.website;
+
+  if (needsResearch) {
+    // --- UI CUE: Show spinners for fields that are being researched ---
+    const fieldsToResearch = {
+      location: !customerDetails.location,
+      business: !customerDetails.business,
+      type: !customerDetails.type,
+      website: !customerDetails.website
+    };
+
+    Object.keys(fieldsToResearch).forEach(fieldKey => {
+      if (fieldsToResearch[fieldKey]) {
+        const el = document.getElementById(`customer${fieldKey.charAt(0).toUpperCase() + fieldKey.slice(1)}`);
+        if (el) {
+          el.innerHTML = `
+            <div class="spinner-border spinner-border-sm text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>`;
+        }
+      }
+    });
+
+
+    // This async function runs in the background without blocking the UI
+    (async () => {
+      try {
+        console.log(`[selectCustomerInfo] Missing info for ${customerName}. Starting background research.`);
+        const researchResults = await dataLoader.getCompanyResearch(customerName);
+        if (!researchResults) {
+          // If no results, revert spinners back to "N/A"
+          if (fieldsToResearch.location) document.getElementById("customerLocation").textContent = "N/A";
+          if (fieldsToResearch.business) document.getElementById("customerBusiness").textContent = "N/A";
+          if (fieldsToResearch.type) document.getElementById("customerType").textContent = "N/A";
+          if (fieldsToResearch.website) document.getElementById("customerWebsite").innerHTML = asLink(null);
+          return;
+        }
+
+        let updated = false;
+        const updatedFields = {};
+
+        // Correctly map fields from research results to our data model
+        if (!customerDetails.website && researchResults.website) {
+          updatedFields.website = researchResults.website;
+          updated = true;
+        }
+        if (!customerDetails.business && researchResults.businessType) {
+          updatedFields.business = researchResults.businessType;
+          updated = true;
+        } else if (!customerDetails.business && researchResults.description) { // Fallback
+          updatedFields.business = researchResults.description;
+          updated = true;
+        }
+        if (!customerDetails.location && researchResults.country) {
+          updatedFields.location = researchResults.country;
+          updated = true;
+        }
+        if (!customerDetails.type && researchResults.industry) {
+          updatedFields.type = researchResults.industry;
+          updated = true;
+        }
+
+        if (updated) {
+          const disclaimer = "AI-suggested data may be inaccurate.";
+          updatedFields.remarks = customerDetails.remarks ? `${customerDetails.remarks}\n${disclaimer}` : disclaimer;
+          
+          const finalDetails = { ...customerDetails, ...updatedFields };
+
+          // Update data store and global state
+          await dataLoader.updateCustomerDetails(customerName, finalDetails);
+          window.currentCustomerInfo = finalDetails;
+
+          // Now, update only the UI elements that have new data
+          console.log("[selectCustomerInfo] Research complete. Updating UI with new data:", updatedFields);
+        }
+
+      } catch (error) {
+        console.error("Error during background company research:", error);
+      } finally {
+        // --- UI CUE: Always clean up spinners and display final data ---
+        const finalCustomerInfo = window.currentCustomerInfo || {};
+        document.getElementById("customerLocation").textContent = finalCustomerInfo.location || "N/A";
+        document.getElementById("customerBusiness").textContent = finalCustomerInfo.business || "N/A";
+        document.getElementById("customerType").textContent = finalCustomerInfo.type || "N/A";
+        document.getElementById("customerRemarks").textContent = finalCustomerInfo.remarks || "N/A";
+        document.getElementById("customerWebsite").innerHTML = asLink(finalCustomerInfo.website);
+      }
+    })();
+  }
+}
+
+/**
+ * Renders the contact cards, including the logic for fuzzy matching and suggesting merges.
+ * This is separated to be called after the initial customer details are rendered.
+ * @param {string} customerName The name of the customer.
+ */
+function renderContactCards(customerName) {
   const contactCardsContainer = document.getElementById("contactCardsContainer");
   const orgContacts = window.dataStore.OrgContacts; // This is a Map
   const companyKey = customerName.trim().toLowerCase();
@@ -617,6 +669,7 @@ async function selectCustomerInfo(customerName) {
     }
   }
 }
+
 
 /**
  * Calculates and displays the total sales for the last 12 months and the percent change
