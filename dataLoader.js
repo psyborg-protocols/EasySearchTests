@@ -519,24 +519,28 @@ async function getCompanyResearch(companyName) {
     }
 
 
-    // 1. Parse the full response from the backend
-    const apiResponse = await response.json();
+    // 1. Parse the full response from the backend.
+    const { model_data, citations } = await response.json();
 
-    // 2. Destructure the response to get the model's data and the reliable citations
-    const { model_data, citations } = apiResponse;
+    // 2. Initialize the base note.
+    let note = "These results are retrieved by Perplexity AI and could contain errors.";
 
-    // 3. Create the final data object, starting with the AI's analysis
-    const finalCompanyData = { ...model_data };
+    // 3. Verify the website URL from the model against the citation URLs.
+    const modelWebsite = model_data.website;
+    const citationUrls = (citations || []).map(citation => citation.url);
+    const isUrlVerified = citationUrls.includes(modelWebsite);
 
-    // 4. Prioritize the citation link. If a reliable link exists in the
-    //    citations array, use it to overwrite the model's potentially
-    //    hallucinated 'website' link.
-    if (citations && citations.length > 0 && citations[0].url) {
-      finalCompanyData.website = citations[0].url;
+    // 4. If the model's website URL is not in the list of verified citation
+    //    URLs, add a warning to the beginning of the note.
+    if (!isUrlVerified) {
+      note = "Unable to verify URL. " + note;
     }
 
-    // 5. Return the final, cleaned-up data object to the application
-    return finalCompanyData;
+    // 5. Return the model's data with the new, dynamically generated note field.
+    return {
+      ...model_data,
+      note: note
+    };
 
 
   } catch (error) {
