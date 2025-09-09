@@ -48,7 +48,7 @@ function asLink(url) {
 
 function emailLink(addr) {
   if (!addr) return "N/A";
-  // Outlook Web deeplink — opens the user’s O365 / personal account
+  // Outlook Web deeplink — opens the user’s O355 / personal account
   const url = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(addr)}`;
   return `<a href="${url}" target="_blank" rel="noopener">${addr}</a>`;
 }
@@ -440,6 +440,58 @@ async function handleContactMerge(buttonElement, correctCompanyName, mismatchedC
     }
 }
 
+/**
+ * Handles the user clicking "Save" on the AI-suggested details.
+ * @param {string} customerName - The name of the customer being updated.
+ * @param {object} finalDetails - The complete, merged details object to save.
+ */
+async function confirmAndSaveChanges(customerName, finalDetails) {
+    const confirmationBox = document.getElementById('aiConfirmationBox');
+    if (!confirmationBox) return;
+
+    // 1. Show a saving state
+    confirmationBox.innerHTML = `
+        <div class="d-flex align-items-center text-primary">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            <span>Saving details...</span>
+        </div>`;
+
+    try {
+        // 2. Call the dataLoader function to perform the update
+        await dataLoader.updateCustomerDetails(customerName, finalDetails);
+        
+        // 3. Update the global state
+        window.currentCustomerInfo = finalDetails;
+
+        // 4. Show success and then fade out
+        confirmationBox.innerHTML = `
+            <div class="text-success fw-bold">
+                <i class="fas fa-check-circle me-2"></i>Details Saved!
+            </div>`;
+        
+        setTimeout(() => {
+            confirmationBox.style.opacity = '0';
+            setTimeout(() => {
+                confirmationBox.style.display = 'none';
+                confirmationBox.innerHTML = ''; // Clear content
+            }, 300); // Wait for fade out transition
+        }, 2000); // Show success for 2 seconds
+
+    } catch (error) {
+        console.error("Failed to save customer details:", error);
+        // 5. Show an error state
+        const safeCustomerName = customerName.replace(/'/g, "\\'");
+        confirmationBox.innerHTML = `
+            <div class="text-danger">
+                <i class="fas fa-times-circle me-2"></i>Save Failed.
+                <button class="btn btn-sm btn-outline-secondary ms-2" 
+                        onclick='UIrenderer.confirmAndSaveChanges("${safeCustomerName}", ${JSON.stringify(finalDetails)})'>
+                    Retry
+                </button>
+            </div>`;
+    }
+}
+
 
 // Handle Customer Selection for Customer Info Tab
 async function selectCustomerInfo(customerName) {
@@ -450,6 +502,11 @@ async function selectCustomerInfo(customerName) {
   document.getElementById("customerOrderHistoryContainer").classList.remove('customer-info-content-hidden');
   document.getElementById("customerFieldsContainer").classList.remove('customer-info-content-hidden');
   document.getElementById("contactCardsContainer").classList.remove('customer-info-content-hidden');
+
+  // Hide and clear the confirmation box from any previous selection
+  const confirmationBox = document.getElementById('aiConfirmationBox');
+  confirmationBox.style.display = 'none';
+  confirmationBox.innerHTML = '';
 
   // --- IMMEDIATE UI UPDATES ---
   // Fetch and display everything we already have, right away.
@@ -517,6 +574,7 @@ async function selectCustomerInfo(customerName) {
 
     // This async function runs in the background without blocking the UI
     (async () => {
+      let finalDetails = { ...customerDetails }; // Start with existing details
       try {
         console.log(`[selectCustomerInfo] Missing info for ${customerName}. Starting background research.`);
         const researchResults = await dataLoader.getCompanyResearch(customerName);
@@ -552,31 +610,50 @@ async function selectCustomerInfo(customerName) {
           updatedFields.type = researchResults.industry;
           updated = true;
         }
-
+        
+        // --- NEW CONFIRMATION LOGIC ---
         if (updated) {
-          const disclaimer = "AI-suggested data may be inaccurate.";
-          updatedFields.remarks = customerDetails.remarks ? `${customerDetails.remarks}\n${disclaimer}` : disclaimer;
-          
-          const finalDetails = { ...customerDetails, ...updatedFields };
+            const disclaimer = "AI-suggested data may be inaccurate.";
+            updatedFields.remarks = customerDetails.remarks ? `${customerDetails.remarks}\n${disclaimer}` : disclaimer;
+            
+            finalDetails = { ...customerDetails, ...updatedFields };
 
-          // Update data store and global state
-          await dataLoader.updateCustomerDetails(customerName, finalDetails);
-          window.currentCustomerInfo = finalDetails;
-
-          // Now, update only the UI elements that have new data
-          console.log("[selectCustomerInfo] Research complete. Updating UI with new data:", updatedFields);
+            // Update UI immediately with the *suggested* data
+            console.log("[selectCustomerInfo] Research complete. Displaying suggestions:", updatedFields);
+            document.getElementById("customerLocation").textContent = finalDetails.location || "N/A";
+            document.getElementById("customerBusiness").textContent = finalDetails.business || "N/A";
+            document.getElementById("customerType").textContent = finalDetails.type || "N/A";
+            document.getElementById("customerRemarks").textContent = finalDetails.remarks || "N/A";
+            document.getElementById("customerWebsite").innerHTML = asLink(finalDetails.website);
+            
+            // Show the confirmation box instead of saving automatically
+            const safeCustomerName = customerName.replace(/'/g, "\\'");
+            confirmationBox.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-robot me-2 text-primary"></i>
+                        <span class="fw-bold">AI found new details. Are they correct?</span>
+                    </div>
+                    <button class="btn btn-sm btn-primary" 
+                            onclick='UIrenderer.confirmAndSaveChanges("${safeCustomerName}", ${JSON.stringify(finalDetails)})'>
+                        <i class="fas fa-save me-1"></i> Save
+                    </button>
+                </div>`;
+            confirmationBox.style.display = 'block';
+            confirmationBox.style.opacity = '1';
         }
 
       } catch (error) {
         console.error("Error during background company research:", error);
       } finally {
         // --- UI CUE: Always clean up spinners and display final data ---
-        const finalCustomerInfo = window.currentCustomerInfo || {};
-        document.getElementById("customerLocation").textContent = finalCustomerInfo.location || "N/A";
-        document.getElementById("customerBusiness").textContent = finalCustomerInfo.business || "N/A";
-        document.getElementById("customerType").textContent = finalCustomerInfo.type || "N/A";
-        document.getElementById("customerRemarks").textContent = finalCustomerInfo.remarks || "N/A";
-        document.getElementById("customerWebsite").innerHTML = asLink(finalCustomerInfo.website);
+        // This runs regardless of whether an update was found, ensuring spinners are removed.
+        const infoToDisplay = window.currentCustomerInfo || {};
+        document.getElementById("customerLocation").textContent = infoToDisplay.location || "N/A";
+        document.getElementById("customerBusiness").textContent = infoToDisplay.business || "N/A";
+        document.getElementById("customerType").textContent = infoToDisplay.type || "N/A";
+        document.getElementById("customerRemarks").textContent = infoToDisplay.remarks || "N/A";
+        document.getElementById("customerWebsite").innerHTML = asLink(infoToDisplay.website);
       }
     })();
   }
@@ -1234,5 +1311,6 @@ window.UIrenderer = {
   selectCustomer, // Expose selectCustomer for the Search tab
   selectCustomerInfo, // Expose selectCustomerInfo for the Customer Info tab
   handleContactMerge, // Expose the new merge handler
+  confirmAndSaveChanges, // Expose the new save handler
   showProductInfoModal
 };
