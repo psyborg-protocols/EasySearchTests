@@ -28,8 +28,8 @@ async function loadConfig() {
  */
 async function fetchLatestFileMetadata(directory, filenamePrefix, token) {
   const siteId = "brandywinematerialsllc.sharepoint.com,07a1465e-a31a-4437-aca2-0efe61b7f2c6,4b1abd1c-08c6-4574-b350-654376a1e954";
-  const driveId = "b!XkahBxjN0Ssog7-Ybfyxhy9GkvGCHRFs1BlQ3ah6VTHnmI16yPPQofBa949Ai-j";
-  const encodedDirectory = directory.split('/').map(encodeURIComponent).join('/');
+  const driveId = "b!XkahBxqjN0Ssog7-Ybfyxhy9GkvGCHRFs1BlQ3ah6VTHnmI16yPPQofBa949Ai-j";
+  const encodedDirectory = encodeURIComponent(directory);
   const encodedPrefix = encodeURIComponent(filenamePrefix);
   const endpoint = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${encodedDirectory}:/children?$filter=startswith(name,'${encodedPrefix}')&$orderby=lastModifiedDateTime desc&$top=1`;
 
