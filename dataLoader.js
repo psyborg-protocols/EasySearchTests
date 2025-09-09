@@ -585,7 +585,7 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
         const token = await getAccessToken();
         const authHeader = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-        // 3. Get all data from the worksheet's used range instead of looking for a table
+        // 3. Get all data from the worksheet's used range
         const rangeUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${sheetName}')/usedRange(valuesOnly=true)`;
         const rangeResponse = await fetch(rangeUrl, { headers: authHeader });
         if (!rangeResponse.ok) throw new Error(`Failed to get worksheet data: ${await rangeResponse.text()}`);
@@ -596,13 +596,14 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
             throw new Error(`Worksheet "${sheetName}" appears to be empty.`);
         }
 
-        // 4. Find the specific row to update, accounting for skipped header rows
-        const headerRow = allRows[skipRows - 1] || [];
-        const companyColumnIndex = headerRow.indexOf("Company");
-        if (companyColumnIndex === -1) throw new Error("'Company' column not found in sheet header.");
+        // 4. Find the "Company" column index from the config, not the sheet
+        const companyColumnIndex = columns.indexOf("Company");
+        if (companyColumnIndex === -1) {
+            throw new Error("'Company' column not defined in config.json.");
+        }
 
         let rowIndex = -1;
-        // Start searching *after* the header rows
+        // Start searching *after* any rows to be skipped (like headers)
         for (let i = skipRows; i < allRows.length; i++) {
             if (allRows[i][companyColumnIndex]?.toString().trim().toLowerCase() === customerName.trim().toLowerCase()) {
                 rowIndex = i;
@@ -612,34 +613,50 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
         
         const columnMap = columns.reduce((acc, col, i) => ({ ...acc, [col]: i }), {});
         const numColumns = columns.length;
-        const endColumn = XLSX.utils.encode_col(numColumns - 1); // Helper to get column letter like 'N'
+        const endColumn = XLSX.utils.encode_col(numColumns - 1);
         let targetExcelRow;
         let originalValues;
 
-        if (rowIndex !== -1) { // --- Logic to UPDATE an existing row ---
-            targetExcelRow = rowIndex + 1; // Convert 0-indexed array to 1-indexed Excel row
+        if (rowIndex !== -1) { // Logic to UPDATE an existing row
+            targetExcelRow = rowIndex + 1;
             originalValues = allRows[rowIndex];
             console.log(`[Write-Back] Found "${customerName}" at Excel row ${targetExcelRow}. Merging changes.`);
-        } else { // --- Logic to ADD a new row ---
-            targetExcelRow = allRows.length + 1; // Add to the next empty row
-            originalValues = new Array(numColumns).fill(""); // Start with a blank row
-            originalValues[columnMap.Company] = customerName; // Set the company name
+        } else { // Logic to ADD a new row
+            targetExcelRow = allRows.length + 1;
+            originalValues = [];
             console.log(`[Write-Back] Customer "${customerName}" not found. Adding as new Excel row ${targetExcelRow}.`);
         }
         
-        // Ensure the array has the correct number of columns to match the target range, padding with empty strings if necessary.
-        const paddedValues = [...originalValues];
-        while (paddedValues.length < numColumns) {
-            paddedValues.push("");
-        }
+        // --- ROBUST ROW CONSTRUCTION ---
+        const newValues = new Array(numColumns).fill("");
+        for (let i = 0; i < numColumns; i++) {
+            const colName = columns[i];
+            const originalValue = originalValues[i] || "";
 
-        // Merge new data with existing/new row data to preserve other columns
-        const newValues = [...paddedValues]; 
-        if (updatedDetails.location) newValues[columnMap.Location] = updatedDetails.location;
-        if (updatedDetails.business) newValues[columnMap.Business] = updatedDetails.business;
-        if (updatedDetails.type) newValues[columnMap.Type] = updatedDetails.type;
-        if (updatedDetails.remarks) newValues[columnMap.Remarks] = updatedDetails.remarks;
-        if (updatedDetails.website) newValues[columnMap.Website] = updatedDetails.website;
+            switch (colName) {
+                case "Company":
+                    newValues[i] = customerName;
+                    break;
+                case "Location":
+                    newValues[i] = updatedDetails.location ?? originalValue;
+                    break;
+                case "Business":
+                    newValues[i] = updatedDetails.business ?? originalValue;
+                    break;
+                case "Type":
+                    newValues[i] = updatedDetails.type ?? originalValue;
+                    break;
+                case "Remarks":
+                    newValues[i] = updatedDetails.remarks ?? originalValue;
+                    break;
+                case "Website":
+                    newValues[i] = updatedDetails.website ?? originalValue;
+                    break;
+                default:
+                    newValues[i] = originalValue;
+                    break;
+            }
+        }
 
         // 5. Perform the PATCH request to update the specific range
         const updateAddress = `A${targetExcelRow}:${endColumn}${targetExcelRow}`;
@@ -647,11 +664,13 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
         const updateResponse = await fetch(updateUrl, {
             method: 'PATCH',
             headers: authHeader,
-            body: JSON.stringify({ values: [newValues] }) // MS Graph API requires a 2D array
+            body: JSON.stringify({ values: [newValues] })
         });
 
         if (!updateResponse.ok) {
-            throw new Error(`API Error during sheet update: ${await updateResponse.text()}`);
+            const errorBody = await updateResponse.text();
+            console.error("[Write-Back] API Error Body:", errorBody);
+            throw new Error(`API Error during sheet update: ${errorBody}`);
         }
 
         console.log(`[Write-Back] Successfully updated sheet for "${customerName}" at range ${updateAddress}.`);
@@ -659,7 +678,6 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
 
     } catch (error) {
         console.error("[Write-Back] Failed to write customer details to SharePoint:", error);
-        // Re-throw the error so the calling function can catch it and show a UI error.
         throw error;
     }
 }
