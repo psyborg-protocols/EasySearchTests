@@ -1,5 +1,5 @@
 // app.js
-const APP_VERSION = "1.0.8"; // Incremented version to ensure cache is cleared on next load
+const APP_VERSION = "1.0.9"; // Incremented version to ensure cache is cleared on next load
 
 document.addEventListener('DOMContentLoaded', async function () {
   // Version check
@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const cachedPricing = await idbUtil.getDataset("PricingData");
     const cachedEquivs = await idbUtil.getDataset("EquivalentsData");
     const cachedPriceRaise = await idbUtil.getDataset("PriceRaiseData");
-    const cachedContacts = await idbUtil.getDataset("CustomerContactsData");
+    const cachedCompanyInfo = await idbUtil.getDataset("CompanyInfoData");
     const cachedOrgContacts = await idbUtil.getDataset("OrgContactsData");
     // Also load the metadata which contains the deltaLink
     const cachedOrgContactsMetadata = await idbUtil.getDataset("OrgContactsMetadata");
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', async function () {
       window.dataStore["Sales"] = cachedSales;
       window.dataStore["Pricing"] = cachedPricing;
       window.dataStore["PriceRaise"] = cachedPriceRaise;
-      if (cachedContacts) window.dataStore["CustomerContacts"] = cachedContacts;
+      if (cachedCompanyInfo) window.dataStore["CompanyInfo"] = cachedCompanyInfo;
       if (cachedEquivs) window.dataStore["Equivalents"] = cachedEquivs;
       if (cachedOrgContacts) window.dataStore["OrgContacts"] = new Map(Object.entries(cachedOrgContacts));
       

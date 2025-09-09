@@ -21,7 +21,6 @@ window.buildBMReplacementReport = function buildBMReplacementReport(
         // Access the necessary data stores, providing empty objects as fallbacks.
         const equivalents = dataStore.Equivalents?.dataframe || {};
         const salesData = dataStore.Sales?.dataframe || [];
-        const customerContacts = dataStore.CustomerContacts?.dataframe || {};
         const orgContacts = dataStore.OrgContacts || new Map();
 
 
@@ -69,23 +68,13 @@ window.buildBMReplacementReport = function buildBMReplacementReport(
         };
 
 
-        // --- 1. Pre-build a Contact Lookup Map with structured contact objects ---
+        // --- 1. Build the Contact Lookup Map from Organizational Contacts (GAL) ---
         const contactInfoByName = {};
 
-        // Prioritize the detailed "CustomerContacts" file
-        for (const companyName in customerContacts) {
-            const contacts = customerContacts[companyName].contacts;
-            if (contacts && contacts.length > 0) {
-                contactInfoByName[companyName.toLowerCase()] = contacts
-                    .map(c => ({ name: c.Name, email: c.Email }))
-                    .filter(c => c.email); // Only include contacts with an email
-            }
-        }
-
-        // Fallback to organizational contacts (GAL) if not in the primary file
+        // Use organizational contacts (GAL) as the single source for contact info.
         orgContacts.forEach((contacts, companyName) => {
             const lowerCaseName = companyName.toLowerCase();
-            if (!contactInfoByName[lowerCaseName] && contacts && contacts.length > 0) {
+            if (contacts && contacts.length > 0) {
                 contactInfoByName[lowerCaseName] = contacts
                     .map(c => ({ name: c.Name, email: c.Email || c.mail }))
                     .filter(c => c.email); // Only include contacts with an email

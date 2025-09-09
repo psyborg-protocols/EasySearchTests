@@ -273,12 +273,12 @@ async function processFiles() {
           continue;
         }
 
-        if (key === "CustomerContacts") {
-          const map = normaliseCustomerContacts(frame);
+        if (key === "CompanyInfo") {
+          const map = normaliseCompanyInfo(frame);
           const stored = { dataframe: map, metadata: md };
-          ds[key] = stored; // Corrected: Store the whole object, not just the map
+          ds[key] = stored;
           await idbUtil.setDataset(storageKey, stored);
-          console.log(`[CustomerContacts] ${Object.keys(map).length} companies loaded.`);
+          console.log(`[CompanyInfo] ${Object.keys(map).length} companies loaded with core info.`);
           continue;
         }
         
@@ -407,40 +407,30 @@ function toNumber(val) {
   return isFinite(num) ? num : null;
 }
 
-function normaliseCustomerContacts(frame) {
-  const YEARS = ["2019","2020","2021","2022","2023","2024","2025"];
-  const map = {};
-  for (const row of frame) {
-    const company = String(row.Company || "").trim().replace(/\s+/g, " ").toLowerCase();
-    if (!company) continue;
-    const sales = {};
-    YEARS.forEach(y => { sales[y] = row[`${y} Sales`] ?? null; });
-    const contacts = [];
-    for (let i = 1; i <= 3; i++) {
-      const name = row[`Contact Name ${i}`] || "";
-      const title = row[`Contact Title ${i}`] || "";
-      const email = row[`Email ${i}`] || "";
-      if (name || title || email) {
-        contacts.push({ Name: name, Title: title, Email: email });
-      }
+function normaliseCompanyInfo(frame) {
+    const map = {};
+    for (const row of frame) {
+        const company = String(row.Company || "").trim().replace(/\s+/g, " ").toLowerCase();
+        if (!company) continue;
+
+        // We only map the fields we care about, ignoring sales, contacts, etc.
+        map[company] = {
+            location: row.Location || "",
+            business: row.Business || "",
+            type: row.Type || "",
+            remarks: row.Remarks || "",
+            website: row.Website || ""
+        };
     }
-    map[company] = {
-      salesByYear: sales,
-      location: row.Location || "",
-      business: row.Business || "",
-      type: row.Type || "",
-      remarks: row.Remarks || "",
-      website: row.Website || "",
-      contacts: contacts
-    };
-  }
-  return map;
+    return map;
 }
 
 function getCustomerDetails(company) {
-  const key = company.trim().replace(/\s+/g, " ").toLowerCase();
-  return (window.dataStore.CustomerContacts?.dataframe || {})[key] || null;
+    const key = company.trim().replace(/\s+/g, " ").toLowerCase();
+    // Read from the new, leaner data store key
+    return (window.dataStore.CompanyInfo?.dataframe || {})[key] || null;
 }
+
 
 /**
  * Calls the AWS Lambda endpoint to update a contact's company name.
@@ -558,11 +548,11 @@ async function updateCustomerDetails(customerName, updatedDetails) {
     const key = customerName.trim().replace(/\s+/g, " ").toLowerCase();
     
     // 1. Update in-memory dataStore
-    if (window.dataStore.CustomerContacts && window.dataStore.CustomerContacts.dataframe) {
-        window.dataStore.CustomerContacts.dataframe[key] = updatedDetails;
+    if (window.dataStore.CompanyInfo && window.dataStore.CompanyInfo.dataframe) {
+        window.dataStore.CompanyInfo.dataframe[key] = updatedDetails;
         console.log(`[updateCustomerDetails] In-memory datastore updated for "${customerName}".`);
     } else {
-        console.error("[updateCustomerDetails] CustomerContacts dataframe not found in dataStore.");
+        console.error("[updateCustomerDetails] CompanyInfo dataframe not found in dataStore.");
         return; // Can't proceed
     }
 
