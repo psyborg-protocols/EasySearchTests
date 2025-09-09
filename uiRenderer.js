@@ -571,90 +571,76 @@ async function selectCustomerInfo(customerName) {
       }
     });
 
-
     // This async function runs in the background without blocking the UI
     (async () => {
-      let finalDetails = { ...customerDetails }; // Start with existing details
-      try {
-        console.log(`[selectCustomerInfo] Missing info for ${customerName}. Starting background research.`);
-        const researchResults = await dataLoader.getCompanyResearch(customerName);
-        if (!researchResults) {
-          // If no results, revert spinners back to "N/A"
-          if (fieldsToResearch.location) document.getElementById("customerLocation").textContent = "N/A";
-          if (fieldsToResearch.business) document.getElementById("customerBusiness").textContent = "N/A";
-          if (fieldsToResearch.type) document.getElementById("customerType").textContent = "N/A";
-          if (fieldsToResearch.website) document.getElementById("customerWebsite").innerHTML = asLink(null);
-          return;
-        }
+        try {
+            console.log(`[selectCustomerInfo] Missing info for ${customerName}. Starting background research.`);
+            const researchResults = await dataLoader.getCompanyResearch(customerName);
 
-        let updated = false;
-        const updatedFields = {};
+            // If research fails or returns nothing, just reset the UI to original state (remove spinners).
+            if (!researchResults) {
+                document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
+                document.getElementById("customerBusiness").textContent = customerDetails.business || "N/A";
+                document.getElementById("customerType").textContent = customerDetails.type || "N/A";
+                document.getElementById("customerWebsite").innerHTML = asLink(customerDetails.website);
+                return;
+            }
 
-        // Correctly map fields from research results to our data model
-        if (!customerDetails.website && researchResults.website) {
-          updatedFields.website = researchResults.website;
-          updated = true;
-        }
-        if (!customerDetails.business && researchResults.businessType) {
-          updatedFields.business = researchResults.businessType;
-          updated = true;
-        } else if (!customerDetails.business && researchResults.description) { // Fallback
-          updatedFields.business = researchResults.description;
-          updated = true;
-        }
-        if (!customerDetails.location && researchResults.country) {
-          updatedFields.location = researchResults.country;
-          updated = true;
-        }
-        if (!customerDetails.type && researchResults.industry) {
-          updatedFields.type = researchResults.industry;
-          updated = true;
-        }
-        
-        // --- NEW CONFIRMATION LOGIC ---
-        if (updated) {
-            const disclaimer = "AI-suggested data may be inaccurate.";
-            updatedFields.remarks = customerDetails.remarks ? `${customerDetails.remarks}\n${disclaimer}` : disclaimer;
+            let updated = false;
+            const updatedFields = {};
+
+            // Map research results
+            if (!customerDetails.website && researchResults.website) { updatedFields.website = researchResults.website; updated = true; }
+            if (!customerDetails.business && researchResults.businessType) { updatedFields.business = researchResults.businessType; updated = true; }
+            else if (!customerDetails.business && researchResults.description) { updatedFields.business = researchResults.description; updated = true; }
+            if (!customerDetails.location && researchResults.country) { updatedFields.location = researchResults.country; updated = true; }
+            if (!customerDetails.type && researchResults.industry) { updatedFields.type = researchResults.industry; updated = true; }
             
-            finalDetails = { ...customerDetails, ...updatedFields };
+            if (updated) {
+                const disclaimer = "AI-suggested data may be inaccurate.";
+                updatedFields.remarks = customerDetails.remarks ? `${customerDetails.remarks}\n${disclaimer}` : disclaimer;
+                
+                const finalDetails = { ...customerDetails, ...updatedFields };
 
-            // Update UI immediately with the *suggested* data
-            console.log("[selectCustomerInfo] Research complete. Displaying suggestions:", updatedFields);
-            document.getElementById("customerLocation").textContent = finalDetails.location || "N/A";
-            document.getElementById("customerBusiness").textContent = finalDetails.business || "N/A";
-            document.getElementById("customerType").textContent = finalDetails.type || "N/A";
-            document.getElementById("customerRemarks").textContent = finalDetails.remarks || "N/A";
-            document.getElementById("customerWebsite").innerHTML = asLink(finalDetails.website);
-            
-            // Show the confirmation box instead of saving automatically
-            const safeCustomerName = customerName.replace(/'/g, "\\'");
-            confirmationBox.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <i class="fas fa-robot me-2 text-primary"></i>
-                        <span class="fw-bold">AI found new details. Are they correct?</span>
-                    </div>
-                    <button class="btn btn-sm btn-primary" 
-                            onclick='UIrenderer.confirmAndSaveChanges("${safeCustomerName}", ${JSON.stringify(finalDetails)})'>
-                        <i class="fas fa-save me-1"></i> Save
-                    </button>
-                </div>`;
-            confirmationBox.style.display = 'block';
-            confirmationBox.style.opacity = '1';
+                // Update UI immediately with the *suggested* data
+                console.log("[selectCustomerInfo] Research complete. Displaying suggestions:", updatedFields);
+                document.getElementById("customerLocation").textContent = finalDetails.location || "N/A";
+                document.getElementById("customerBusiness").textContent = finalDetails.business || "N/A";
+                document.getElementById("customerType").textContent = finalDetails.type || "N/A";
+                document.getElementById("customerRemarks").textContent = finalDetails.remarks || "N/A";
+                document.getElementById("customerWebsite").innerHTML = asLink(finalDetails.website);
+                
+                // Show the confirmation box
+                const safeCustomerName = customerName.replace(/'/g, "\\'");
+                confirmationBox.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-robot me-2 text-primary"></i>
+                            <span class="fw-bold">AI found new details. Are they correct?</span>
+                        </div>
+                        <button class="btn btn-sm btn-primary" 
+                                onclick='UIrenderer.confirmAndSaveChanges("${safeCustomerName}", ${JSON.stringify(finalDetails)})'>
+                            <i class="fas fa-save me-1"></i> Save
+                        </button>
+                    </div>`;
+                confirmationBox.style.display = 'block';
+                confirmationBox.style.opacity = '1';
+            } else {
+                 // No updates were found, so just reset the UI to its original state (remove spinners)
+                document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
+                document.getElementById("customerBusiness").textContent = customerDetails.business || "N/A";
+                document.getElementById("customerType").textContent = customerDetails.type || "N/A";
+                document.getElementById("customerWebsite").innerHTML = asLink(customerDetails.website);
+            }
+
+        } catch (error) {
+            console.error("Error during background company research:", error);
+            // On error, also reset the UI to its original state (remove spinners)
+            document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
+            document.getElementById("customerBusiness").textContent = customerDetails.business || "N/A";
+            document.getElementById("customerType").textContent = customerDetails.type || "N/A";
+            document.getElementById("customerWebsite").innerHTML = asLink(customerDetails.website);
         }
-
-      } catch (error) {
-        console.error("Error during background company research:", error);
-      } finally {
-        // --- UI CUE: Always clean up spinners and display final data ---
-        // This runs regardless of whether an update was found, ensuring spinners are removed.
-        const infoToDisplay = window.currentCustomerInfo || {};
-        document.getElementById("customerLocation").textContent = infoToDisplay.location || "N/A";
-        document.getElementById("customerBusiness").textContent = infoToDisplay.business || "N/A";
-        document.getElementById("customerType").textContent = infoToDisplay.type || "N/A";
-        document.getElementById("customerRemarks").textContent = infoToDisplay.remarks || "N/A";
-        document.getElementById("customerWebsite").innerHTML = asLink(infoToDisplay.website);
-      }
     })();
   }
 }
