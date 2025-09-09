@@ -627,8 +627,14 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
             console.log(`[Write-Back] Customer "${customerName}" not found. Adding as new Excel row ${targetExcelRow}.`);
         }
         
+        // Ensure the array has the correct number of columns to match the target range, padding with empty strings if necessary.
+        const paddedValues = [...originalValues];
+        while (paddedValues.length < numColumns) {
+            paddedValues.push("");
+        }
+
         // Merge new data with existing/new row data to preserve other columns
-        const newValues = [...originalValues]; 
+        const newValues = [...paddedValues]; 
         if (updatedDetails.location) newValues[columnMap.Location] = updatedDetails.location;
         if (updatedDetails.business) newValues[columnMap.Business] = updatedDetails.business;
         if (updatedDetails.type) newValues[columnMap.Type] = updatedDetails.type;
