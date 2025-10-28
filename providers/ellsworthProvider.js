@@ -59,8 +59,6 @@
 
         allResults.push(...pageResults);
 
-        // If we already matched, or we got a healthy set of rows, no need to try the next strategy
-        if (stopOnFirstMatch && pageResults.length) break;
         if (pageResults.length >= pageSize) break;
       }
 
