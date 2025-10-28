@@ -26,7 +26,6 @@
         signal,
         pageSize = 250,
         maxPages = 20,
-        stopOnFirstMatch = true,
         manufacturer = "medmix", // default to medmix products
         catalogNodes = [] // keep empty unless you want to *narrow* results
       } = opts;
@@ -55,7 +54,6 @@
           sku,
           pageSize,
           maxPages,
-          stopOnFirstMatch,
           signal
         });
 
@@ -69,7 +67,7 @@
       return allResults;
     }
 
-    async _runPagedQuery({ facets, encode, normSku, sku, pageSize, maxPages, stopOnFirstMatch, signal }) {
+    async _runPagedQuery({ facets, encode, normSku, sku, pageSize, maxPages, signal }) {
       const out = [];
 
       // Helper: build URL with either raw or encoded sSearch
@@ -148,7 +146,6 @@
             raw: row
           });
 
-          if (stopOnFirstMatch) return out;
         }
 
         // Stop if we’ve fetched all reported records
