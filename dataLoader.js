@@ -165,8 +165,16 @@ async function fetchAndProcessOrgContacts(token) {
 
         return cachedContactsMap;
 
-    } catch (error) {
+  } catch (error) {
         console.error("Error fetching or processing organizational contacts:", error);
+        
+        // Check if the fetch failed while using an existing deltaLink
+        if (nextLink && !nextLink.startsWith('https://graph.microsoft.com/v1.0/contacts/delta')) {
+            console.warn("Delta-token fetch failed. Clearing metadata to force full sync on next load.");
+            metadata.deltaLink = null; // Clear the bad link from the in-memory object
+            await idbUtil.setDataset("OrgContactsMetadata", metadata); // Save the cleared metadata back to IndexedDB
+        }
+        
         return cachedContactsMap; // Return the old map on error
     }
 }
