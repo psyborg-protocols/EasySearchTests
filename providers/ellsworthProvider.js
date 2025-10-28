@@ -10,14 +10,20 @@
     get id() { return 'ellsworth'; }
 
     /**
+     * Server-side SKU search (no full catalog pull).
+     * - Uses Keyword facet with the provided SKU to narrow results.
+     * - Aggregates all pages (no short-circuit).
+     * - Locally filters with includesSku to catch site-side variants (qty suffixes, alt SKUs).
+     * - Expands price breaks into per-qty listings.
+     * - De-dupes by (url|normSku|qty).
+     *
      * @param {string} sku
      * @param {{
      *   signal?: AbortSignal,
-     *   pageSize?: number,          // default 250
-     *   maxPages?: number,          // safety cap
-     *   stopOnFirstMatch?: boolean,
-     *   manufacturer?: string,      // e.g., "medmix"
-     *   catalogNodes?: { Text:string, Value:string }[] // optional, usually leave empty
+     *   pageSize?: number,         // default 250
+     *   maxPages?: number,         // safety cap
+     *   manufacturer?: string,     // e.g. "medmix" (optional but helps)
+     *   catalogNodes?: {Text:string, Value:string}[]
      * }} opts
      * @returns {Promise<Listing[]>}
      */
@@ -25,55 +31,130 @@
       const {
         signal,
         pageSize = 250,
-        maxPages = 20,
-        manufacturer = "medmix", // default to medmix products
-        catalogNodes = [] // keep empty unless you want to *narrow* results
+        maxPages = 12,
+        manufacturer,
+        catalogNodes = []
       } = opts;
 
       const normSku = utils.normalizeSku(sku);
-      const allResults = [];
 
-      // Build facet payloads (we’ll try two: raw sSearch then encoded sSearch)
-      const baseFacets = [
-        { facet: "Keyword",      search: [{ Text: sku, Value: sku }] },
-        { facet: "CatalogNodes", search: catalogNodes },
-        { facet: "Manufacturer", search: manufacturer ? [{ Text: manufacturer, Value: manufacturer }] : [] },
-        { facet: "Brand",        search: [] }
+      // --- Build facets WITH server-side keyword search ---
+      // Keep it tight: Keyword narrows the result set on Ellsworth's side.
+      const facets = [
+        { facet: 'Keyword',      search: [{ Text: sku, Value: sku }] },
+        { facet: 'CatalogNodes', search: catalogNodes },
       ];
 
-      const strategies = [
-        { encode: false, facets: baseFacets },
-        { encode: true,  facets: baseFacets }
-      ];
-
-      for (const strat of strategies) {
-        const pageResults = await this._runPagedQuery({
-          facets: strat.facets,
-          encode: strat.encode,
-          normSku,
-          sku,
-          pageSize,
-          maxPages,
-          signal
-        });
-
-        allResults.push(...pageResults);
-
-        if (pageResults.length >= pageSize) break;
+      // Manufacturer filter can further reduce noise and missed matches
+      if (manufacturer) {
+        facets.push({ facet: 'Manufacturer', search: [{ Text: manufacturer, Value: manufacturer }] });
+      } else {
+        facets.push({ facet: 'Manufacturer', search: [] });
       }
 
-      return allResults;
+      facets.push({ facet: 'Brand', search: [] });
+
+      // Single strategy (encoded sSearch). Running both raw+encoded caused duplicate rows.
+      const rows = await this._fetchRowsPaged({ facets, encode: true, pageSize, maxPages, signal });
+
+      // ---- Local filtering + expansion + de-dupe ----
+      const out = [];
+      const seen = new Set(); // url|normSku|qty
+
+      for (const row of rows) {
+        // Known columns from Ellsworth search API:
+        // [0]=title, [1]=internalSku1, [2]=internalSku2, [3]=priceStr, [4]=relativeUrl,
+        // [5]=image, [6]=category, [7]=priceBreaks(JSON), [8]=empty, [9]=eachPriceStr,
+        // [10]=packDesc, [11]=displaySku, [12]=?, [13]=inStockFlag, [14..]=..., [19]=brand, [20]=altSku
+        const title         = row[0];
+        const internalSku1  = row[1];
+        const internalSku2  = row[2];
+        const priceStr      = row[3];
+        const relativeUrl   = row[4];
+        const priceBreaks   = row[7];
+        const eachPriceStr  = row[9];
+        const packDesc      = row[10];
+        const displaySku    = row[11];
+        const inStockFlag   = row[13];
+        const brand         = row[19];
+        const altSku        = row[20];
+
+        // Local match is still useful because site SKUs often carry qty suffixes.
+        const hay = [title, displaySku, internalSku1, internalSku2, brand, altSku].join(' ');
+        if (!utils.includesSku(hay, normSku)) continue;
+
+        const urlFull = relativeUrl ? `https://www.ellsworth.com${relativeUrl}` : 'https://www.ellsworth.com/';
+        const inStock = (inStockFlag || '').toString().toLowerCase() === 'true';
+        const baseSku = displaySku || internalSku1 || internalSku2 || sku;
+
+        const pushUnique = ({ price, qty, eachPrice }) => {
+          const key = `${urlFull}|${normSku}|${qty || ''}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          out.push({
+            retailer: 'ellsworth',
+            sku: baseSku,
+            title: (title || '').trim(),
+            price,
+            qty,
+            eachPrice,
+            url: urlFull,
+            inStock,
+            raw: row
+          });
+        };
+
+        // Base visible price/each
+        const price     = utils.toNumOrUndef(String(priceStr || '').replace(/[^0-9.]/g, ''));
+        const eachPrice = utils.toNumOrUndef(String(eachPriceStr || '').replace(/[^0-9.]/g, ''));
+
+        // Try to infer qty from pack description like "Sold as a pack (25/pk)."
+        const qtyFromPack = (() => {
+          const m = (packDesc || '').match(/\b(\d+)\b/);
+          const q = m ? Number(m[1]) : NaN;
+          return Number.isFinite(q) ? q : undefined;
+        })();
+
+        // Push base row
+        pushUnique({ price, qty: qtyFromPack, eachPrice });
+
+        // Expand price break tiers like [{Qty:"25", Price:"$12.34"}, ...]
+        if (typeof priceBreaks === 'string' && priceBreaks.trim().startsWith('[')) {
+          try {
+            const tiers = JSON.parse(priceBreaks);
+            if (Array.isArray(tiers)) {
+              for (const t of tiers) {
+                const tQtyRaw   = String(t?.Qty ?? t?.qty ?? '');
+                const tPriceRaw = String(t?.Price ?? t?.price ?? '');
+                const tQty      = utils.toNumOrUndef(tQtyRaw);
+                const tPrice    = utils.toNumOrUndef(tPriceRaw.replace(/[^0-9.]/g, ''));
+                const tEach     = (Number.isFinite(tPrice) && Number.isFinite(tQty) && tQty)
+                  ? tPrice / tQty
+                  : undefined;
+
+                if (Number.isFinite(tQty) && Number.isFinite(tPrice)) {
+                  pushUnique({ price: tPrice, qty: tQty, eachPrice: tEach });
+                }
+              }
+            }
+          } catch {
+            // ignore bad JSON in price breaks
+          }
+        }
+      }
+
+      return out;
     }
 
-    async _runPagedQuery({ facets, encode, normSku, sku, pageSize, maxPages, signal }) {
-      const out = [];
+    // Pull *only* the paged search results for the given Keyword/manufacturer facets.
+    async _fetchRowsPaged({ facets, encode, pageSize, maxPages, signal }) {
+      const rowsOut = [];
 
-      // Helper: build URL with either raw or encoded sSearch
       const buildUrl = (start) => {
-        const sSearch = encode ? encodeURIComponent(JSON.stringify(facets))
-                               : JSON.stringify(facets);
+        const sSearch = encode
+          ? encodeURIComponent(JSON.stringify(facets))
+          : JSON.stringify(facets);
 
-        // IMPORTANT: keep DefaultCatalogNode but don’t force CatalogNodes unless provided
         return `https://www.ellsworth.com/api/catalogSearch/search` +
                `?sEcho=1&iColumns=1&sColumns=&iDisplayStart=${start}&iDisplayLength=${pageSize}` +
                `&mDataProp_0=&sSearch_0=&bRegex_0=false&bSearchable_0=true&bSortable_0=true` +
@@ -97,7 +178,6 @@
         }
 
         if (total == null) {
-          // These come back as strings sometimes
           const t = Number(json?.iTotalDisplayRecords ?? json?.iTotalRecords ?? 0);
           total = Number.isFinite(t) ? t : 0;
         }
@@ -105,57 +185,18 @@
         const rows = Array.isArray(json?.aaData) ? json.aaData : [];
         if (!rows.length) break;
 
-        for (const row of rows) {
-          // Safely index by known positions
-          const title         = row[0];
-          const internalSku1  = row[1];
-          const internalSku2  = row[2];
-          const priceStr      = row[3];
-          const relativeUrl   = row[4];
-          // row[5] image
-          // row[6] category
-          // row[7] price breaks (JSON string)
-          // row[8] empty
-          const eachPriceStr     = row[9];   // not used, but available
-          const packDesc      = row[10];  // e.g., "Sold as a pack (25/pk)."
-          const displaySku    = row[11];
-          const inStockFlag   = row[13];
-          const brand         = row[19];  // often present
-          const altSku        = row[20];  // alt sku copy
+        rowsOut.push(...rows);
 
-          const hay = [title, displaySku, internalSku1, internalSku2, brand, altSku].join(' ');
-          if (!utils.includesSku(hay, normSku)) continue;
-
-          const price   = utils.toNumOrUndef((priceStr || '').replace(/[^0-9.]/g, ''));
-          const qty = packDesc ? Number((packDesc.match(/\d+/) || [])[0]) : NaN;
-          const eachPrice = utils.toNumOrUndef((eachPriceStr || '').replace(/[^0-9.]/g, ''));
-          const inStock = (inStockFlag || '').toString().toLowerCase() === 'true';
-          const urlFull = relativeUrl ? `https://www.ellsworth.com${relativeUrl}` : 'https://www.ellsworth.com/';
-
-          out.push({
-            retailer: 'ellsworth',
-            sku: displaySku || internalSku1 || internalSku2 || sku,
-            title: (title || '').trim(),
-            price,
-            qty,
-            eachPrice,
-            url: urlFull,
-            inStock,
-            raw: row
-          });
-
-        }
-
-        // Stop if we’ve fetched all reported records
+        // Exit when done (either end-of-total, or short page)
         if (total != null && start + rows.length >= total) break;
-        if (rows.length < pageSize) break; // last partial page
+        if (rows.length < pageSize) break;
       }
 
-      return out;
+      return rowsOut;
     }
   }
 
-  // Register globally
+  // Register in your global structure (no ES modules)
   window.ellsworthProvider = new EllsworthProvider();
   window.MarketProviders = window.MarketProviders || {};
   window.MarketProviders.ellsworth = window.ellsworthProvider;
