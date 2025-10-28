@@ -6,23 +6,38 @@
 
   const { Provider, utils } = window.MarketSearch;
 
+  function parsePackSize(packDesc) {
+    // e.g., "Sold as a pack (50/pk)." -> 50
+    const m = String(packDesc || '').match(/\((\d+)\s*\/\s*pk\)/i) || String(packDesc || '').match(/\b(\d+)\b/);
+    const n = m ? Number(m[1]) : NaN;
+    return Number.isFinite(n) ? n : undefined;
+  }
+
+  function parseTierLabelToRange(qtyLabel) {
+    // "1-2" -> {min:1, max:2}, "3-13" -> {min:3,max:13}, "14+" -> {min:14,max:Infinity}
+    const s = String(qtyLabel || '').trim();
+    if (!s) return { min: undefined, max: undefined, label: '' };
+    const plus = s.match(/^(\d+)\s*\+$/);
+    if (plus) return { min: Number(plus[1]), max: Infinity, label: s };
+    const range = s.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (range) return { min: Number(range[1]), max: Number(range[2]), label: s };
+    const single = s.match(/^(\d+)$/);
+    if (single) return { min: Number(single[1]), max: Number(single[1]), label: s };
+    return { min: undefined, max: undefined, label: s };
+  }
+
   class EllsworthProvider extends Provider {
     get id() { return 'ellsworth'; }
 
     /**
-     * Server-side SKU search (no full catalog pull).
-     * - Uses Keyword facet with the provided SKU to narrow results.
-     * - Aggregates all pages (no short-circuit).
-     * - Locally filters with includesSku to catch site-side variants (qty suffixes, alt SKUs).
-     * - Expands price breaks into per-qty listings.
-     * - De-dupes by (url|normSku|qty).
+     * Server-side SKU search with full tier expansion (no short-circuit).
      *
      * @param {string} sku
      * @param {{
      *   signal?: AbortSignal,
      *   pageSize?: number,         // default 250
      *   maxPages?: number,         // safety cap
-     *   manufacturer?: string,     // e.g. "medmix" (optional but helps)
+     *   manufacturer?: string,     // optional but helpful
      *   catalogNodes?: {Text:string, Value:string}[]
      * }} opts
      * @returns {Promise<Listing[]>}
@@ -38,34 +53,47 @@
 
       const normSku = utils.normalizeSku(sku);
 
-      // --- Build facets WITH server-side keyword search ---
-      // Keep it tight: Keyword narrows the result set on Ellsworth's side.
+      // Build facets WITH server-side keyword match (narrow server set)
       const facets = [
         { facet: 'Keyword',      search: [{ Text: sku, Value: sku }] },
         { facet: 'CatalogNodes', search: catalogNodes },
+        { facet: 'Manufacturer', search: manufacturer ? [{ Text: manufacturer, Value: manufacturer }] : [] },
+        { facet: 'Brand',        search: [] }
       ];
 
-      // Manufacturer filter can further reduce noise and missed matches
-      if (manufacturer) {
-        facets.push({ facet: 'Manufacturer', search: [{ Text: manufacturer, Value: manufacturer }] });
-      } else {
-        facets.push({ facet: 'Manufacturer', search: [] });
-      }
-
-      facets.push({ facet: 'Brand', search: [] });
-
-      // Single strategy (encoded sSearch). Running both raw+encoded caused duplicate rows.
+      // Single encoded search to avoid duplicate rows
       const rows = await this._fetchRowsPaged({ facets, encode: true, pageSize, maxPages, signal });
 
-      // ---- Local filtering + expansion + de-dupe ----
       const out = [];
-      const seen = new Set(); // url|normSku|qty
+      const seen = new Set(); // key: url|normSku|qtyPieces|price
+
+      const pushUnique = (base, { price, qtyPieces, eachPrice, tierMeta }) => {
+        const key = `${base.url}|${normSku}|${qtyPieces || ''}|${price || ''}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        out.push({
+          retailer: 'ellsworth',
+          sku: base.sku,
+          title: base.title,
+          price,                       // price per PACK
+          qty: qtyPieces,              // number of PIECES per pack (e.g., 50)
+          eachPrice,                   // price per PIECE (price / qtyPieces)
+          url: base.url,
+          inStock: base.inStock,
+          // keep the raw row and include optional tier metadata
+          raw: base.raw,
+          tierMinPacks: tierMeta?.min,
+          tierMaxPacks: tierMeta?.max,
+          tierLabel: tierMeta?.label
+        });
+      };
 
       for (const row of rows) {
-        // Known columns from Ellsworth search API:
+        // Column notes:
         // [0]=title, [1]=internalSku1, [2]=internalSku2, [3]=priceStr, [4]=relativeUrl,
-        // [5]=image, [6]=category, [7]=priceBreaks(JSON), [8]=empty, [9]=eachPriceStr,
-        // [10]=packDesc, [11]=displaySku, [12]=?, [13]=inStockFlag, [14..]=..., [19]=brand, [20]=altSku
+        // [7]=priceBreaks(JSON), [9]=eachPriceStr, [10]=packDesc, [11]=displaySku,
+        // [13]=inStockFlag, [19]=brand, [20]=altSku (your dump shows brand/alt swapped sometimes)
         const title         = row[0];
         const internalSku1  = row[1];
         const internalSku2  = row[2];
@@ -76,69 +104,62 @@
         const packDesc      = row[10];
         const displaySku    = row[11];
         const inStockFlag   = row[13];
-        const brand         = row[19];
-        const altSku        = row[20];
+        const brand         = row[19] || '';
+        const altSku        = row[20] || '';
 
-        // Local match is still useful because site SKUs often carry qty suffixes.
         const hay = [title, displaySku, internalSku1, internalSku2, brand, altSku].join(' ');
         if (!utils.includesSku(hay, normSku)) continue;
 
         const urlFull = relativeUrl ? `https://www.ellsworth.com${relativeUrl}` : 'https://www.ellsworth.com/';
         const inStock = (inStockFlag || '').toString().toLowerCase() === 'true';
         const baseSku = displaySku || internalSku1 || internalSku2 || sku;
-
-        const pushUnique = ({ price, qty, eachPrice }) => {
-          const key = `${urlFull}|${normSku}|${qty || ''}`;
-          if (seen.has(key)) return;
-          seen.add(key);
-          out.push({
-            retailer: 'ellsworth',
-            sku: baseSku,
-            title: (title || '').trim(),
-            price,
-            qty,
-            eachPrice,
-            url: urlFull,
-            inStock,
-            raw: row
-          });
+        const base = {
+          url: urlFull,
+          sku: baseSku,
+          title: (title || '').trim(),
+          inStock,
+          raw: row
         };
 
-        // Base visible price/each
-        const price     = utils.toNumOrUndef(String(priceStr || '').replace(/[^0-9.]/g, ''));
-        const eachPrice = utils.toNumOrUndef(String(eachPriceStr || '').replace(/[^0-9.]/g, ''));
+        const packSize = parsePackSize(packDesc); // e.g., 50
+        const basePrice  = utils.toNumOrUndef(String(priceStr || '').replace(/[^0-9.]/g, ''));
+        const baseEach   = (Number.isFinite(basePrice) && Number.isFinite(packSize) && packSize)
+          ? basePrice / packSize
+          : utils.toNumOrUndef(String(eachPriceStr || '').replace(/[^0-9.]/g, ''));
 
-        // Try to infer qty from pack description like "Sold as a pack (25/pk)."
-        const qtyFromPack = (() => {
-          const m = (packDesc || '').match(/\b(\d+)\b/);
-          const q = m ? Number(m[1]) : NaN;
-          return Number.isFinite(q) ? q : undefined;
-        })();
+        // Push the visible/base price row (usually corresponds to first tier)
+        pushUnique(base, {
+          price: basePrice,
+          qtyPieces: packSize,
+          eachPrice: baseEach,
+          tierMeta: undefined
+        });
 
-        // Push base row
-        pushUnique({ price, qty: qtyFromPack, eachPrice });
-
-        // Expand price break tiers like [{Qty:"25", Price:"$12.34"}, ...]
+        // Expand the tiered prices correctly:
         if (typeof priceBreaks === 'string' && priceBreaks.trim().startsWith('[')) {
           try {
             const tiers = JSON.parse(priceBreaks);
             if (Array.isArray(tiers)) {
               for (const t of tiers) {
-                const tQtyRaw   = String(t?.Qty ?? t?.qty ?? '');
-                const tPriceRaw = String(t?.Price ?? t?.price ?? '');
-                const tQty      = utils.toNumOrUndef(tQtyRaw);
-                const tPrice    = utils.toNumOrUndef(tPriceRaw.replace(/[^0-9.]/g, ''));
-                const tEach     = (Number.isFinite(tPrice) && Number.isFinite(tQty) && tQty)
-                  ? tPrice / tQty
+                // t.qty like "1-2", "3-13", "14+"
+                const { min, max, label } = parseTierLabelToRange(t?.qty ?? t?.Qty);
+                const pricePack = utils.toNumOrUndef(String(t?.price ?? t?.Price ?? '').replace(/[^0-9.]/g, ''));
+                if (!Number.isFinite(pricePack)) continue;
+
+                const eachPerPiece = (Number.isFinite(packSize) && packSize)
+                  ? pricePack / packSize
                   : undefined;
 
-                if (Number.isFinite(tQty) && Number.isFinite(tPrice)) {
-                  pushUnique({ price: tPrice, qty: tQty, eachPrice: tEach });
-                }
+                pushUnique(base, {
+                  price: pricePack,           // PER PACK
+                  qtyPieces: packSize,        // pieces per pack stays the same (e.g., 50)
+                  eachPrice: eachPerPiece,    // PER PIECE
+                  tierMeta: { min, max, label }
+                });
               }
             }
           } catch {
-            // ignore bad JSON in price breaks
+            // ignore JSON parse issues
           }
         }
       }
@@ -146,7 +167,7 @@
       return out;
     }
 
-    // Pull *only* the paged search results for the given Keyword/manufacturer facets.
+    // Paged fetch with encoded sSearch to avoid duplicate pass
     async _fetchRowsPaged({ facets, encode, pageSize, maxPages, signal }) {
       const rowsOut = [];
 
@@ -187,7 +208,6 @@
 
         rowsOut.push(...rows);
 
-        // Exit when done (either end-of-total, or short page)
         if (total != null && start + rows.length >= total) break;
         if (rows.length < pageSize) break;
       }
@@ -196,7 +216,6 @@
     }
   }
 
-  // Register in your global structure (no ES modules)
   window.ellsworthProvider = new EllsworthProvider();
   window.MarketProviders = window.MarketProviders || {};
   window.MarketProviders.ellsworth = window.ellsworthProvider;
