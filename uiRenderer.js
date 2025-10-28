@@ -233,23 +233,24 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Handle the pricing toggle switch label
-const toggle = document.getElementById("pricingToggle");
-const label = document.getElementById("pricingLabel");
-
-toggle.addEventListener("change", () => {
-  if (toggle.checked) {
-    label.textContent = "Distributor Pricing";
-  } else {
-    label.textContent = "Customer Pricing";
-  }
-});
 
 // Helper function to update the pricing table based on pricing toggle and selected product
 function updatePricingTable(partNumber) {
   const pricingData = window.dataStore["Pricing"]?.dataframe || [];
   const pricingEntry = pricingData.find(row => String(row["Product"]).trim() === partNumber);
   const isB2B = document.getElementById("pricingToggle").checked;
+  const tableBody = document.getElementById("priceTable"); // This is the <tbody>
+
+  // Get the parent table element
+  const parentTable = tableBody.closest('table');
+  if (parentTable) {
+    // Apply/remove a class to the whole table for styling
+    if (isB2B) {
+      parentTable.classList.add("b2b-pricing-active");
+    } else {
+      parentTable.classList.remove("b2b-pricing-active");
+    }
+  }
   
   let tableHTML = "";
 
@@ -269,7 +270,7 @@ function updatePricingTable(partNumber) {
     tableHTML = `<tr><td colspan="3" class="text-muted fst-italic">No pricing data available for product ${partNumber}</td></tr>`;
   }
   
-  document.getElementById("priceTable").innerHTML = tableHTML;
+  tableBody.innerHTML = tableHTML;
 }
 
 // Helper function to update the order table based on filter state and selected product
@@ -889,6 +890,7 @@ document.getElementById("productSearch").addEventListener("input", async (e) => 
     dropdown.innerHTML = "";
     dropdown.classList.remove('show');
     document.getElementById("productTable").innerHTML = "";
+    document.getElementById("competitorPriceLink").style.display = "none";
     return;
   }
 
@@ -993,6 +995,12 @@ async function selectProduct(encodedPartNumber, options = {}) {
       // Update the pricing table with the selected product’s pricing info
       updatePricingTable(partNumber);
 
+      // --- Show and wire up the competitor price link ---
+      const priceLink = document.getElementById("competitorPriceLink");
+      priceLink.style.display = "inline-block";
+      // Pass the partNumber to the click handler
+      priceLink.onclick = () => UIrenderer.showCompetitorPricingModal(partNumber);
+
       // --- Populate Quote Calculator ---
       const quoteInfo = {
           PartNumber: selectedProduct["PartNumber"],
@@ -1074,6 +1082,117 @@ document.getElementById("pricingToggle").addEventListener("change", () => {
     updatePricingTable(window.currentProduct);
   }
 });
+
+let competitorPriceModalInstance = null;
+
+/**
+ * Formats the raw results from MarketSearch into an HTML table.
+ * @param {Array} results - The array of listing objects.
+ * @returns {string} - The HTML string for the results.
+ */
+function formatPriceResults(results) {
+  if (!results || results.length === 0) {
+    return `<p class="text-muted fst-italic">No competitor pricing found for this product.</p>`;
+  }
+
+  // Sort by 'eachPrice' ascending, putting items without it at the end
+  results.sort((a, b) => {
+    const priceA = a.eachPrice ?? Infinity;
+    const priceB = b.eachPrice ?? Infinity;
+    return priceA - priceB;
+  });
+
+  let html = `
+    <div class="table-responsive">
+      <table class="table table-sm table-striped table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>Retailer</th>
+            <th>Title / SKU</th>
+            <th>In Stock</th>
+            <th>Qty</th>
+            <th>Total Price</th>
+            <th>Price/Each</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  results.forEach(r => {
+    const stockBadge = r.inStock === true ? `<span class="badge bg-success">Yes</span>` :
+                       r.inStock === false ? `<span class="badge bg-danger">No</span>` :
+                       '';
+    
+    html += `
+      <tr>
+        <td class="text-capitalize">${r.retailer || 'N/A'}</td>
+        <td>
+          <a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title || 'View Product'} <i class="fas fa-external-link-alt fa-xs"></i></a>
+          <br>
+          <small class="text-muted">${r.sku || ''}</small>
+        </td>
+        <td>${stockBadge}</td>
+        <td>${r.qty || '-'}</td>
+        <td>${r.price ? moneyFmt.format(r.price) : '-'}</td>
+        <td class="fw-bold">${r.eachPrice ? moneyFmt.format(r.eachPrice) : '-'}</td>
+      </tr>
+    `;
+  });
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+  return html;
+}
+
+/**
+ * Fetches competitor pricing for a given SKU and displays it in a modal.
+ * @param {string} sku - The product SKU to search for.
+ */
+async function showCompetitorPricingModal(sku) {
+  if (!sku) return;
+
+  if (!competitorPriceModalInstance) {
+    competitorPriceModalInstance = new bootstrap.Modal(document.getElementById('competitorPriceModal'));
+  }
+  
+  const modalBody = document.getElementById('competitorPriceModalBody');
+  const modalTitle = document.getElementById('competitorPriceModalLabel');
+
+  // 1. Set loading state and show modal
+  modalTitle.textContent = `Competitor Pricing for ${sku}`;
+  modalBody.innerHTML = `
+    <div class="d-flex align-items-center justify-content-center p-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <span class="ms-3 fs-5 text-muted">Searching all providers...</span>
+    </div>
+  `;
+  competitorPriceModalInstance.show();
+
+  try {
+    // 2. Call the search function (this is the new part)
+    console.log(`[MarketSearch] Searching for SKU: ${sku}`);
+    const results = await window.MarketSearch.searchAllProvidersBySku(sku, { timeoutMs: 10000 });
+    console.log(`[MarketSearch] Found ${results.length} results:`, results);
+
+    // 3. Format and display results
+    modalBody.innerHTML = formatPriceResults(results);
+
+  } catch (error) {
+    console.error("[MarketSearch] Error:", error);
+    // 4. Display error state
+    modalBody.innerHTML = `
+      <div class="alert alert-danger">
+        <strong>Search Failed</strong>
+        <p class="mb-0">An error occurred while fetching competitor data. ${error.message || ''}</p>
+      </div>
+    `;
+  }
+}
 
 // Update UI after successful login
 function updateUIForLoggedInUser() {
@@ -1298,5 +1417,6 @@ window.UIrenderer = {
   selectCustomerInfo, // Expose selectCustomerInfo for the Customer Info tab
   handleContactMerge, // Expose the new merge handler
   confirmAndSaveChanges, // Expose the new save handler
-  showProductInfoModal
+  showProductInfoModal,
+  showCompetitorPricingModal
 };

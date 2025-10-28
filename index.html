@@ -434,6 +434,30 @@
       margin-top: 1rem;
       transition: opacity 0.3s ease;
     }
+    #priceTable tr {
+      transition: background-color 0.3s ease;
+    }
+    .table.b2b-pricing-active #priceTable tr {
+      background-color: #f3f5ff; /* Subtle blue tint for B2B */
+    }
+    .table.b2b-pricing-active #priceTable tr:hover {
+      background-color: #e6eaf8; /* Slightly darker hover for B2B */
+    }
+    .price-check-link {
+      color: #0d6efd; /* Bootstrap primary */
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+      text-decoration: none; /* No underline */
+      font-weight: 500;
+      font-size: 0.9rem; /* Adjusted size to fit */
+      display: inline-block; 
+      white-space: nowrap; /* Keep it on one line */
+    }
+    .price-check-link:hover {
+      color: #0d6efd; /* Keep color on hover */
+      opacity: 0.7;
+      text-decoration: none; /* No underline on hover */
+    }
   </style>
 </head>
 <body>
@@ -570,7 +594,10 @@
                       <span class="b2b">B2C</span>
                       <span class="b2c">B2B</span>
                     </label>
-                    <span id="pricingLabel" class="info-label">Customer Pricing</span>
+                    <a id="competitorPriceLink" class="price-check-link ms-3" style="display: none;">
+                      View competitor pricing
+                      <i class="bi bi-bar-chart-line-fill ms-1"></i>
+                    </a>
                   </div>
                 </div>
               </div>
@@ -848,6 +875,23 @@
     </div>
   </div>
 
+  <!-- Competitor Pricing Modal -->
+  </div> <div class="modal fade" id="competitorPriceModal" tabindex="-1" aria-labelledby="competitorPriceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title" id="competitorPriceModalLabel">Competitor Pricing</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4" id="competitorPriceModalBody">
+          </div>
+        <div class="modal-footer border-0 bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade show" id="pricingWarningModal" tabindex="-1" style="display: none;" aria-modal="true" role="dialog">
 
   <!--CodeMirror CDN-->
   <link  href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.css" rel="stylesheet">
