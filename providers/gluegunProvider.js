@@ -21,15 +21,17 @@
     const q = Number(qty);
     if (!Number.isFinite(p) || !Number.isFinite(q) || q <= 0) return undefined;
     const v = p / q;
-    return Math.round(v * 100) / 100; // <-- rounds to 2 decimals
+    return Math.round(v * 100) / 100; // 2 decimals
   }
 
   class GluegunProvider extends Provider {
     get id() { return 'gluegun'; }
 
     /**
+     * Return ALL variants that match the clean SKU (tiers are separate variants with their own SKUs).
+     *
      * @param {string} sku
-     * @param {{ signal?: AbortSignal, pageSize?: number, maxPages?: number, stopOnFirstMatch?: boolean, collections?: string[] }} opts
+     * @param {{ signal?: AbortSignal, pageSize?: number, maxPages?: number, collections?: string[] }} opts
      * @returns {Promise<Listing[]>}
      */
     async findBySku(sku, opts = {}) {
@@ -37,12 +39,12 @@
         signal,
         pageSize = 250,
         maxPages = 10,
-        stopOnFirstMatch = true,
-        collections = ['sulzer']
+        collections = ['sulzer'] // add more collection handles if needed
       } = opts;
 
       const normSku = utils.normalizeSku(sku);
       const out = [];
+      const seen = new Set(); // de-dupe by product.handle + rawSku (NOT cleanSku)
 
       for (const handle of collections) {
         let page = 1;
@@ -56,39 +58,40 @@
             const variants = Array.isArray(p.variants) ? p.variants : [];
             const productHay = [p.title || '', p.body_html || ''].join(' ');
 
-            // match by variant sku first; fallback to product text
+            // Prefer direct variant SKU matches; if product text matches, include ALL variants
             const matchingVariants = variants.filter(v => {
               const vSku = (v?.sku || '').trim();
               return vSku ? utils.includesSku(vSku, normSku) : false;
             });
             const chosen = matchingVariants.length
               ? matchingVariants
-              : (utils.includesSku(productHay, normSku) ? variants.slice(0, 1) : []);
+              : (utils.includesSku(productHay, normSku) ? variants : []);
 
             for (const v of chosen) {
               const rawSku = (v?.sku || '').trim()
                 || utils.pickSku(variants.map(x => x.sku), p.body_html)
                 || sku;
 
-              const qty = extractQtyFromSku(rawSku);          // <- default 1 if none
-              const cleanSku = stripQtyFromSku(rawSku);
+              const key = `${p.handle}|${rawSku}`;  // <-- preserves different-qty SKUs
+              if (seen.has(key)) continue;
+              seen.add(key);
 
+              const qty = extractQtyFromSku(rawSku);   // default 1 if none
+              const cleanSku = stripQtyFromSku(rawSku);
               const price = utils.toNumOrUndef(v?.price);
               const eachPrice = computeEach(price, qty);
 
               out.push({
                 retailer: this.id,
-                sku: cleanSku,
-                title: p.title,
+                sku: cleanSku,                 // human-friendly; rawSku still in .raw
+                title: p.title?.trim() || '',
                 price,
                 qty,
                 eachPrice,
                 url: `https://gluegun.com/products/${p.handle}`,
                 inStock: v?.available ?? undefined,
-                raw: { product: p, variant: v }
+                raw: { product: p, variant: v, rawSku }
               });
-
-              if (stopOnFirstMatch) return out;
             }
           }
 
