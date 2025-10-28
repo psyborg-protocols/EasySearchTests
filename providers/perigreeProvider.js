@@ -68,7 +68,7 @@
       for (const handle of collections) {
         let page = 1;
         while (page <= maxPages) {
-          const url = `https://www.perigeedirect.com/collections/${encodeURIComponent(handle)}/products.json?limit=${pageSize}&page=${page}`;
+          const url = `https://www.perigeedirect.com/collections/${encodeURIComponent(handle)}/products.json?limit=${pageSize}&page=${page}?currency=USD`;
           const json = await utils.fetchJson(url, { signal });
           const products = Array.isArray(json?.products) ? json.products : [];
           if (products.length === 0) break; // end of pages
