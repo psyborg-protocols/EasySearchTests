@@ -27,7 +27,7 @@
         pageSize = 250,
         maxPages = 20,
         stopOnFirstMatch = true,
-        manufacturer = undefined,
+        manufacturer = "medmix", // default to medmix products
         catalogNodes = [] // keep empty unless you want to *narrow* results
       } = opts;
 
