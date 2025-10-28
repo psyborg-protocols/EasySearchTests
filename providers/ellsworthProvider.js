@@ -120,7 +120,7 @@
           // row[6] category
           // row[7] price breaks (JSON string)
           // row[8] empty
-          const eachPrice     = row[9];   // not used, but available
+          const eachPriceStr     = row[9];   // not used, but available
           const packDesc      = row[10];  // e.g., "Sold as a pack (25/pk)."
           const displaySku    = row[11];
           const inStockFlag   = row[13];
@@ -131,6 +131,8 @@
           if (!utils.includesSku(hay, normSku)) continue;
 
           const price   = utils.toNumOrUndef((priceStr || '').replace(/[^0-9.]/g, ''));
+          const qty = packDesc ? Number((packDesc.match(/\d+/) || [])[0]) : NaN;
+          const eachPrice = utils.toNumOrUndef((eachPriceStr || '').replace(/[^0-9.]/g, ''));
           const inStock = (inStockFlag || '').toString().toLowerCase() === 'true';
           const urlFull = relativeUrl ? `https://www.ellsworth.com${relativeUrl}` : 'https://www.ellsworth.com/';
 
@@ -139,6 +141,8 @@
             sku: displaySku || internalSku1 || internalSku2 || sku,
             title: (title || '').trim(),
             price,
+            qty,
+            eachPrice,
             url: urlFull,
             inStock,
             raw: row

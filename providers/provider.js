@@ -6,6 +6,7 @@
    * @property {string} sku        // SKU found on the product
    * @property {string} title      // product title
    * @property {number=} price     // optional numeric price
+   * @property {number=} eachPrice // optional per-unit price
    * @property {string} url        // product page
    * @property {boolean=} inStock  // optional in-stock flag
    * @property {any} raw           // original payload (debugging)

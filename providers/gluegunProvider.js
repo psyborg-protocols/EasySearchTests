@@ -5,20 +5,30 @@
   }
   const { Provider, utils } = window.MarketSearch;
 
+  // --- helpers ---
+  function extractQtyFromSku(sku) {
+    // e.g., "SULZER MEFX 06-18T (1700)" -> 1700; if none -> 1 (single unit)
+    if (!sku) return 1;
+    const m = sku.match(/\((\d{1,7})\)\s*$/);
+    return m ? Number(m[1]) : 1;
+  }
+  function stripQtyFromSku(sku) {
+    if (!sku) return sku;
+    return sku.replace(/\s*\(\d{1,7}\)\s*$/, '').trim();
+  }
+  function computeEach(price, qty) {
+    const p = Number(price);
+    const q = Number(qty);
+    if (!Number.isFinite(p) || !Number.isFinite(q) || q <= 0) return undefined;
+    return p / q;
+  }
+
   class GluegunProvider extends Provider {
     get id() { return 'gluegun'; }
 
     /**
-     * Paginated search for a SKU across one or more Gluegun collections.
-     *
      * @param {string} sku
-     * @param {{
-     *   signal?: AbortSignal,
-     *   pageSize?: number,          // default 250 (Shopify max)
-     *   maxPages?: number,          // safety cap per collection
-     *   stopOnFirstMatch?: boolean, // return early when found
-     *   collections?: string[]      // collection handles to scan
-     * }} opts
+     * @param {{ signal?: AbortSignal, pageSize?: number, maxPages?: number, stopOnFirstMatch?: boolean, collections?: string[] }} opts
      * @returns {Promise<Listing[]>}
      */
     async findBySku(sku, opts = {}) {
@@ -27,7 +37,7 @@
         pageSize = 250,
         maxPages = 10,
         stopOnFirstMatch = true,
-        collections = ['sulzer'] // your example handle; add more as needed
+        collections = ['sulzer']
       } = opts;
 
       const normSku = utils.normalizeSku(sku);
@@ -39,28 +49,49 @@
           const url = `https://gluegun.com/collections/${encodeURIComponent(handle)}/products.json?limit=${pageSize}&page=${page}`;
           const json = await utils.fetchJson(url, { signal });
           const products = Array.isArray(json?.products) ? json.products : [];
-          if (products.length === 0) break; // exhausted
+          if (products.length === 0) break;
 
           for (const p of products) {
-            const variants = (p.variants ?? []).map(v => (v?.sku || '').trim()).filter(Boolean);
-            const hay = [p.title || '', p.body_html || '', ...variants].join(' ');
-            if (!utils.includesSku(hay, normSku)) continue;
+            const variants = Array.isArray(p.variants) ? p.variants : [];
+            const productHay = [p.title || '', p.body_html || ''].join(' ');
 
-            const listing = {
-              retailer: this.id,
-              sku: utils.pickSku(variants, p.body_html) ?? sku,
-              title: p.title,
-              price: utils.toNumOrUndef(p.variants?.[0]?.price),
-              url: `https://gluegun.com/products/${p.handle}`,
-              inStock: p.variants?.[0]?.available ?? undefined,
-              raw: p
-            };
-            out.push(listing);
+            // match by variant sku first; fallback to product text
+            const matchingVariants = variants.filter(v => {
+              const vSku = (v?.sku || '').trim();
+              return vSku ? utils.includesSku(vSku, normSku) : false;
+            });
+            const chosen = matchingVariants.length
+              ? matchingVariants
+              : (utils.includesSku(productHay, normSku) ? variants.slice(0, 1) : []);
 
-            if (stopOnFirstMatch) return out; // fast path
+            for (const v of chosen) {
+              const rawSku = (v?.sku || '').trim()
+                || utils.pickSku(variants.map(x => x.sku), p.body_html)
+                || sku;
+
+              const qty = extractQtyFromSku(rawSku);          // <- default 1 if none
+              const cleanSku = stripQtyFromSku(rawSku);
+
+              const price = utils.toNumOrUndef(v?.price);
+              const eachPrice = computeEach(price, qty);
+
+              out.push({
+                retailer: this.id,
+                sku: cleanSku,
+                title: p.title,
+                price,
+                qty,
+                eachPrice,
+                url: `https://gluegun.com/products/${p.handle}`,
+                inStock: v?.available ?? undefined,
+                raw: { product: p, variant: v }
+              });
+
+              if (stopOnFirstMatch) return out;
+            }
           }
 
-          if (products.length < pageSize) break; // last page
+          if (products.length < pageSize) break;
           page++;
         }
       }
@@ -69,7 +100,6 @@
     }
   }
 
-  // expose instance globally and register
   window.gluegunProvider = new GluegunProvider();
   window.MarketProviders = window.MarketProviders || {};
   window.MarketProviders.gluegun = window.gluegunProvider;
