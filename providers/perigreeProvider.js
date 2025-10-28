@@ -69,7 +69,13 @@
         let page = 1;
         while (page <= maxPages) {
           const url = `https://www.perigeedirect.com/collections/${encodeURIComponent(handle)}/products.json?limit=${pageSize}&page=${page}`;
-          const json = await utils.fetchJson(url, { signal });
+          const json = await utils.fetchJson(url, {
+          signal,
+          headers: {
+              'Cookie': 'cart_currency=USD'
+          },
+          credentials: 'include'
+          });
           const products = Array.isArray(json?.products) ? json.products : [];
           if (products.length === 0) break; // end of pages
 

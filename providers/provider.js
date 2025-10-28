@@ -52,18 +52,28 @@
      * @param {string} url
      * @param {{signal?: AbortSignal, retries?: number}} param1
      */
-    async fetchJson(url, { signal, retries = 2 } = {}) {
+    async fetchJson(
+      url,
+      { signal, retries = 2, headers = {}, credentials = 'same-origin' } = {}
+    ) {
       let attempt = 0;
       while (true) {
         try {
-          const res = await fetch(url, { signal });
+          const res = await fetch(url, {
+            signal,
+            headers: {
+              'Accept': 'application/json',
+              ...headers,
+            },
+            credentials,
+          });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return await res.json();
         } catch (err) {
           attempt++;
           if (signal?.aborted) throw err;
           if (attempt > retries) throw err;
-          await new Promise(r => setTimeout(r, 300 * attempt)); // 300ms, 600ms
+          await new Promise(r => setTimeout(r, 300 * attempt)); // 300ms, 600ms backoff
         }
       }
     }
