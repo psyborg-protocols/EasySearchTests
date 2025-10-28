@@ -7,11 +7,12 @@
   const { Provider, utils } = window.MarketSearch;
 
   function parsePackSize(packDesc) {
-    // e.g., "Sold as a pack (50/pk)." -> 50
-    const m = String(packDesc || '').match(/\((\d+)\s*\/\s*pk\)/i) || String(packDesc || '').match(/\b(\d+)\b/);
-    const n = m ? Number(m[1]) : NaN;
+    const m = String(packDesc || '').match(/\(([\d,]+)\s*\/\s*pk\)/i)
+          || String(packDesc || '').match(/\b([\d,]+)\b/);
+    const n = m ? Number(m[1].replace(/,/g, '')) : NaN;
     return Number.isFinite(n) ? n : undefined;
   }
+
 
   function tierMinFromLabel(qtyLabel) {
     // "1-2" -> 1, "3-13" -> 3, "14+" -> 14, "6" -> 6
