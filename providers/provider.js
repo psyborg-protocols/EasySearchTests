@@ -77,37 +77,20 @@
   // optional registry (providers can self-register here)
   window.MarketProviders = window.MarketProviders || {};
 
-// ---------- aggregator service (call all registered providers) ----------
-/**
- * Call every registered provider’s `findBySku` in parallel.
- * @param {string} sku
- * @param {{ timeoutMs?: number }} [opts]
- * @returns {Promise<Listing[]>}
- */
+// ---------- aggregator service (no dedupe) ----------
 window.MarketSearch.searchAllProvidersBySku = async function (sku, { timeoutMs = 8000 } = {}) {
   const providers = Object.values(window.MarketProviders || {});
-  if (!providers.length) {
-    console.warn('No MarketProviders registered.');
-    return [];
-  }
+  if (!providers.length) return [];
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort('timeout'), timeoutMs);
+
   try {
-    // Run all providers in parallel; tolerate partial failures
     const settled = await Promise.allSettled(
       providers.map(p => p.findBySku(sku, { signal: controller.signal }))
     );
-    const results = settled.flatMap(r => (r.status === 'fulfilled' ? r.value : []));
-    const deduped = [];
-    const seen = new Set();
-    for (const item of results) {
-      const key = `${item.retailer}:${item.sku}:${item.url}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      deduped.push(item);
-    }
-    return deduped;
+    // just flatten fulfilled results; no combining or deduping
+    return settled.flatMap(r => (r.status === 'fulfilled' ? r.value : []));
   } finally {
     clearTimeout(timer);
   }

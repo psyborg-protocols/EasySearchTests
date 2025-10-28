@@ -6,9 +6,9 @@
   const { Provider, utils } = window.MarketSearch;
 
   // --- helpers ---
-  // Primary: exact "x-Pack" (with hyphen). Fallback: allow "x Pack" if encountered.
+  // Primary: exact "x-Pack". Fallback: allow "x-Box" if encountered.
   const PACK_RE_PRIMARY = /(\d+)\s*-\s*Pack\b/i;
-  const PACK_RE_FALLBACK = /(\d+)\s*Pack\b/i;
+  const PACK_RE_FALLBACK = /(\d+)\s*-\s*Box\b/i;
 
   function extractQtyFromVariant(variant) {
     // Check variant.title and option1/2/3 for "x-Pack"
