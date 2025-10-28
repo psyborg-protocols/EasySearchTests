@@ -5,6 +5,40 @@
   }
   const { Provider, utils } = window.MarketSearch;
 
+  // --- helpers ---
+  // Primary: exact "x-Pack" (with hyphen). Fallback: allow "x Pack" if you ever encounter it.
+  const PACK_RE_PRIMARY = /(\d+)\s*-\s*Pack\b/i;
+  const PACK_RE_FALLBACK = /(\d+)\s*Pack\b/i;
+
+  function extractQtyFromVariant(variant) {
+    // Check variant.title and option1/2/3 for "x-Pack"
+    const fields = [
+      (variant?.title || '').trim(),
+      (variant?.option1 || '').trim(),
+      (variant?.option2 || '').trim(),
+      (variant?.option3 || '').trim(),
+    ];
+
+    for (const f of fields) {
+      if (!f) continue;
+      let m = f.match(PACK_RE_PRIMARY);
+      if (!m) m = f.match(PACK_RE_FALLBACK); // optional robustness
+      if (m) {
+        const n = Number(m[1]);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+    }
+    return 1; // default single-unit if no pack marker
+  }
+
+  function computeEach(price, qty) {
+    const p = Number(price);
+    const q = Number(qty);
+    if (!Number.isFinite(p) || !Number.isFinite(q) || q <= 0) return undefined;
+    const v = p / q;
+    return Math.round(v * 100) / 100; // round to 2 decimals
+  }
+
   class PerigeeProvider extends Provider {
     get id() { return 'perigee'; }
 
@@ -17,6 +51,7 @@
      *   stopOnFirstMatch?: boolean,
      *   collections?: string[]
      * }} opts
+     * @returns {Promise<Listing[]>}
      */
     async findBySku(sku, opts = {}) {
       const {
@@ -39,22 +74,41 @@
           if (products.length === 0) break; // end of pages
 
           for (const p of products) {
-            const variants = (p.variants ?? []).map(v => (v?.sku || '').trim()).filter(Boolean);
-            const hay = [p.title || '', p.body_html || '', ...variants].join(' ');
-            if (!utils.includesSku(hay, normSku)) continue;
+            const variants = Array.isArray(p.variants) ? p.variants : [];
 
-            const listing = {
-              retailer: this.id,
-              sku: utils.pickSku(variants, p.body_html) ?? sku,
-              title: p.title,
-              price: utils.toNumOrUndef(p.variants?.[0]?.price),
-              url: `https://www.perigeedirect.com/products/${p.handle}`,
-              inStock: p.variants?.[0]?.available ?? undefined,
-              raw: p
-            };
+            // match by variant SKU first; fallback to product text if needed
+            const productHay = [p.title || '', p.body_html || ''].join(' ');
+            const matchingVariants = variants.filter(v => {
+              const vSku = (v?.sku || '').trim();
+              return vSku ? utils.includesSku(vSku, normSku) : false;
+            });
+            const chosen = matchingVariants.length
+              ? matchingVariants
+              : (utils.includesSku(productHay, normSku) ? variants.slice(0, 1) : []);
 
-            results.push(listing);
-            if (stopOnFirstMatch) return results;
+            for (const v of chosen) {
+              const rawSku = (v?.sku || '').trim()
+                           || utils.pickSku(variants.map(x => x.sku), p.body_html)
+                           || sku;
+
+              const qty = extractQtyFromVariant(v);    // <- from "x-Pack" markers, default 1
+              const price = utils.toNumOrUndef(v?.price);
+              const eachPrice = computeEach(price, qty);
+
+              results.push({
+                retailer: this.id,
+                sku: rawSku,                           // no parenthetical to strip here
+                title: p.title,
+                price,
+                qty,
+                eachPrice,
+                url: `https://www.perigeedirect.com/products/${p.handle}`,
+                inStock: v?.available ?? undefined,
+                raw: { product: p, variant: v }
+              });
+
+              if (stopOnFirstMatch) return results;
+            }
           }
 
           if (products.length < pageSize) break; // last page

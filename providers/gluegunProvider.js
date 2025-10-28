@@ -20,7 +20,8 @@
     const p = Number(price);
     const q = Number(qty);
     if (!Number.isFinite(p) || !Number.isFinite(q) || q <= 0) return undefined;
-    return p / q;
+    const v = p / q;
+    return Math.round(v * 100) / 100; // <-- rounds to 2 decimals
   }
 
   class GluegunProvider extends Provider {
