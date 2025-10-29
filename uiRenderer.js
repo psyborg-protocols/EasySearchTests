@@ -1086,8 +1086,7 @@ document.getElementById("pricingToggle").addEventListener("change", () => {
 let competitorPriceModalInstance = null;
 
 /**
- * Formats the raw results from MarketSearch into an accordion-style HTML table,
- * grouped by retailer.
+ * Formats the raw results from MarketSearch into a clean, card-based accordion.
  * @param {Array} results - The array of listing objects.
  * @returns {string} - The HTML string for the results.
  */
@@ -1099,25 +1098,26 @@ function formatPriceResults(results) {
   // --- Helper to build the inner (detail) table ---
   const buildDetailTable = (listings) => {
     let detailHtml = `
-      <table class="table table-sm table-striped mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Title / SKU</th>
-            <th>In Stock</th>
-            <th>Qty</th>
-            <th>Total Price</th>
-            <th>Price/Each</th>
-          </tr>
-        </thead>
-        <tbody>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Title / SKU</th>
+              <th>In Stock</th>
+              <th>Qty</th>
+              <th>Total Price</th>
+              <th>Price/Each</th>
+            </tr>
+          </thead>
+          <tbody>
     `;
     listings.forEach(r => {
       const stockBadge = r.inStock === true ? `<span class="badge bg-success">Yes</span>` :
                          r.inStock === false ? `<span class="badge bg-danger">No</span>` :
-                         '';
+                         '<span class="badge bg-secondary">Unknown</span>';
       detailHtml += `
         <tr>
-          <td>
+          <td style="min-width: 250px;">
             <a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title || 'View Product'} <i class="fas fa-external-link-alt fa-xs"></i></a>
             <br>
             <small class="text-muted">${r.sku || ''}</small>
@@ -1129,7 +1129,7 @@ function formatPriceResults(results) {
         </tr>
       `;
     });
-    detailHtml += `</tbody></table>`;
+    detailHtml += `</tbody></table></div>`;
     return detailHtml;
   };
 
@@ -1143,76 +1143,69 @@ function formatPriceResults(results) {
     return acc;
   }, {});
 
-  // 2. Sort retailers by their best eachPrice
+  // 2. Create sorted retailer objects
   const sortedRetailers = Object.entries(groupedByRetailer).map(([retailer, listings]) => {
     // Sort listings within the group by eachPrice
-    listings.sort((a, b) => (a.eachPrice ?? Infinity) - (b.eachPrice ?? Infinity));
-    const minPrice = listings[0]?.eachPrice ?? Infinity;
+    const sortedListings = [...listings].sort((a, b) => (a.eachPrice ?? Infinity) - (b.eachPrice ?? Infinity));
+    const bestListing = sortedListings[0];
+    const bestPrice = bestListing?.eachPrice ?? Infinity;
     const anyInStock = listings.some(r => r.inStock === true);
-    return { retailer, listings, minPrice, anyInStock };
-  });
-
-  sortedRetailers.sort((a, b) => a.minPrice - b.minPrice);
-
-  // 3. Build the outer table HTML
-  let html = `
-    <div class="table-responsive">
-      <table class="table table-hover competitor-price-table">
-        <thead class="table-light">
-          <tr>
-            <th style="width: 20%;">Retailer</th>
-            <th style="width: 20%;">Best Each-Price</th>
-            <th style="width: 45%;">Available Tiers (Qty / Price)</th>
-            <th style="width: 15%;">Stock</th>
-          </tr>
-        </thead>
-        <tbody>
-  `;
-
-  // 4. Create a summary row and a detail row for each retailer
-  sortedRetailers.forEach(({ retailer, listings, minPrice, anyInStock }, index) => {
-    const collapseId = `competitor-collapse-${index}`;
     
-    // Create price snippets for the summary row (e.g., "10 / $0.50")
-    const priceSnippets = listings.slice(0, 4).map(r => 
-      `<span class="badge bg-light text-dark me-1 border">${r.qty || '-'} / ${r.eachPrice ? moneyFmt.format(r.eachPrice) : '-'}</span>`
-    ).join(' ');
-    const moreSnippets = listings.length > 4 ? `<span class="badge bg-light text-dark border">+${listings.length - 4} more</span>` : '';
+    return { retailer, listings: sortedListings, bestPrice, anyInStock };
+  });
 
-    const stockBadge = anyInStock ? `<span class="badge bg-success">Yes</span>` :
-                       (listings.every(r => r.inStock === false) ? `<span class="badge bg-danger">No</span>` : '');
+  // 3. Sort retailers by their best eachPrice
+  sortedRetailers.sort((a, b) => a.bestPrice - b.bestPrice);
 
-    // Summary Row
+  // 4. Build the Bootstrap Accordion HTML
+  let html = `<div class="accordion" id="competitorAccordion">`;
+
+  sortedRetailers.forEach(({ retailer, listings, bestPrice, anyInStock }, index) => {
+    const collapseId = `competitor-collapse-${index}`;
+    const listingCount = listings.length;
+    const listingText = listingCount === 1 ? '1 Listing' : `${listingCount} Listings`;
+
+    const stockBadge = anyInStock ? `<span class="badge bg-success">In Stock</span>` :
+                       (listings.every(r => r.inStock === false) ? `<span class="badge bg-danger">Out of Stock</span>` : 
+                       '<span class="badge bg-secondary">Unknown</span>');
+
     html += `
-      <tr data-bs-toggle="collapse" data-bs-target="#${collapseId}" class="accordion-toggle" aria-expanded="false" aria-controls="${collapseId}">
-        <td class="text-capitalize fw-bold">${retailer} <i class="fas fa-chevron-down fa-xs ms-1"></i></td>
-        <td class="fw-bold">${minPrice !== Infinity ? moneyFmt.format(minPrice) : '-'}</td>
-        <td style="font-size: 0.85rem;">${priceSnippets} ${moreSnippets}</td>
-        <td>${stockBadge}</td>
-      </tr>
-    `;
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="heading-${collapseId}">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
+            
+            <div class="d-flex justify-content-between align-items-center w-100 pe-2">
+              
+              <!-- Left Side: Retailer Name -->
+              <span class="text-capitalize fw-bold fs-6 text-dark">
+                ${retailer}
+              </span>
+              
+              <!-- Right Side: Summary Details -->
+              <div class="d-flex align-items-center gap-3 accordion-summary-details">
+                <span class="text-muted" style="font-size: 0.9rem;">${listingText}</span>
+                ${stockBadge}
+                <strong class="text-primary" style="font-size: 1rem; min-width: 110px; text-align: right;">
+                  ${bestPrice !== Infinity ? moneyFmt.format(bestPrice) + " / each" : '-'}
+                </strong>
+              </div>
 
-    // Detail Row (collapsible)
-    html += `
-      <tr class="p-0">
-        <td colspan="4" class="p-0 border-0">
-          <div id="${collapseId}" class="accordion-collapse collapse">
-            <div class="accordion-body" style="padding: 10px; background-color: #f8f9fa;">
-              ${buildDetailTable(listings)}
             </div>
+          </button>
+        </h2>
+        <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="heading-${collapseId}" data-bs-parent="#competitorAccordion">
+          <div class="accordion-body p-0">
+            ${buildDetailTable(listings)}
           </div>
-        </td>
-      </tr>
+        </div>
+      </div>
     `;
   });
 
-  html += `
-        </tbody>
-      </table>
-    </div>
-  `;
+  html += `</div>`; // Close accordion
   return html;
 }
+
 
 /**
  * Fetches competitor pricing for a given SKU and displays it in a modal.
