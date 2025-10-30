@@ -176,7 +176,6 @@ async function fetchAndProcessOrgContacts(token) {
     }
     return cachedContactsMap;
   }
-}
 
 }
 
