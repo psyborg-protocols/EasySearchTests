@@ -166,17 +166,26 @@ async function fetchAndProcessOrgContacts(token) {
         return cachedContactsMap;
 
   } catch (error) {
-        console.error("Error fetching or processing organizational contacts:", error);
-        
-        // Check if the fetch failed while using an existing deltaLink
-        if (nextLink && !nextLink.startsWith('https://graph.microsoft.com/v1.0/contacts/delta')) {
-            console.warn("Delta-token fetch failed. Clearing metadata to force full sync on next load.");
-            metadata.deltaLink = null; // Clear the bad link from the in-memory object
-            await idbUtil.setDataset("OrgContactsMetadata", metadata); // Save the cleared metadata back to IndexedDB
+    console.error('Error fetching organizational contacts:', error);
+    // Attempt to salvage by requesting a fresh deltaLink
+    try {
+        const latestUrl = 'https://graph.microsoft.com/v1.0/contacts/delta?token=latest&$select=displayName,companyName,jobTitle,mail';
+        const latestResp = await fetch(latestUrl, { headers: { Authorization: `Bearer ${token}` } });
+        const latestData = await latestResp.json();
+        if (latestData['@odata.deltaLink']) {
+            metadata.deltaLink = latestData['@odata.deltaLink'];
+            await idbUtil.setDataset('OrgContactsMetadata', metadata);
+            console.warn('Delta token expired; replaced with new token from token=latest call.');
         }
-        
-        return cachedContactsMap; // Return the old map on error
+    } catch (innerErr) {
+        console.error('Failed to retrieve new deltaLink:', innerErr);
+        // fallback: clear the token and allow a full sync next time
+        metadata.deltaLink = null;
+        await idbUtil.setDataset('OrgContactsMetadata', metadata);
     }
+    return cachedContactsMap;
+}
+
 }
 
 
