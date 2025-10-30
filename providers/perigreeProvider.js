@@ -90,21 +90,21 @@
 
             for (const v of chosen) {
               const rawSku = (v?.sku || '').trim()
-                           || utils.pickSku(variants.map(x => x.sku), p.body_html)
-                           || sku;
+                          || utils.pickSku(variants.map(x => x.sku), p.body_html)
+                          || sku;
+
+              const qty = extractQtyFromVariant(v);
+              const price = utils.toNumOrUndef(v?.price);
+              const eachPrice = computeEach(price, qty);
 
               const priceKey = Number.isFinite(price) ? price.toFixed(2) : 'undef';
               const dedupeKey = `${priceKey}|${qty}`;
               if (seen.has(dedupeKey)) continue;
               seen.add(dedupeKey);
 
-              const qty = extractQtyFromVariant(v);    // from "x-Pack" markers, default 1
-              const price = utils.toNumOrUndef(v?.price);
-              const eachPrice = computeEach(price, qty);
-
               results.push({
                 retailer: this.id,
-                sku: rawSku,                           // each variant has its own SKU
+                sku: rawSku,
                 title: p.title?.trim() || '',
                 price,
                 qty,
