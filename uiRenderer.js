@@ -1087,7 +1087,7 @@ let competitorPriceModalInstance = null;
 
 /**
  * Formats the raw results from MarketSearch into a clean, card-based accordion.
- * Displays the first few price tiers (Qty / Price Each) in the summary header.
+ * Displays the first few price tiers (Price (Qty)) in the summary header, aligned like columns.
  * @param {Array} results - The array of listing objects.
  * @returns {string} - The HTML string for the results.
  */
@@ -1144,15 +1144,12 @@ function formatPriceResults(results) {
     return acc;
   }, {});
 
-  // 2. Create retailer objects and sort listings within each retailer
-  //    Sort listings primarily by quantity (ascending) for tier display
+  // 2. Create retailer objects and sort listings within each retailer by quantity
   const retailerData = Object.entries(groupedByRetailer).map(([retailer, listings]) => {
     const sortedListings = [...listings].sort((a, b) => (a.qty ?? 0) - (b.qty ?? 0)); // Sort by Qty first
     const bestPriceListing = [...listings].sort((a, b) => (a.eachPrice ?? Infinity) - (b.eachPrice ?? Infinity))[0];
-    const bestPrice = bestPriceListing?.eachPrice ?? Infinity;
-    const anyInStock = listings.some(r => r.inStock === true);
-
-    return { retailer, listings: sortedListings, bestPrice, anyInStock };
+    const bestPrice = bestPriceListing?.eachPrice ?? Infinity; // Still needed for sorting retailers
+    return { retailer, listings: sortedListings, bestPrice };
   });
 
   // 3. Sort retailers by their overall best eachPrice for ordering the accordion items
@@ -1161,14 +1158,10 @@ function formatPriceResults(results) {
   // 4. Build the Bootstrap Accordion HTML
   let html = `<div class="accordion" id="competitorAccordion">`;
 
-  retailerData.forEach(({ retailer, listings, bestPrice, anyInStock }, index) => {
+  retailerData.forEach(({ retailer, listings }, index) => {
     const collapseId = `competitor-collapse-${index}`;
     const listingCount = listings.length;
-    const listingText = listingCount === 1 ? '1 Listing' : `${listingCount} Listings`;
-
-    const stockBadge = anyInStock ? `<span class="badge bg-success">In Stock</span>` :
-                       (listings.every(r => r.inStock === false) ? `<span class="badge bg-danger">Out of Stock</span>` :
-                       '<span class="badge bg-secondary">Unknown</span>');
+    const listingText = listingCount === 1 ? '(1 Listing)' : `(${listingCount} Listings)`;
 
     // --- Generate Price Tier Snippets for the Header ---
     const MAX_TIERS_IN_SUMMARY = 3;
@@ -1176,13 +1169,13 @@ function formatPriceResults(results) {
       .slice(0, MAX_TIERS_IN_SUMMARY)
       .map(r => `
         <div class="tier-snippet">
-          <span class="tier-qty">${r.qty || '-'}</span>
           <span class="tier-price">${r.eachPrice ? moneyFmt.format(r.eachPrice) : '-'}</span>
+          <span class="tier-qty text-muted">(${r.qty || '-'})</span>
         </div>
       `)
       .join('');
     const moreTiersText = listings.length > MAX_TIERS_IN_SUMMARY
-      ? `<div class="tier-snippet more-tiers">+${listings.length - MAX_TIERS_IN_SUMMARY} more</div>`
+      ? `<div class="tier-snippet more-tiers text-muted">+${listings.length - MAX_TIERS_IN_SUMMARY}</div>`
       : '';
     // --- End Tier Snippets ---
 
@@ -1193,20 +1186,19 @@ function formatPriceResults(results) {
 
             <div class="d-flex justify-content-between align-items-center w-100 pe-2">
 
-              <!-- Left Side: Retailer Name -->
-              <span class="text-capitalize fw-bold fs-6 text-dark retailer-name">
-                ${retailer}
-              </span>
+              <!-- Left Side: Retailer Name & Listing Count -->
+              <div class="d-flex align-items-baseline gap-2">
+                 <span class="text-capitalize fw-bold fs-6 text-dark retailer-name">
+                   ${retailer}
+                 </span>
+                 <span class="text-muted listing-count" style="font-size: 0.85rem;">${listingText}</span>
+              </div>
 
-              <!-- Right Side: Summary Details -->
-              <div class="d-flex align-items-center gap-3 accordion-summary-details">
-                <span class="text-muted listing-count">${listingText}</span>
-                ${stockBadge}
-                <!-- Price Tiers Display -->
-                <div class="d-flex align-items-center gap-2 price-tier-summary">
-                  ${tierSnippets}
-                  ${moreTiersText}
-                </div>
+
+              <!-- Right Side: Price Tiers -->
+              <div class="d-flex align-items-center gap-2 price-tier-summary">
+                 ${tierSnippets}
+                 ${moreTiersText}
               </div>
 
             </div>
