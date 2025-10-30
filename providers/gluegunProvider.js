@@ -27,81 +27,86 @@
   class GluegunProvider extends Provider {
     get id() { return 'gluegun'; }
 
-    /**
-     * Return ALL variants that match the clean SKU (tiers are separate variants with their own SKUs).
-     *
-     * @param {string} sku
-     * @param {{ signal?: AbortSignal, pageSize?: number, maxPages?: number, collections?: string[] }} opts
-     * @returns {Promise<Listing[]>}
-     */
-    async findBySku(sku, opts = {}) {
-      const {
-        signal,
-        pageSize = 250,
-        maxPages = 10,
-        collections = ['sulzer'] // add more collection handles if needed
-      } = opts;
+  /**
+   * Return ALL variants that match the clean SKU (tiers are separate variants with their own SKUs).
+   *
+   * @param {string} sku
+   * @param {{ signal?: AbortSignal, pageSize?: number, maxPages?: number, collections?: string[] }} opts
+   * @returns {Promise<Listing[]>}
+   */
+  async findBySku(sku, opts = {}) {
+    const {
+      signal,
+      pageSize = 250,
+      maxPages = 10,
+      collections = ['sulzer'] // add more collection handles if needed
+    } = opts;
 
-      const normSku = utils.normalizeSku(sku);
-      const out = [];
-      const seen = new Set(); // de-dupe by product.handle + rawSku (NOT cleanSku)
+    const normSku = utils.normalizeSku(sku);
+    const out = [];
+    const seen = new Set(); // de-dupe across pages/collections
 
-      for (const handle of collections) {
-        let page = 1;
-        while (page <= maxPages) {
-          const url = `https://gluegun.com/collections/${encodeURIComponent(handle)}/products.json?limit=${pageSize}&page=${page}`;
-          const json = await utils.fetchJson(url, { signal });
-          const products = Array.isArray(json?.products) ? json.products : [];
-          if (products.length === 0) break;
+    for (const handle of collections) {
+      let page = 1;
+      while (page <= maxPages) {
+        const url = `https://gluegun.com/collections/${encodeURIComponent(handle)}/products.json?limit=${pageSize}&page=${page}`;
+        const json = await utils.fetchJson(url, { signal });
+        const products = Array.isArray(json?.products) ? json.products : [];
+        if (products.length === 0) break;
 
-          for (const p of products) {
-            const variants = Array.isArray(p.variants) ? p.variants : [];
-            const productHay = [p.title || '', p.body_html || ''].join(' ');
+        for (const p of products) {
+          const variants = Array.isArray(p.variants) ? p.variants : [];
+          const productHay = [p.title || '', p.body_html || ''].join(' ');
 
-            // Prefer direct variant SKU matches; if product text matches, include ALL variants
-            const matchingVariants = variants.filter(v => {
-              const vSku = (v?.sku || '').trim();
-              return vSku ? utils.includesSku(vSku, normSku) : false;
+          // Prefer direct variant SKU matches; if product text matches, include ALL variants
+          const matchingVariants = variants.filter(v => {
+            const vSku = (v?.sku || '').trim();
+            return vSku ? utils.includesSku(vSku, normSku) : false;
+          });
+          const chosen = matchingVariants.length
+            ? matchingVariants
+            : (utils.includesSku(productHay, normSku) ? variants : []);
+
+          for (const v of chosen) {
+            // Determine a concrete SKU string to work with
+            const rawSku = (v?.sku || '').trim()
+              || utils.pickSku(variants.map(x => x.sku), p.body_html)
+              || sku;
+
+            // --- Compute qty/price FIRST, then dedupe by price+qty ---
+            const qty = extractQtyFromSku(rawSku);             // default 1 if none in "(####)"
+            const cleanSku = stripQtyFromSku(rawSku);          // human-friendly display SKU
+            const price = utils.toNumOrUndef(v?.price);
+            const eachPrice = computeEach(price, qty);
+
+            // Dedup key: price + qty (e.g., "12.99|10"); when price is missing, bucket under "undef|qty"
+            const priceKey = Number.isFinite(price) ? price.toFixed(2) : 'undef';
+            const dedupeKey = `${priceKey}|${qty}`;
+            if (seen.has(dedupeKey)) continue;
+            seen.add(dedupeKey);
+
+            out.push({
+              retailer: this.id,
+              sku: cleanSku,
+              title: p.title?.trim() || '',
+              price,
+              qty,
+              eachPrice,
+              url: `https://gluegun.com/products/${p.handle}`,
+              inStock: v?.available ?? undefined,
+              raw: { product: p, variant: v, rawSku }
             });
-            const chosen = matchingVariants.length
-              ? matchingVariants
-              : (utils.includesSku(productHay, normSku) ? variants : []);
-
-            for (const v of chosen) {
-              const rawSku = (v?.sku || '').trim()
-                || utils.pickSku(variants.map(x => x.sku), p.body_html)
-                || sku;
-
-              const key = `${p.handle}|${rawSku}`;  // <-- preserves different-qty SKUs
-              if (seen.has(key)) continue;
-              seen.add(key);
-
-              const qty = extractQtyFromSku(rawSku);   // default 1 if none
-              const cleanSku = stripQtyFromSku(rawSku);
-              const price = utils.toNumOrUndef(v?.price);
-              const eachPrice = computeEach(price, qty);
-
-              out.push({
-                retailer: this.id,
-                sku: cleanSku,                 // human-friendly; rawSku still in .raw
-                title: p.title?.trim() || '',
-                price,
-                qty,
-                eachPrice,
-                url: `https://gluegun.com/products/${p.handle}`,
-                inStock: v?.available ?? undefined,
-                raw: { product: p, variant: v, rawSku }
-              });
-            }
           }
-
-          if (products.length < pageSize) break;
-          page++;
         }
-      }
 
-      return out;
+        if (products.length < pageSize) break;
+        page++;
+      }
     }
+
+    return out;
+  }
+
   }
 
   window.gluegunProvider = new GluegunProvider();
