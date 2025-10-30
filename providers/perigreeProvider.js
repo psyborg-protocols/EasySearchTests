@@ -93,7 +93,8 @@
                            || utils.pickSku(variants.map(x => x.sku), p.body_html)
                            || sku;
 
-              const dedupeKey = `${p.handle}|${rawSku}`;
+              const priceKey = Number.isFinite(price) ? price.toFixed(2) : 'undef';
+              const dedupeKey = `${priceKey}|${qty}`;
               if (seen.has(dedupeKey)) continue;
               seen.add(dedupeKey);
 
