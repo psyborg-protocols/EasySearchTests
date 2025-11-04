@@ -63,9 +63,7 @@
             const vSku = (v?.sku || '').trim();
             return vSku ? utils.includesSku(vSku, normSku) : false;
           });
-          const chosen = matchingVariants.length
-            ? matchingVariants
-            : (utils.includesSku(productHay, normSku) ? variants : []);
+          const chosen = matchingVariants
 
           for (const v of chosen) {
             // Determine a concrete SKU string to work with

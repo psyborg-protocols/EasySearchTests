@@ -84,9 +84,7 @@
               const vSku = (v?.sku || '').trim();
               return vSku ? utils.includesSku(vSku, normSku) : false;
             });
-            const chosen = matchingVariants.length
-              ? matchingVariants
-              : (utils.includesSku(productHay, normSku) ? variants : []);
+            const chosen = matchingVariants
 
             for (const v of chosen) {
               const rawSku = (v?.sku || '').trim()
