@@ -48,8 +48,9 @@ window.reportModules = [
 ];
 
 /* --------------------------------------------------------- */
-/*  Common helper – returns an array of the top N customers  */
-/*  for a given product SKU, ranked by total revenue.        */
+/* Common helper – returns an array of the top N customers  */
+/* for a given product SKU, ranked by total revenue.        */
+/* MODIFIED: Returns { name, totalRevenue }               */
 /* --------------------------------------------------------- */
 window.getTopCustomersForProduct = function (
         sku,          // product number / SKU
@@ -63,8 +64,17 @@ window.getTopCustomersForProduct = function (
 
   /* --- aggregate revenue by customer for this SKU --- */
   const totals = {};
+  const today = new Date();
+  const last12Start = new Date();
+  last12Start.setFullYear(today.getFullYear() - 1);
+
   salesDF.forEach(r => {
     if (r.Product_Service !== sku) return;
+    
+    // Filter for Last 12 Months
+    const saleDate = ReportUtils.parseDate(r.Date);
+    if (!saleDate || saleDate < last12Start) return;
+
     const cust = r[custField];
     if (!cust) return;
     const amt  = +String(r.Total_Amount).replace(/\s/g, '') || 0;
@@ -74,7 +84,7 @@ window.getTopCustomersForProduct = function (
   return Object.entries(totals)
                .sort((a,b) => b[1] - a[1])        // high-rev first
                .slice(0, topN)                    // top N
-               .map(([cust]) => cust);            // array of names
+               .map(([cust, totalRevenue]) => ({ name: cust, totalRevenue })); // MODIFIED: return object
 };
 
 window.initReports = function initReports() {

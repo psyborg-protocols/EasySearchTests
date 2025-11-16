@@ -42,7 +42,7 @@ function fmtPrice(value) {
 
 function asLink(url) {
   if (!url) return "N/A";
-  const safe = url.startsWith("http") ? url : `https://${url}`;
+  const safe = url.startsWith("http") ? url : `https://www.${url}`;
   return `<a href="${safe}" target="_blank" rel="noopener">${safe.replace(/^https?:\/\//,"")}</a>`;
 }
 
@@ -421,7 +421,7 @@ async function handleContactMerge(buttonElement, correctCompanyName, mismatchedC
         orgContacts.set(correctKey, correctContactsList);
         orgContacts.delete(mismatchedCompanyName);
 
-        console.log(`In-memory store updated. Moved ${contactsToUpdate.length} contacts from "${mismatchedCompanyName}" to "${correctCompanyName}".`);
+        console.log(`In-memory store updated. Moved ${contactsToUpdate.length} contacts from "${mismatchedName}" to "${correctCompanyName}".`);
         
         // c. After a delay, refresh the whole view to reflect the changes cleanly
         setTimeout(() => {
@@ -736,67 +736,144 @@ function renderContactCards(customerName) {
 
 
 /**
- * Calculates and displays the total sales for the last 12 months and the percent change
- * from the prior 12 months.
+ * Calculates and returns YOY sales data for a specific product.
  * @param {string} partNumber - The product's part number.
+ * @returns {object} An object containing { totalLast12, totalPrior12, percentChange }
  */
-function calculateAndDisplayYoYSales(partNumber) {
-    setTimeout(() => {
-        const salesData = window.dataStore?.Sales?.dataframe || [];
-        const yoyEl = document.getElementById('yoySales'); // Changed ID for clarity
+function calculateYoYSales(partNumber) {
+    const salesData = window.dataStore?.Sales?.dataframe || [];
+    if (!salesData.length) {
+        return { totalLast12: 0, totalPrior12: 0, percentChange: 0 };
+    }
 
-        if (!salesData.length || !yoyEl) {
-            if (yoyEl) yoyEl.innerHTML = '<i class="text-muted">N/A</i>';
-            return;
+    const today = new Date();
+    const last12Start = new Date();
+    last12Start.setFullYear(today.getFullYear() - 1);
+    const prior12Start = new Date();
+    prior12Start.setFullYear(today.getFullYear() - 2);
+
+    let totalLast12 = 0;
+    let totalPrior12 = 0;
+
+    salesData.forEach(sale => {
+        if (sale.Product_Service !== partNumber) return;
+
+        const saleDate = new Date(sale.Date);
+        const quantity = parseInt(sale.Quantity) || 0;
+
+        if (saleDate >= last12Start && saleDate <= today) {
+            totalLast12 += quantity;
+        } else if (saleDate >= prior12Start && saleDate < last12Start) {
+            totalPrior12 += quantity;
         }
+    });
 
-        const today = new Date();
-        const last12Start = new Date();
-        last12Start.setFullYear(today.getFullYear() - 1);
-        const prior12Start = new Date();
-        prior12Start.setFullYear(today.getFullYear() - 2);
+    let percentChange = 0;
+    if (totalPrior12 > 0) {
+        percentChange = ((totalLast12 - totalPrior12) / totalPrior12) * 100;
+    } else if (totalLast12 > 0) {
+        percentChange = 100; // Indicate growth from zero
+    }
 
-        let totalLast12 = 0;
-        let totalPrior12 = 0;
-
-        salesData.forEach(sale => {
-            if (sale.Product_Service !== partNumber) return;
-
-            const saleDate = new Date(sale.Date);
-            const quantity = parseInt(sale.Quantity) || 0;
-
-            if (saleDate >= last12Start && saleDate <= today) {
-                totalLast12 += quantity;
-            } else if (saleDate >= prior12Start && saleDate < last12Start) {
-                totalPrior12 += quantity;
-            }
-        });
-
-        let percentChange = 0;
-        if (totalPrior12 > 0) {
-            percentChange = ((totalLast12 - totalPrior12) / totalPrior12) * 100;
-        } else if (totalLast12 > 0) {
-            percentChange = 100; // Indicate growth from zero
-        }
-
-        const badgeColor = percentChange > 0 ? 'bg-success' : 'bg-danger';
-        const sign = percentChange > 0 ? '+' : '';
-        const changeHtml = totalLast12 > 0 || totalPrior12 > 0 ?
-            `<span class="badge ${badgeColor} ms-2">${sign}${percentChange.toFixed(0)}%</span>` : '';
-
-        yoyEl.innerHTML = `<span>${totalLast12} units ${changeHtml}</span>`;
-
-    }, 500); // Delay to show spinner
+    return { totalLast12, totalPrior12, percentChange };
 }
 
 let productInfoModalInstance = null;
+let productSalesChartInstance = null; // Chart instance for the modal
+
 /**
- * Finds all data for a given product and displays it in a polished Bootstrap modal.
+ * NEW: Draws the monthly sales chart inside the product modal.
+ * @param {object[]} productSales - Array of sales data filtered for this product.
+ */
+function drawProductSalesChart(productSales) {
+    const ctx = document.getElementById('productSalesChart');
+    if (!ctx) return;
+
+    if (productSalesChartInstance) {
+        productSalesChartInstance.destroy();
+    }
+
+    // Aggregate data by month for the last 24 months
+    const salesByMonth = {};
+    const labels = [];
+    const today = new Date();
+    const cutOff = new Date(today.getFullYear() - 2, today.getMonth(), 1); // 24 months ago
+
+    for (let i = 23; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const label = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+        labels.push(label);
+        salesByMonth[label] = 0;
+    }
+
+    productSales.forEach(sale => {
+        const saleDate = new Date(sale.Date);
+        if (saleDate >= cutOff) {
+            const label = saleDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+            const amount = toNumber(sale.Total_Amount);
+            if (salesByMonth.hasOwnProperty(label)) {
+                salesByMonth[label] += amount;
+            }
+        }
+    });
+
+    const data = labels.map(label => salesByMonth[label]);
+
+    productSalesChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Monthly Revenue',
+                data: data,
+                backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Revenue: ${moneyFmt.format(context.parsed.y)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return moneyFmt.format(value).replace('.00', '');
+                        }
+                    }
+                },
+                x: {
+                    ticks: {
+                        maxRotation: 90,
+                        minRotation: 70,
+                        font: { size: 10 }
+                    }
+                }
+            }
+        }
+    });
+}
+
+
+/**
+ * Finds all data for a given product and displays it in the new dashboard modal.
  * @param {string} encodedPartNumber - The URI-encoded part number of the product.
  */
 function showProductInfoModal(encodedPartNumber) {
     const partNumber = decodeURIComponent(encodedPartNumber).toString().trim();
     const inventoryData = window.dataStore["DB"]?.dataframe || [];
+    const salesData = window.dataStore["Sales"]?.dataframe || [];
     const product = inventoryData.find(item => String(item["PartNumber"]).trim() === partNumber);
 
     if (!product) {
@@ -808,18 +885,25 @@ function showProductInfoModal(encodedPartNumber) {
         productInfoModalInstance = new bootstrap.Modal(document.getElementById('productInfoModal'));
     }
 
+    // --- 1. Set Modal Header ---
     document.getElementById('productInfoModalLabel').textContent = product.PartNumber || "N/A";
     document.getElementById('productInfoModalDescription').textContent = product.Description || "";
-    const modalBody = document.getElementById('productInfoModalBody');
+    
+    // --- 2. Populate Inventory & Metrics Column ---
+    const inventoryListEl = document.getElementById('productInfoModalInventoryList');
     const fieldsToShow = [
         "Active", "QtyOnHand", "QtyCommited", "ReOrder Level",
         "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue"
     ];
-    let bodyHtml = '';
+    let inventoryHtml = '';
+    const qtyOnHand = toNumber(product["QtyOnHand"]);
+    const reOrderLevel = toNumber(product["ReOrder Level"]);
+
     fieldsToShow.forEach(field => {
         const displayName = field.replace(/([A-Z])/g, ' $1').trim();
         const value = product[field];
         let displayValue;
+
         if (value === undefined || value === null || String(value).trim() === "") {
             displayValue = '<i class="text-muted">N/A</i>';
         } else {
@@ -834,8 +918,6 @@ function showProductInfoModal(encodedPartNumber) {
                         '<span class="badge bg-secondary">Inactive</span>';
                     break;
                 case 'QtyOnHand':
-                    const qtyOnHand = toNumber(value);
-                    const reOrderLevel = toNumber(product["ReOrder Level"]);
                     let qtyClass = '';
                     if (reOrderLevel > 0 && qtyOnHand <= reOrderLevel) {
                         qtyClass = 'text-danger fw-bold low-stock';
@@ -847,31 +929,73 @@ function showProductInfoModal(encodedPartNumber) {
                     break;
             }
         }
-        bodyHtml += `
-      <div class="row">
-        <dt class="col-sm-5">${displayName}</dt>
-        <dd class="col-sm-7 mb-0">${displayValue}</dd>
-      </div>
-    `;
+        inventoryHtml += `
+            <div class="row">
+                <dt class="col-sm-5">${displayName}</dt>
+                <dd class="col-sm-7 mb-0">${displayValue}</dd>
+            </div>`;
     });
+    inventoryListEl.innerHTML = inventoryHtml;
 
-    // Add the placeholder for the new Year-over-Year sales metric
-    bodyHtml += `
-      <div class="row">
-        <dt class="col-sm-5">Sales (Last 12 Mo)</dt>
-        <dd class="col-sm-7 mb-0" id="yoySales">
-            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-        </dd>
-      </div>
-  `;
+    // --- 3. Calculate and Display BI Metrics ---
+    
+    // Sales (Last 12 Mo)
+    const yoyEl = document.getElementById('productYoYSales');
+    const { totalLast12, percentChange } = calculateYoYSales(partNumber);
+    const badgeColor = percentChange > 0 ? 'bg-success' : (percentChange < 0 ? 'bg-danger' : 'bg-secondary');
+    const sign = percentChange > 0 ? '+' : '';
+    const changeHtml = (totalLast12 > 0 || percentChange !== 0) ?
+        `<span class="badge ${badgeColor} ms-2">${sign}${percentChange.toFixed(0)}%</span>` : '';
+    yoyEl.innerHTML = `<span>${totalLast12} units ${changeHtml}</span>`;
 
-    modalBody.innerHTML = bodyHtml;
+    // Months of Supply
+    const monthsSupplyEl = document.getElementById('productMonthsOfSupply');
+    const monthlyAvg = totalLast12 / 12;
+    let monthsOfSupply = 'N/A';
+    if (monthlyAvg > 0) {
+        monthsOfSupply = (qtyOnHand / monthlyAvg).toFixed(1);
+    } else if (qtyOnHand > 0) {
+        monthsOfSupply = '&#8734;'; // Infinity symbol
+    }
+    monthsSupplyEl.innerHTML = monthsOfSupply;
 
-    // Calculate and display the new metric
-    calculateAndDisplayYoYSales(partNumber);
+    // Avg. Order Qty
+    const avgQtyEl = document.getElementById('productAvgOrderQty');
+    const productSales = salesData.filter(sale => sale.Product_Service === partNumber);
+    let avgOrderQty = 'N/A';
+    if (productSales.length > 0) {
+        const totalQty = productSales.reduce((acc, sale) => acc + (toNumber(sale.Quantity) || 0), 0);
+        avgOrderQty = (totalQty / productSales.length).toFixed(1);
+    }
+    avgQtyEl.innerHTML = avgOrderQty;
 
+    // --- 4. Populate Sales Dashboard Column ---
+
+    // Top 5 Customers
+    const topCustomersEl = document.getElementById('productTopCustomersList');
+    // We can re-use the function from reports.js
+    const topCustomers = window.getTopCustomersForProduct ? window.getTopCustomersForProduct(partNumber, 5) : []; 
+    if (topCustomers.length > 0) {
+        topCustomersEl.innerHTML = topCustomers.map(cust => {
+            const custSales = productSales.filter(s => s.Customer === cust.name);
+            const custRevenue = custSales.reduce((acc, s) => acc + (toNumber(s.Total_Amount) || 0), 0);
+            return `
+                <li>
+                    <span class="customer-name">${cust.name}</span>
+                    <span class="customer-value">${moneyFmt.format(custRevenue)}</span>
+                </li>`;
+        }).join('');
+    } else {
+        topCustomersEl.innerHTML = '<li class="text-muted fst-italic">No sales data for this product in the last 12 months.</li>';
+    }
+
+    // Sales History Chart
+    drawProductSalesChart(productSales);
+
+    // --- 5. Show Modal ---
     productInfoModalInstance.show();
 }
+
 
 
 // Add an event listener for changes on the filter toggle switch
