@@ -834,6 +834,15 @@
           options: {
               responsive: true,
               maintainAspectRatio: false,
+              // ADDED: Animation configuration to grow from bottom
+              animation: {
+                x: false, // Disable horizontal animation
+                y: {
+                    duration: 600, // Adjust duration as needed
+                    easing: 'easeOutCubic',
+                    from: 'bottom'
+                }
+              },
               plugins: {
                   legend: { display: false },
                   tooltip: {
