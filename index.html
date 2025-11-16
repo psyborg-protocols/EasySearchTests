@@ -903,7 +903,7 @@
           <div class="row">
             <!-- Column 1: Inventory & Key Metrics -->
             <div class="col-lg-5 col-md-6">
-              <h4>Inventory & Metrics</h4>
+              <!-- REMOVED: <h4>Inventory & Metrics</h4> -->
               
               <!-- Inventory Details -->
               <dl class="row modal-dl" id="productInfoModalInventoryList">
@@ -912,18 +912,36 @@
 
               <!-- Key Metrics -->
               <div class="row g-2">
-                <div class="col-6">
-                    <div class="metric-card">
-                        <h6>Sales (Last 12 Mo)</h6>
-                        <div class="metric-value" id="productYoYSales">
-                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                        </div>
-                    </div>
-                </div>
+                <!-- KEPT: Months of Supply in left column -->
                 <div class="col-6">
                     <div class="metric-card">
                         <h6>Months of Supply</h6>
                         <div class="metric-value" id="productMonthsOfSupply">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- MOVED: Sales (Last 12 Mo) -->
+                <!-- MOVED: Avg. Order Qty -->
+              </div>
+            </div>
+
+            <!-- Column 2: Sales BI -->
+            <div class="col-lg-7 col-md-6">
+              <!-- REMOVED: <h4>Sales Dashboard</h4> -->
+              
+              <!-- MOVED: Sales History Chart (now first) -->
+              <div class="metric-card">
+                <h6>Sales History (Last 24 Months)</h6>
+                <canvas id="productSalesChart" style="width:100%; aspect-ratio:2/1"></canvas>
+              </div>
+
+              <!-- MOVED: Other metrics (now second) -->
+              <div class="row g-2">
+                <div class="col-6">
+                    <div class="metric-card">
+                        <h6>Sales (Last 12 Mo)</h6>
+                        <div class="metric-value" id="productYoYSales">
                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                         </div>
                     </div>
@@ -937,13 +955,8 @@
                     </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Column 2: Sales BI -->
-            <div class="col-lg-7 col-md-6">
-              <h4>Sales Dashboard</h4>
-              
-              <!-- Top Customers -->
+              <!-- Top Customers (now last) -->
               <div class="metric-card">
                 <h6>Top 5 Customers (Last 12 Mo)</h6>
                 <ul class="top-customer-list" id="productTopCustomersList">
@@ -951,11 +964,6 @@
                 </ul>
               </div>
 
-              <!-- Sales History Chart -->
-              <div class="metric-card">
-                <h6>Sales History (Last 24 Months)</h6>
-                <canvas id="productSalesChart" style="width:100%; aspect-ratio:2/1"></canvas>
-              </div>
             </div>
           </div>
         </div>
