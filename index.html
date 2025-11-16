@@ -930,13 +930,7 @@
             <div class="col-lg-7 col-md-6">
               <!-- REMOVED: <h4>Sales Dashboard</h4> -->
               
-              <!-- MOVED: Sales History Chart (now first) -->
-              <div class="metric-card">
-                <h6>Sales History (Last 24 Months)</h6>
-                <canvas id="productSalesChart" style="width:100%; aspect-ratio:2/1"></canvas>
-              </div>
-
-              <!-- MOVED: Other metrics (now second) -->
+              <!-- MOVED: Other metrics (now first) -->
               <div class="row g-2">
                 <div class="col-6">
                     <div class="metric-card">
@@ -954,6 +948,12 @@
                         </div>
                     </div>
                 </div>
+              </div>
+
+              <!-- MOVED: Sales History Chart (now second) -->
+              <div class="metric-card">
+                <h6>Sales History (Last 24 Months)</h6>
+                <canvas id="productSalesChart" style="width:100%; aspect-ratio:2/1"></canvas>
               </div>
 
               <!-- Top Customers (now last) -->
