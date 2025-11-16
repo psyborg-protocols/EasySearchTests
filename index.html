@@ -953,7 +953,10 @@
               <!-- MOVED: Sales History Chart (now second) -->
               <div class="metric-card">
                 <h6>Sales History (Last 24 Months)</h6>
-                <canvas id="productSalesChart" style="width:100%; aspect-ratio:2/1"></canvas>
+                <!-- MODIFIED: Add wrapper div to enforce aspect ratio -->
+                <div style="position: relative; width: 100%; padding-top: 50%;"> <!-- 50% = 1:2 aspect ratio -->
+                  <canvas id="productSalesChart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
+                </div>
               </div>
 
               <!-- Top Customers (now last) -->
