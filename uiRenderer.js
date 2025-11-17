@@ -1,4 +1,4 @@
-  const moneyFmt = new Intl.NumberFormat('en-US', {
+const moneyFmt = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,   // always “.00”
@@ -776,13 +776,28 @@
       }
 
       return { totalLast12, totalPrior12, percentChange };
+}
+
+let productInfoModalInstance = null;
+let productSalesChartInstance = null; // Chart instance for the modal
+
+// --- NEW: Event listener to draw chart AFTER modal is visible ---
+// This is a one-time setup
+document.addEventListener('DOMContentLoaded', () => {
+  const modalEl = document.getElementById('productInfoModal');
+  if (modalEl) {
+      modalEl.addEventListener('shown.bs.modal', () => {
+          // 'productSalesData' is attached to the element in showProductInfoModal
+          const productSales = modalEl.productSalesData; 
+          if (productSales) {
+              drawProductSalesChart(productSales);
+          }
+      });
   }
+});
 
-  let productInfoModalInstance = null;
-  let productSalesChartInstance = null; // Chart instance for the modal
-
-  /**
-   * NEW: Draws the monthly sales chart inside the product modal.
+/**
+ * NEW: Draws the monthly sales chart inside the product modal.
    * @param {object[]} productSales - Array of sales data filtered for this product.
    */
   function drawProductSalesChart(productSales) {
@@ -998,10 +1013,15 @@
           topCustomersEl.innerHTML = '<li class="text-muted fst-italic">No sales data for this product in the last 12 months.</li>';
       }
 
-      // Sales History Chart
-      drawProductSalesChart(productSales);
+      // --- 5. Prepare data for chart and Show Modal ---
+      
+      // MODIFIED: Attach data to modal el for the 'shown.bs.modal' event
+      const modalEl = document.getElementById('productInfoModal');
+      modalEl.productSalesData = productSales;
 
-      // --- 5. Show Modal ---
+      // MODIFIED: REMOVED direct call to drawProductSalesChart(productSales);
+      
+      // FIXED: Was incorrectly calling productSalesChartInstance.show()
       productInfoModalInstance.show();
   }
 
