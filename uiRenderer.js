@@ -852,7 +852,7 @@ document.addEventListener('DOMContentLoaded', () => {
               // Correct animation config
               animations: {
                   y: {
-                      duration: 600,
+                      duration: 1000,
                       easing: 'easeOutCubic',
                       from: 0   // start all bars from value 0 (bottom of axis)
                   }
