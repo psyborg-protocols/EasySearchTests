@@ -849,20 +849,19 @@ document.addEventListener('DOMContentLoaded', () => {
           options: {
               responsive: true,
               maintainAspectRatio: false,
-              // ADDED: Animation configuration to grow from bottom
-              animation: {
-                x: false, // Disable horizontal animation
-                y: {
-                    duration: 600, // Adjust duration as needed
-                    easing: 'easeOutCubic',
-                    from: 'bottom'
-                }
+              // Correct animation config
+              animations: {
+                  y: {
+                      duration: 600,
+                      easing: 'easeOutCubic',
+                      from: 0   // start all bars from value 0 (bottom of axis)
+                  }
               },
               plugins: {
                   legend: { display: false },
                   tooltip: {
                       callbacks: {
-                          label: function(context) {
+                          label: function (context) {
                               return `Revenue: ${moneyFmt.format(context.parsed.y)}`;
                           }
                       }
@@ -872,7 +871,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   y: {
                       beginAtZero: true,
                       ticks: {
-                          callback: function(value) {
+                          callback: function (value) {
                               return moneyFmt.format(value).replace('.00', '');
                           }
                       }
@@ -886,6 +885,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   }
               }
           }
+
       });
   }
 
