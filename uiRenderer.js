@@ -847,44 +847,46 @@ document.addEventListener('DOMContentLoaded', () => {
               }]
           },
           options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              // Correct animation config
-              animations: {
-                  y: {
-                      duration: 1000,
-                      easing: 'easeOutCubic',
-                      from: 0   // start all bars from value 0 (bottom of axis)
-                  }
-              },
-              plugins: {
-                  legend: { display: false },
-                  tooltip: {
-                      callbacks: {
-                          label: function (context) {
-                              return `Revenue: ${moneyFmt.format(context.parsed.y)}`;
-                          }
-                      }
-                  }
-              },
-              scales: {
-                  y: {
-                      beginAtZero: true,
-                      ticks: {
-                          callback: function (value) {
-                              return moneyFmt.format(value).replace('.00', '');
-                          }
-                      }
-                  },
-                  x: {
-                      ticks: {
-                          maxRotation: 90,
-                          minRotation: 70,
-                          font: { size: 10 }
-                      }
-                  }
+            responsive: true,
+            maintainAspectRatio: false,
+            animations: {
+              y: {
+                duration: 600,
+                easing: 'easeOutCubic'
+                // no `from` here
               }
+              // if you really want, you can also tweak x:
+              // x: { duration: 0 }
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    return `Revenue: ${moneyFmt.format(context.parsed.y)}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function (value) {
+                    return moneyFmt.format(value).replace('.00', '');
+                  }
+                }
+              },
+              x: {
+                ticks: {
+                  maxRotation: 90,
+                  minRotation: 70,
+                  font: { size: 10 }
+                }
+              }
+            }
           }
+
 
       });
   }
