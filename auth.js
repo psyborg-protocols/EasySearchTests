@@ -59,12 +59,12 @@ function initializeAuth() {
         });
 }
 
-// Sign in using a popup window
+// Sign in using redirect
 async function signIn() {
     try {
-        const response = await msalInstance.loginPopup({ scopes: graphScopes });
-        handleLoginResponse(response.account);
-        return response.account;
+        // Use loginRedirect instead of loginPopup
+        await msalInstance.loginRedirect({ scopes: graphScopes });
+        // The page will now reload, so no code below this line needs to run
     } catch (error) {
         console.error("Sign-in error:", error);
         throw error;
