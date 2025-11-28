@@ -915,7 +915,17 @@
                 <!-- KEPT: Months of Supply in left column -->
                 <div class="col-6">
                     <div class="metric-card">
-                        <h6>Months of Supply</h6>
+                        <h6>
+                          Months of Supply
+                          <i class="fas fa-info-circle text-muted ms-1" 
+                            style="font-size: 0.8rem; cursor: help;"
+                            data-bs-toggle="tooltip" 
+                            data-bs-html="true"
+                            data-bs-placement="top" 
+                            title="<b>Calculation:</b> Current Inventory ÷ Monthly Sales Average<br>
+                            <i>(Monthly Sales Average = Total Sales Last 12 Months ÷ 12)</i>">
+                          </i>
+                        </h6>
                         <div class="metric-value" id="productMonthsOfSupply">
                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                         </div>
@@ -946,14 +956,12 @@
                 <div class="col-6">
                     <div class="metric-card">
                         <h6>
-                          Months of Supply
+                          Avg. Order Qty
                           <i class="fas fa-info-circle text-muted ms-1" 
                             style="font-size: 0.8rem; cursor: help;"
                             data-bs-toggle="tooltip" 
-                            data-bs-html="true"
                             data-bs-placement="top" 
-                            title="<b>Calculation:</b> Current Inventory ÷ Monthly Sales Average<br>
-                            <i>(Monthly Sales Average = Total Sales Last 12 Months ÷ 12)</i>">
+                            title="The average number of units purchased in a single order (Total Units Sold / Total Number of Orders) across all history.">
                           </i>
                         </h6>
                         <div class="metric-value" id="productAvgOrderQty">
@@ -963,16 +971,14 @@
                 </div>
               </div>
 
-              <!-- MOVED: Sales History Chart (now second) -->
               <div class="metric-card">
                 <h6>Sales History (Last 24 Months)</h6>
-                <!-- MODIFIED: Add wrapper div to enforce aspect ratio -->
                 <div style="position: relative; width: 100%; padding-top: 50%;"> <!-- 50% = 1:2 aspect ratio -->
                   <canvas id="productSalesChart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
                 </div>
               </div>
 
-              <!-- Top Customers (now last) -->
+              <!-- Top Customers  -->
               <div class="metric-card">
                 <h6>Top 5 Customers (Last 12 Mo)</h6>
                 <ul class="top-customer-list" id="productTopCustomersList">
