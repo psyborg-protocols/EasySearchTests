@@ -921,20 +921,23 @@
                         </div>
                     </div>
                 </div>
-                <!-- MOVED: Sales (Last 12 Mo) -->
-                <!-- MOVED: Avg. Order Qty -->
               </div>
             </div>
 
             <!-- Column 2: Sales BI -->
             <div class="col-lg-7 col-md-6">
-              <!-- REMOVED: <h4>Sales Dashboard</h4> -->
-              
-              <!-- MOVED: Other metrics (now first) -->
               <div class="row g-2">
                 <div class="col-6">
                     <div class="metric-card">
-                        <h6>Sales (Last 12 Mo)</h6>
+                        <h6>
+                          Sales (Last 12 Mo)
+                          <i class="fas fa-info-circle text-muted ms-1" 
+                            style="font-size: 0.8rem; cursor: help;"
+                            data-bs-toggle="tooltip" 
+                            data-bs-placement="top" 
+                            title="Total units sold in the past 365 days. The percentage shows the growth or decline compared to the previous year.">
+                          </i>
+                        </h6>
                         <div class="metric-value" id="productYoYSales">
                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                         </div>
@@ -942,7 +945,17 @@
                 </div>
                 <div class="col-6">
                     <div class="metric-card">
-                        <h6>Avg. Order Qty</h6>
+                        <h6>
+                          Months of Supply
+                          <i class="fas fa-info-circle text-muted ms-1" 
+                            style="font-size: 0.8rem; cursor: help;"
+                            data-bs-toggle="tooltip" 
+                            data-bs-html="true"
+                            data-bs-placement="top" 
+                            title="<b>Calculation:</b> Current Inventory ÷ Monthly Sales Average<br>
+                            <i>(Monthly Sales Average = Total Sales Last 12 Months ÷ 12)</i>">
+                          </i>
+                        </h6>
                         <div class="metric-value" id="productAvgOrderQty">
                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                         </div>
