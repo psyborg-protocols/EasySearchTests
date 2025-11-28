@@ -75,9 +75,9 @@ window.getTopCustomersForProduct = function (
     const saleDate = ReportUtils.parseDate(r.Date);
     if (!saleDate || saleDate < last12Start) return;
 
-    const cust = r[custField];
+    const cust = ReportUtils.normalise(r[custField]);
     if (!cust) return;
-    const amt  = +String(r.Total_Amount).replace(/\s/g, '') || 0;
+    const amt  = ReportUtils.parseNumber(r.Total_Amount);
     totals[cust] = (totals[cust] || 0) + amt;
   });
 
