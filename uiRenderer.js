@@ -1816,6 +1816,23 @@ document.addEventListener('DOMContentLoaded', () => {
       // Limit render for performance
       const toRender = filtered.slice(0, 100);
 
+      // Helper formatter for prices inside the detail view
+      const formatIfPrice = (key, value) => {
+          if (!value) return value; // don't try to format null/undefined
+          
+          const lowerKey = key.toLowerCase();
+          // Heuristic: if key contains price/cost/total/amount AND value looks like a number
+          if (lowerKey.match(/price|cost|total|amount/)) {
+              // Remove non-numeric chars except dot and minus
+              const clean = String(value).replace(/[^0-9.-]/g, '');
+              const num = parseFloat(clean);
+              if (!isNaN(num)) {
+                  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+              }
+          }
+          return value;
+      };
+
       toRender.forEach((row, index) => {
         // === Main Row ===
         const tr = document.createElement('tr');
@@ -1823,12 +1840,10 @@ document.addEventListener('DOMContentLoaded', () => {
         tr.setAttribute('data-bs-toggle', 'collapse');
         tr.setAttribute('data-bs-target', `#detail-${index}`);
         
-        // Toggle arrow animation class on click
         tr.onclick = function() {
             this.classList.toggle('expanded-row-parent');
         };
 
-        // Styling logic
         const isOrder = row.type === 'Order';
         const badgeClass = isOrder ? 'badge-os-order' : 'badge-os-sample';
         const dateDisplay = row.dateObj 
@@ -1849,19 +1864,34 @@ document.addEventListener('DOMContentLoaded', () => {
           <td class="text-center"><i class="fas fa-chevron-down text-muted row-toggle-icon"></i></td>
         `;
 
-        // === Detail Row (The "Sleek Grid") ===
+        // === Detail Row ===
         const detailTr = document.createElement('tr');
         const detailTd = document.createElement('td');
         detailTd.colSpan = 7;
         detailTd.className = 'p-0 border-0';
         
-        // Sort keys so meaningful info is first? Or just alphabetic. 
-        // Let's rely on CSS grid to flow them nicely.
         let gridItems = '';
-        Object.entries(row.raw).forEach(([key, val]) => {
-          if(!key || key.startsWith('__')) return;
-          // Simple value cleanup
-          const displayVal = val ? val : '<span class="text-muted italic">--</span>';
+        
+        // Sort keys alphabetically
+        const keys = Object.keys(row.raw).sort();
+
+        keys.forEach(key => {
+          const val = row.raw[key];
+
+          // 1. Filter out internal keys OR keys literally named "blank"
+          if (key.startsWith('__')) return;
+          if (key.toLowerCase() === 'blank') return; 
+
+          // 2. Format Value
+          let displayVal = val;
+          
+          // If empty/null, show a dash (instead of hiding it entirely)
+          if (val === null || val === undefined || String(val).trim() === '') {
+              displayVal = '<span class="text-muted italic">--</span>';
+          } else {
+              // Only attempt price formatting if there is a value
+              displayVal = formatIfPrice(key, val);
+          }
           
           gridItems += `
             <div class="os-detail-item">
