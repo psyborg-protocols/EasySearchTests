@@ -50,7 +50,7 @@ window.reportModules = [
 /* --------------------------------------------------------- */
 /* Common helper – returns an array of the top N customers  */
 /* for a given product SKU, ranked by total revenue.        */
-/* MODIFIED: Returns { name, totalRevenue }               */
+/* Returns { name, totalRevenue }               */
 /* --------------------------------------------------------- */
 window.getTopCustomersForProduct = function (
         sku,          // product number / SKU
@@ -59,11 +59,11 @@ window.getTopCustomersForProduct = function (
 ) {
   if (!salesDF.length) return [];
 
-  /* --- what column holds customer names? --- */
   const custField = 'Customer';
-
-  /* --- aggregate revenue by customer for this SKU --- */
-  const totals = {};
+  
+  /* --- CHANGED: map to hold objects, not just numbers --- */
+  const totals = {}; // Structure: { "normalized_name": { revenue: 0, prettyName: "Original Name" } }
+  
   const today = new Date();
   const last12Start = new Date();
   last12Start.setFullYear(today.getFullYear() - 1);
@@ -75,16 +75,36 @@ window.getTopCustomersForProduct = function (
     const saleDate = ReportUtils.parseDate(r.Date);
     if (!saleDate || saleDate < last12Start) return;
 
-    const cust = r[custField];
-    if (!cust) return;
-    const amt  = +String(r.Total_Amount).replace(/\s/g, '') || 0;
-    totals[cust] = (totals[cust] || 0) + amt;
+    const originalName = r[custField];
+    if (!originalName) return;
+
+    // 1. Use normalized name for the KEY (merges "Acme" and "Acme Inc.")
+    const normKey = ReportUtils.normalise(originalName);
+    if (!normKey) return;
+
+    // 2. Use safer number parsing
+    const amt = ReportUtils.parseNumber(r.Total_Amount);
+
+    // 3. Initialize if not exists, saving the "pretty" name
+    if (!totals[normKey]) {
+      totals[normKey] = {
+        revenue: 0,
+        prettyName: originalName // Save the first version we see for display
+      };
+    }
+
+    // 4. Add to the total
+    totals[normKey].revenue += amt;
   });
 
-  return Object.entries(totals)
-               .sort((a,b) => b[1] - a[1])        // high-rev first
-               .slice(0, topN)                    // top N
-               .map(([cust, totalRevenue]) => ({ name: cust, totalRevenue })); // MODIFIED: return object
+  /* --- Return the Top N --- */
+  return Object.values(totals)                 // Get the array of objects
+               .sort((a,b) => b.revenue - a.revenue) // Sort by revenue desc
+               .slice(0, topN)                 // Take top N
+               .map(item => ({
+                 name: item.prettyName,        // Return the pretty name to the UI
+                 totalRevenue: item.revenue
+               }));
 };
 
 window.initReports = function initReports() {
