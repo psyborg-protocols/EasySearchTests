@@ -1740,9 +1740,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Attach to UIrenderer so HTML can call it
-  window.UIrenderer.ordersSamplesSearch = ordersSamplesSearch;
-
   // Event wiring
   document.getElementById('orders-samples-tab').addEventListener('click', () => {
     ordersSamplesSearch.init();
@@ -1767,5 +1764,6 @@ document.addEventListener('DOMContentLoaded', () => {
     handleContactMerge, // Expose the new merge handler
     confirmAndSaveChanges, // Expose the new save handler
     showProductInfoModal,
-    showCompetitorPricingModal
+    showCompetitorPricingModal,
+    ordersSamplesSearch
   };
