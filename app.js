@@ -1,5 +1,5 @@
 // app.js
-const APP_VERSION = "1.0.9"; // Incremented version to ensure cache is cleared on next load
+const APP_VERSION = "1.1.0"; 
 
 document.addEventListener('DOMContentLoaded', async function () {
   // Version check
@@ -30,6 +30,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Also load the metadata which contains the deltaLink
     const cachedOrgContactsMetadata = await idbUtil.getDataset("OrgContactsMetadata");
 
+    // --- NEW: Load Partial Datasets ---
+    const cachedOrders = await idbUtil.getDataset("OrdersData");
+    const cachedSamples = await idbUtil.getDataset("SamplesData");
+
 
     if (cachedDB && cachedSales && cachedPricing) {
       // ✅ Cache Hit: Populate the dataStore and make the UI interactive.
@@ -40,6 +44,10 @@ document.addEventListener('DOMContentLoaded', async function () {
       if (cachedCompanyInfo) window.dataStore["CompanyInfo"] = cachedCompanyInfo;
       if (cachedEquivs) window.dataStore["Equivalents"] = cachedEquivs;
       if (cachedOrgContacts) window.dataStore["OrgContacts"] = new Map(Object.entries(cachedOrgContacts));
+      
+      // --- NEW: Populate DataStore ---
+      if (cachedOrders) window.dataStore["Orders"] = cachedOrders;
+      if (cachedSamples) window.dataStore["Samples"] = cachedSamples;
       
       console.log("[Startup] Success! Data loaded from cache. UI is now active.");
       isCacheLoaded = true;

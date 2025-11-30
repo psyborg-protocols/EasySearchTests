@@ -101,7 +101,6 @@ async function fetchLastNRows(driveId, itemId, sheetName, columns, nRows, token)
   const rangeData = await rangeResp.json();
   
   // Parse address like "Sheet1!A1:Z5000" to extract "5000"
-  // Address might be formatted as 'Orders'!A1:AC5000 or similar
   const rangeAddress = rangeData.address; 
   const match = rangeAddress.match(/!([A-Za-z]+)(\d+):([A-Za-z]+)(\d+)/);
   
@@ -125,18 +124,19 @@ async function fetchLastNRows(driveId, itemId, sheetName, columns, nRows, token)
   };
   const endColLetter = getColLetter(totalCols - 1);
 
-  // 4. Fetch the Data Range
+  // 4. Fetch the Data Range (Requesting TEXT to preserve formatting)
   const fetchAddress = `A${startRow}:${endColLetter}${totalRows}`;
   console.log(`[Partial Load] Fetching range ${fetchAddress} for ${sheetName} (Last ${nRows} rows)`);
   
+  // CHANGED: requesting 'text' instead of 'values' to get formatted strings
   const dataResp = await fetch(
-    `${workbookBase}/worksheets('${encodeURIComponent(sheetName)}')/range(address='${fetchAddress}')?$select=values`, 
+    `${workbookBase}/worksheets('${encodeURIComponent(sheetName)}')/range(address='${fetchAddress}')?$select=text`, 
     { headers }
   );
   
   if (!dataResp.ok) throw new Error(`Failed to fetch range: ${dataResp.statusText}`);
   const dataJson = await dataResp.json();
-  const rows = dataJson.values; // Array of Arrays
+  const rows = dataJson.text; // CHANGED: accessing 'text' property
 
   // 5. Map Array-of-Arrays to Array-of-Objects using specific Columns
   return rows.map(rowValues => {
@@ -288,7 +288,7 @@ async function processFiles() {
       }
 
       // Check if we need to download the full buffer.
-      // If ALL entries for this workbook are flagged as "partialLoad", we skip full download.
+      // If ALL rows in this workbook are flagged as "partialLoad", we skip full download.
       const allPartial = rows.every(r => r.partialLoad === true);
       
       let buf = null;
