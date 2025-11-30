@@ -557,7 +557,14 @@
         <button class="nav-link" id="customer-info-tab" data-bs-toggle="tab" data-bs-target="#customerInfoView" type="button" role="tab" aria-controls="customerInfoView" aria-selected="false">Customer Info</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="order-sample-tab" data-bs-toggle="tab" data-bs-target="#orderSampleView" type="button" role="tab" aria-controls="orderSampleView" aria-selected="false">Orders & Samples</button>
+        <button class="nav-link" id="orders-samples-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#ordersSamplesView"
+                type="button" role="tab"
+                aria-controls="ordersSamplesView"
+                aria-selected="false">
+          Orders &amp; Samples
+        </button>
       </li>
     </ul>
 
@@ -839,87 +846,94 @@
           </div>
         </div>
 
-        <!-- Order & Sample View Tab Pane -->
-        <div class="tab-pane fade" id="orderSampleView" role="tabpanel" aria-labelledby="order-sample-tab">
-            
-            <div class="tab-pane fade" id="orderSampleView" role="tabpanel" aria-labelledby="order-sample-tab">
-              
-              <div class="card border-0 shadow-sm bg-light mb-3">
-                <div class="card-body py-3 px-4">
-                  <div class="row g-3 align-items-end">
-                    
-                    <div class="col-lg-auto col-md-12">
-                      <label class="form-label small text-muted fw-bold text-uppercase ls-1">Record Type</label>
-                      <div class="btn-group w-100" role="group">
-                        <input type="radio" class="btn-check" name="osType" id="osTypeAll" value="all" checked>
-                        <label class="btn btn-outline-primary btn-sm" for="osTypeAll">All</label>
-                        <input type="radio" class="btn-check" name="osType" id="osTypeOrder" value="Order">
-                        <label class="btn btn-outline-primary btn-sm" for="osTypeOrder">Orders</label>
-                        <input type="radio" class="btn-check" name="osType" id="osTypeSample" value="Sample">
-                        <label class="btn btn-outline-primary btn-sm" for="osTypeSample">Samples</label>
-                      </div>
-                    </div>
-
-                    <div class="col-md-3 col-sm-6">
-                      <label class="form-label small text-muted">Order #</label>
-                      <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-hashtag text-secondary"></i></span>
-                        <input type="text" class="form-control border-start-0 ps-0" id="osSearchId" placeholder="Order ID...">
-                      </div>
-                    </div>
-                    <div class="col-md-3 col-sm-6">
-                      <label class="form-label small text-muted">Customer</label>
-                      <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-user text-secondary"></i></span>
-                        <input type="text" class="form-control border-start-0 ps-0" id="osSearchCustomer" placeholder="Customer Name...">
-                      </div>
-                    </div>
-                    <div class="col-md-2 col-sm-6 os-order-only-field">
-                      <label class="form-label small text-muted">Cust PO</label>
-                      <input type="text" class="form-control form-control-sm" id="osSearchPO" placeholder="PO Number...">
-                    </div>
-
-                    <div class="col-lg-auto col-md-4 col-sm-6">
-                      <label class="form-label small text-muted">Date Range</label>
-                      <div class="input-group input-group-sm">
-                        <input type="date" class="form-control" id="osDateStart">
-                        <span class="input-group-text bg-white text-muted">to</span>
-                        <input type="date" class="form-control" id="osDateEnd">
-                      </div>
-                    </div>
-
-                    <div class="col-lg-auto col-md-3 col-sm-6 os-order-only-field ms-auto">
-                      <label class="form-label small text-muted">Total ($)</label>
-                      <div class="input-group input-group-sm">
-                        <input type="number" class="form-control" id="osPriceMin" placeholder="Min">
-                        <span class="input-group-text bg-white text-muted">-</span>
-                        <input type="number" class="form-control" id="osPriceMax" placeholder="Max">
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
+        <!-- Orders & Samples View Tab Pane -->
+        <div class="tab-pane fade" id="ordersSamplesView"
+            role="tabpanel" aria-labelledby="orders-samples-tab">
+          <div class="row mb-3">
+            <!-- Left column: search controls -->
+            <div class="col-md-4">
+              <h4>Search</h4>
+              <!-- Toggle to switch between Orders and Samples -->
+              <div class="mb-3">
+                <label class="form-label me-2">Dataset:</label>
+                <select id="osTypeSelect" class="form-select">
+                  <option value="Orders">Orders</option>
+                  <option value="Samples">Samples</option>
+                </select>
               </div>
+              <div class="mb-3">
+                <input id="osOrderNo" class="form-control" type="text"
+                      placeholder="Order No." />
+              </div>
+              <div class="mb-3">
+                <input id="osCustomer" class="form-control" type="text"
+                      placeholder="Customer" />
+              </div>
+              <div class="mb-3">
+                <label>Order Date range</label>
+                <input id="osStartDate" class="form-control mb-1" type="date" />
+                <input id="osEndDate" class="form-control" type="date" />
+              </div>
+              <!-- Fields relevant only to orders -->
+              <div class="mb-3">
+                <input id="osCustPO" class="form-control"
+                      type="text" placeholder="Customer PO" />
+              </div>
+              <div class="mb-3">
+                <label>Invoice Total range</label>
+                <input id="osMinTotal" class="form-control mb-1" type="number" min="0"
+                      placeholder="Min total" />
+                <input id="osMaxTotal" class="form-control" type="number" min="0"
+                      placeholder="Max total" />
+              </div>
+              <button id="osSearchBtn" class="btn btn-primary">Search</button>
+            </div>
 
-              <div class="table-responsive bg-white rounded shadow-sm border" style="height: 65vh; overflow-y: auto;">
-                <table class="table table-hover mb-0" id="osTable" style="border-collapse: separate; border-spacing: 0;">
-                  <thead class="table-light sticky-top" style="z-index: 5;">
+            <!-- Right column: results table -->
+            <div class="col-md-8">
+              <h4>Results</h4>
+              <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                  <thead>
                     <tr>
-                      <th style="width: 100px;">Type</th>
-                      <th>Order #</th>
+                      <th>Order Number</th>
                       <th>Customer</th>
-                      <th>Date</th>
+                      <th>Order Date</th>
                       <th>Cust PO</th>
-                      <th class="text-end">Total</th>
-                      <th style="width: 40px;"></th>
+                      <th>Total</th>
                     </tr>
                   </thead>
-                  <tbody id="osTableBody" class="border-top-0">
-                    </tbody>
+                  <tbody id="ordersSamplesTable">
+                    <tr>
+                      <td colspan="5" class="text-muted fst-italic">
+                        No results yet.
+                      </td>
+                    </tr>
+                  </tbody>
                 </table>
               </div>
             </div>
+          </div>
+
+          <!-- Modal to show full details -->
+          <div class="modal fade" id="osDetailModal" tabindex="-1"
+              aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Record Details</h5>
+                  <button type="button" class="btn-close"
+                          data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="osDetailBody">
+                  <!-- details are injected via JS -->
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+        
+      </div>
     </div>
   </div>
   
