@@ -84,6 +84,17 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
 }
 
 /**
+ * Converts an Excel serial date number to a JS Date object.
+ * Excel base date: Dec 30, 1899.
+ * 25569 is the number of days between Dec 30, 1899 and Jan 1, 1970 (Unix epoch).
+ * 864e5 is milliseconds in a day.
+ */
+function excelSerialDateToJSDate(serial) {
+   // Math.round fixes minor floating point errors common in Excel dates
+   return new Date(Math.round((serial - 25569) * 864e5));
+}
+
+/**
  * Fetches only the last N rows of an Excel file via Graph API.
  * This avoids downloading/parsing the entire file.
  */
@@ -100,7 +111,6 @@ async function fetchLastNRows(driveId, itemId, sheetName, columns, nRows, token)
   if (!rangeResp.ok) throw new Error(`Failed to fetch usedRange for ${sheetName}: ${rangeResp.statusText}`);
   const rangeData = await rangeResp.json();
   
-  // Parse address like "Sheet1!A1:Z5000" to extract "5000"
   const rangeAddress = rangeData.address; 
   const match = rangeAddress.match(/!([A-Za-z]+)(\d+):([A-Za-z]+)(\d+)/);
   
@@ -110,7 +120,6 @@ async function fetchLastNRows(driveId, itemId, sheetName, columns, nRows, token)
   const totalCols = columns.length; 
 
   // 2. Calculate the Start Row
-  // Ensure we don't go below row 2 (assuming row 1 is header)
   const startRow = Math.max(2, totalRows - nRows + 1);
   
   // 3. Calculate the Column Letter
@@ -124,27 +133,41 @@ async function fetchLastNRows(driveId, itemId, sheetName, columns, nRows, token)
   };
   const endColLetter = getColLetter(totalCols - 1);
 
-  // 4. Fetch the Data Range (Requesting TEXT to preserve formatting)
+  // 4. Fetch the Data Range (Requesting VALUES to get raw data/serial dates)
   const fetchAddress = `A${startRow}:${endColLetter}${totalRows}`;
   console.log(`[Partial Load] Fetching range ${fetchAddress} for ${sheetName} (Last ${nRows} rows)`);
   
-  // CHANGED: requesting 'text' instead of 'values' to get formatted strings
+  // Reverted to 'values' to get raw numbers for dates
   const dataResp = await fetch(
-    `${workbookBase}/worksheets('${encodeURIComponent(sheetName)}')/range(address='${fetchAddress}')?$select=text`, 
+    `${workbookBase}/worksheets('${encodeURIComponent(sheetName)}')/range(address='${fetchAddress}')?$select=values`, 
     { headers }
   );
   
   if (!dataResp.ok) throw new Error(`Failed to fetch range: ${dataResp.statusText}`);
   const dataJson = await dataResp.json();
-  const rows = dataJson.text; // CHANGED: accessing 'text' property
+  const rows = dataJson.values; 
 
   // 5. Map Array-of-Arrays to Array-of-Objects using specific Columns
   return rows.map(rowValues => {
     const rowObj = {};
     columns.forEach((colName, index) => {
-      // Safely assign value or empty string if undefined
       let val = rowValues[index];
       if (val === undefined || val === null) val = "";
+
+      // --- DATE FIX: Convert serial numbers to Date Strings ---
+      // We assume any column with "Date" or "date" in the name AND a numeric value is an Excel date.
+      if (typeof val === 'number' && /date/i.test(colName)) {
+          const dateObj = excelSerialDateToJSDate(val);
+          if (!isNaN(dateObj.getTime())) {
+              // Convert to "MM/DD/YYYY" format (or your preferred locale)
+              val = dateObj.toLocaleDateString("en-US", {
+                  year: 'numeric',
+                  month: 'numeric',
+                  day: 'numeric'
+              });
+          }
+      }
+
       rowObj[colName] = val;
     });
     return rowObj;
