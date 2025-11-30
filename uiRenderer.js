@@ -1817,23 +1817,35 @@ document.addEventListener('DOMContentLoaded', () => {
       const { type, id, customer, po, dateStart, dateEnd, priceMin, priceMax } = this.filters;
 
       const filtered = this.data.filter(row => {
+        // 0. Base Data Integrity Check
+        // Exclude row if Customer is missing/empty OR Date is invalid/missing
+        const hasCustomer = row.customer && String(row.customer).trim().length > 0;
+        const hasDate = !!row.dateObj; // Checks if date parsed successfully
+
+        if (!hasCustomer || !hasDate) return false;
+
         // 1. Type Filter
         if (type !== 'all' && row.type.toLowerCase() !== type.toLowerCase()) return false;
+        
         // 2. ID Filter
         if (id && !String(row.id || '').toLowerCase().includes(id)) return false;
-        // 3. Customer Filter
+        
+        // 3. Customer Filter (Search Box)
         if (customer && !String(row.customer || '').toLowerCase().includes(customer)) return false;
+        
         // 4. Date Range
         if (row.dateObj) {
           if (dateStart && row.dateObj < dateStart) return false;
           if (dateEnd && row.dateObj > dateEnd) return false;
         }
+        
         // 5. Order Specific Filters
         if (row.type === 'Order') {
           if (po && !String(row.po || '').toLowerCase().includes(po)) return false;
           if (!isNaN(priceMin) && row.total < priceMin) return false;
           if (!isNaN(priceMax) && row.total > priceMax) return false;
         }
+        
         return true;
       });
 
@@ -1856,12 +1868,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Helper formatter for prices inside the detail view
       const formatIfPrice = (key, value) => {
-          if (!value) return value; // don't try to format null/undefined
+          if (!value) return value; 
           
           const lowerKey = key.toLowerCase();
           // Heuristic: if key contains price/cost/total/amount AND value looks like a number
           if (lowerKey.match(/price|cost|total|amount/)) {
-              // Remove non-numeric chars except dot and minus
               const clean = String(value).replace(/[^0-9.-]/g, '');
               const num = parseFloat(clean);
               if (!isNaN(num)) {
@@ -1909,25 +1920,21 @@ document.addEventListener('DOMContentLoaded', () => {
         detailTd.className = 'p-0 border-0';
         
         let gridItems = '';
-        
-        // Sort keys alphabetically
         const keys = Object.keys(row.raw).sort();
 
         keys.forEach(key => {
           const val = row.raw[key];
 
-          // 1. Filter out internal keys OR keys literally named "blank"
+          // 1. Filter out internals or literal "blank" keys
           if (key.startsWith('__')) return;
           if (key.toLowerCase() === 'blank') return; 
 
           // 2. Format Value
           let displayVal = val;
           
-          // If empty/null, show a dash (instead of hiding it entirely)
           if (val === null || val === undefined || String(val).trim() === '') {
               displayVal = '<span class="text-muted italic">--</span>';
           } else {
-              // Only attempt price formatting if there is a value
               displayVal = formatIfPrice(key, val);
           }
           
