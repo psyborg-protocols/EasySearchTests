@@ -1632,6 +1632,261 @@ document.addEventListener('DOMContentLoaded', () => {
 
   };
 
+  /* ==========================================================================
+    Orders & Samples Search Module
+    ========================================================================== */
+
+  const OrderSampleSearch = {
+    // State
+    data: [],
+    filters: {
+      type: 'all',
+      id: '',
+      customer: '',
+      po: '',
+      dateStart: null,
+      dateEnd: null,
+      priceMin: null,
+      priceMax: null
+    },
+
+    init: function() {
+      // 1. Initialize Date Filters (Last 30 Days)
+      const today = new Date();
+      const lastMonth = new Date();
+      lastMonth.setDate(today.getDate() - 30);
+      
+      document.getElementById('osDateStart').valueAsDate = lastMonth;
+      document.getElementById('osDateEnd').valueAsDate = today;
+
+      // 2. Attach Event Listeners
+      const inputs = [
+        'osTypeAll', 'osTypeOrder', 'osTypeSample',
+        'osSearchId', 'osSearchCustomer', 'osSearchPO',
+        'osDateStart', 'osDateEnd', 'osPriceMin', 'osPriceMax'
+      ];
+
+      inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if(!el) return;
+        
+        const eventType = (el.type === 'radio' || el.type === 'date') ? 'change' : 'input';
+        
+        el.addEventListener(eventType, () => {
+          this.updateFilters();
+          this.render();
+        });
+      });
+
+      // 3. Tab Activation Listener to refresh data
+      const tabEl = document.getElementById('order-sample-tab');
+      if(tabEl) {
+        tabEl.addEventListener('shown.bs.tab', () => {
+          this.loadData();
+          this.render();
+        });
+      }
+    },
+
+    loadData: function() {
+      const orders = window.dataStore.Orders?.dataframe || [];
+      const samples = window.dataStore.Samples?.dataframe || [];
+
+      // Normalize Orders
+      const normOrders = orders.map(r => ({
+        type: 'Order',
+        id: r["Order No."],
+        customer: r["Customer"],
+        dateStr: r["Order Date"], // Keep original string for display
+        dateObj: ReportUtils.parseDate(r["Order Date"]),
+        po: r["Cust PO"],
+        total: parseFloat(String(r["Invoice Total"]).replace(/[^0-9.-]/g, '')) || 0,
+        raw: r
+      }));
+
+      // Normalize Samples
+      const normSamples = samples.map(r => ({
+        type: 'Sample',
+        id: r["Order"],
+        customer: r["Customer"],
+        dateStr: r["Customer order(date)"],
+        dateObj: ReportUtils.parseDate(r["Customer order(date)"]),
+        po: null, // N/A
+        total: null, // N/A
+        raw: r
+      }));
+
+      this.data = [...normOrders, ...normSamples];
+      // Sort by Date Descending by default
+      this.data.sort((a, b) => (b.dateObj || 0) - (a.dateObj || 0));
+    },
+
+    updateFilters: function() {
+      // Read Type
+      const typeRadios = document.getElementsByName('osType');
+      typeRadios.forEach(r => { if(r.checked) this.filters.type = r.value; });
+
+      // Handle UI Greying out
+      const orderFields = document.querySelectorAll('.os-order-only-field');
+      orderFields.forEach(div => {
+        const input = div.querySelector('input');
+        if(this.filters.type === 'Sample') {
+          div.style.opacity = '0.4';
+          div.style.pointerEvents = 'none';
+          if(input) input.value = ''; // Clear value if disabled
+        } else {
+          div.style.opacity = '1';
+          div.style.pointerEvents = 'auto';
+        }
+      });
+
+      // Read Inputs
+      this.filters.id = document.getElementById('osSearchId').value.trim().toLowerCase();
+      this.filters.customer = document.getElementById('osSearchCustomer').value.trim().toLowerCase();
+      
+      // Only read PO/Price if not in Sample mode
+      if (this.filters.type !== 'Sample') {
+        this.filters.po = document.getElementById('osSearchPO').value.trim().toLowerCase();
+        this.filters.priceMin = document.getElementById('osPriceMin').valueAsNumber;
+        this.filters.priceMax = document.getElementById('osPriceMax').valueAsNumber;
+      } else {
+        this.filters.po = '';
+        this.filters.priceMin = NaN;
+        this.filters.priceMax = NaN;
+      }
+
+      // Dates
+      const dStart = document.getElementById('osDateStart').valueAsDate;
+      const dEnd = document.getElementById('osDateEnd').valueAsDate;
+      
+      // Adjust logic to include the full end day
+      if(dEnd) dEnd.setHours(23, 59, 59, 999);
+      
+      this.filters.dateStart = dStart;
+      this.filters.dateEnd = dEnd;
+    },
+
+    render: function() {
+      const tbody = document.getElementById('osTableBody');
+      if(!tbody) return;
+      tbody.innerHTML = '';
+
+      const { type, id, customer, po, dateStart, dateEnd, priceMin, priceMax } = this.filters;
+
+      const filtered = this.data.filter(row => {
+        // 1. Type Filter
+        if (type !== 'all' && row.type.toLowerCase() !== type.toLowerCase()) return false;
+
+        // 2. ID Filter (Partial Match)
+        if (id && !String(row.id || '').toLowerCase().includes(id)) return false;
+
+        // 3. Customer Filter (Partial Match)
+        if (customer && !String(row.customer || '').toLowerCase().includes(customer)) return false;
+
+        // 4. Date Range
+        if (row.dateObj) {
+          if (dateStart && row.dateObj < dateStart) return false;
+          if (dateEnd && row.dateObj > dateEnd) return false;
+        }
+
+        // 5. Order Specific Filters (PO & Price)
+        if (row.type === 'Order') {
+          if (po && !String(row.po || '').toLowerCase().includes(po)) return false;
+          if (!isNaN(priceMin) && row.total < priceMin) return false;
+          if (!isNaN(priceMax) && row.total > priceMax) return false;
+        }
+
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted p-4">No records found matching criteria.</td></tr>`;
+        return;
+      }
+
+      // Limit render for performance (first 100)
+      const toRender = filtered.slice(0, 100);
+
+      toRender.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.setAttribute('data-bs-toggle', 'collapse');
+        tr.setAttribute('data-bs-target', `#detail-${index}`);
+        tr.classList.add('align-middle');
+        
+        // Type Badge
+        const typeBadge = row.type === 'Order' 
+          ? `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-10">Order</span>`
+          : `<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-10">Sample</span>`;
+
+        // Total Formatting
+        const totalDisplay = row.type === 'Order' 
+          ? row.total.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) 
+          : '<span class="text-muted">-</span>';
+
+        const poDisplay = row.po || '<span class="text-muted">-</span>';
+        
+        const dateDisplay = row.dateObj 
+          ? row.dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : row.dateStr || '-';
+
+        tr.innerHTML = `
+          <td>${typeBadge}</td>
+          <td class="fw-bold text-dark">${row.id || '-'}</td>
+          <td>${row.customer || '-'}</td>
+          <td>${dateDisplay}</td>
+          <td>${poDisplay}</td>
+          <td class="text-end fw-bold">${totalDisplay}</td>
+          <td class="text-center"><i class="fas fa-chevron-down text-muted small"></i></td>
+        `;
+
+        // Detail Row (Accordion style)
+        const detailTr = document.createElement('tr');
+        const detailTd = document.createElement('td');
+        detailTd.colSpan = 7;
+        detailTd.className = 'p-0 border-0';
+        
+        // Build Definition List from Raw Data
+        let dlHtml = '<div class="p-3 bg-light border-bottom"><dl class="row mb-0" style="font-size: 0.9rem">';
+        Object.entries(row.raw).forEach(([key, val]) => {
+          // Skip empty keys or extremely long internal keys if any
+          if(!key || key.startsWith('__')) return; 
+          dlHtml += `
+            <dt class="col-sm-3 text-secondary text-truncate" title="${key}">${key}</dt>
+            <dd class="col-sm-9 text-dark mb-1">${val || '<span class="text-muted italic">empty</span>'}</dd>
+          `;
+        });
+        dlHtml += '</dl></div>';
+
+        const collapseDiv = document.createElement('div');
+        collapseDiv.id = `detail-${index}`;
+        collapseDiv.className = 'collapse';
+        collapseDiv.innerHTML = dlHtml;
+
+        detailTd.appendChild(collapseDiv);
+        detailTr.appendChild(detailTd);
+
+        tbody.appendChild(tr);
+        tbody.appendChild(detailTr);
+      });
+      
+      // Add "Showing X of Y" footer if truncated
+      if(filtered.length > 100) {
+        const infoRow = document.createElement('tr');
+        infoRow.innerHTML = `
+          <td colspan="7" class="text-center text-muted small py-2 bg-light">
+            Showing first 100 of ${filtered.length} results. Refine search to see more.
+          </td>`;
+        tbody.appendChild(infoRow);
+      }
+    }
+  };
+
+  // Initialize the module when DOM is ready
+  document.addEventListener('DOMContentLoaded', () => {
+    OrderSampleSearch.init();
+  });
+
 
   // Expose functions and objects globally
   window.quoteCalculator = quoteCalculator;

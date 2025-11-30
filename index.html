@@ -548,13 +548,16 @@
       <i class="fa-solid fa-terminal"></i>
     </button>
     
-    <!-- Tabs for Search and Customer Info (moved outside the card) -->
+    <!-- Tabs for Search and Customer Info -->
     <ul class="nav nav-tabs" id="mainTabs" role="tablist">
       <li class="nav-item" role="presentation">
         <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#searchView" type="button" role="tab" aria-controls="searchView" aria-selected="true">Search</button>
       </li>
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="customer-info-tab" data-bs-toggle="tab" data-bs-target="#customerInfoView" type="button" role="tab" aria-controls="customerInfoView" aria-selected="false">Customer Info</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="order-sample-tab" data-bs-toggle="tab" data-bs-target="#orderSampleView" type="button" role="tab" aria-controls="orderSampleView" aria-selected="false">Orders & Samples</button>
       </li>
     </ul>
 
@@ -835,7 +838,88 @@
             </div>
           </div>
         </div>
-      </div>
+
+        <!-- Order & Sample View Tab Pane -->
+        <div class="tab-pane fade" id="orderSampleView" role="tabpanel" aria-labelledby="order-sample-tab">
+            
+            <div class="tab-pane fade" id="orderSampleView" role="tabpanel" aria-labelledby="order-sample-tab">
+              
+              <div class="card border-0 shadow-sm bg-light mb-3">
+                <div class="card-body py-3 px-4">
+                  <div class="row g-3 align-items-end">
+                    
+                    <div class="col-lg-auto col-md-12">
+                      <label class="form-label small text-muted fw-bold text-uppercase ls-1">Record Type</label>
+                      <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="osType" id="osTypeAll" value="all" checked>
+                        <label class="btn btn-outline-primary btn-sm" for="osTypeAll">All</label>
+                        <input type="radio" class="btn-check" name="osType" id="osTypeOrder" value="Order">
+                        <label class="btn btn-outline-primary btn-sm" for="osTypeOrder">Orders</label>
+                        <input type="radio" class="btn-check" name="osType" id="osTypeSample" value="Sample">
+                        <label class="btn btn-outline-primary btn-sm" for="osTypeSample">Samples</label>
+                      </div>
+                    </div>
+
+                    <div class="col-md-3 col-sm-6">
+                      <label class="form-label small text-muted">Order #</label>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-hashtag text-secondary"></i></span>
+                        <input type="text" class="form-control border-start-0 ps-0" id="osSearchId" placeholder="Order ID...">
+                      </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                      <label class="form-label small text-muted">Customer</label>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-user text-secondary"></i></span>
+                        <input type="text" class="form-control border-start-0 ps-0" id="osSearchCustomer" placeholder="Customer Name...">
+                      </div>
+                    </div>
+                    <div class="col-md-2 col-sm-6 os-order-only-field">
+                      <label class="form-label small text-muted">Cust PO</label>
+                      <input type="text" class="form-control form-control-sm" id="osSearchPO" placeholder="PO Number...">
+                    </div>
+
+                    <div class="col-lg-auto col-md-4 col-sm-6">
+                      <label class="form-label small text-muted">Date Range</label>
+                      <div class="input-group input-group-sm">
+                        <input type="date" class="form-control" id="osDateStart">
+                        <span class="input-group-text bg-white text-muted">to</span>
+                        <input type="date" class="form-control" id="osDateEnd">
+                      </div>
+                    </div>
+
+                    <div class="col-lg-auto col-md-3 col-sm-6 os-order-only-field ms-auto">
+                      <label class="form-label small text-muted">Total ($)</label>
+                      <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="osPriceMin" placeholder="Min">
+                        <span class="input-group-text bg-white text-muted">-</span>
+                        <input type="number" class="form-control" id="osPriceMax" placeholder="Max">
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+              <div class="table-responsive bg-white rounded shadow-sm border" style="height: 65vh; overflow-y: auto;">
+                <table class="table table-hover mb-0" id="osTable" style="border-collapse: separate; border-spacing: 0;">
+                  <thead class="table-light sticky-top" style="z-index: 5;">
+                    <tr>
+                      <th style="width: 100px;">Type</th>
+                      <th>Order #</th>
+                      <th>Customer</th>
+                      <th>Date</th>
+                      <th>Cust PO</th>
+                      <th class="text-end">Total</th>
+                      <th style="width: 40px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="osTableBody" class="border-top-0">
+                    </tbody>
+                </table>
+              </div>
+            </div>
+        </div>
     </div>
   </div>
   
