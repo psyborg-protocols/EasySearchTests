@@ -72,5 +72,23 @@
     "skipRows": 1,
     "sheetName": "Companies (Ranked)",
     "dataKey": "CompanyInfo"
+  },
+  {
+    "directory": "Brandywine Collaborate Team Site Folder/Customers, Orders",
+    "filenamePrefix": "Brandywine_Orders",
+    "sheetName": "Orders",
+    "partialLoad": true,
+    "nRows": 2000,
+    "columns": ["Order No.", "Customer", "Blank", "Cust PO", "Order Date", "Ship Date", "Remarks", "Ship From", "Via", "Ship Mode", "Ship Acct", "Track No.", "Invoice Date", "Net Terms", "Sell Price", "Ship Charge", "Cost of Order", "Invoice Total", "Pay Mode", "Remarks related to partial payment"], 
+    "dataKey": "Orders"
+  },
+  {
+    "directory": "Brandywine Collaborate Team Site Folder/Customers, Orders",
+    "filenamePrefix": "Brandywine_Orders",
+    "sheetName": "Samples Sent",
+    "partialLoad": true,
+    "nRows": 200,
+    "columns": ["Order", "Customer", "Customer order(date)", "Supplier", "Ship To Customer(date)", "Track", "Remarks"], 
+    "dataKey": "Samples"
   }
 ]

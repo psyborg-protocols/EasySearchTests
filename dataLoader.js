@@ -84,9 +84,75 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
 }
 
 /**
+ * Fetches only the last N rows of an Excel file via Graph API.
+ * This avoids downloading/parsing the entire file.
+ */
+async function fetchLastNRows(driveId, itemId, sheetName, columns, nRows, token) {
+  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const workbookBase = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook`;
+
+  // 1. Get the "UsedRange" address to find total rows (Metadata only, very fast)
+  const rangeResp = await fetch(
+    `${workbookBase}/worksheets('${encodeURIComponent(sheetName)}')/usedRange?$select=address`, 
+    { headers }
+  );
+  
+  if (!rangeResp.ok) throw new Error(`Failed to fetch usedRange for ${sheetName}: ${rangeResp.statusText}`);
+  const rangeData = await rangeResp.json();
+  
+  // Parse address like "Sheet1!A1:Z5000" to extract "5000"
+  // Address might be formatted as 'Orders'!A1:AC5000 or similar
+  const rangeAddress = rangeData.address; 
+  const match = rangeAddress.match(/!([A-Za-z]+)(\d+):([A-Za-z]+)(\d+)/);
+  
+  if (!match) throw new Error("Could not parse Excel range address: " + rangeAddress);
+  
+  const totalRows = parseInt(match[4], 10);
+  const totalCols = columns.length; 
+
+  // 2. Calculate the Start Row
+  // Ensure we don't go below row 2 (assuming row 1 is header)
+  const startRow = Math.max(2, totalRows - nRows + 1);
+  
+  // 3. Calculate the Column Letter
+  const getColLetter = (idx) => {
+      let letter = '';
+      while (idx >= 0) {
+          letter = String.fromCharCode((idx % 26) + 65) + letter;
+          idx = Math.floor(idx / 26) - 1;
+      }
+      return letter;
+  };
+  const endColLetter = getColLetter(totalCols - 1);
+
+  // 4. Fetch the Data Range
+  const fetchAddress = `A${startRow}:${endColLetter}${totalRows}`;
+  console.log(`[Partial Load] Fetching range ${fetchAddress} for ${sheetName} (Last ${nRows} rows)`);
+  
+  const dataResp = await fetch(
+    `${workbookBase}/worksheets('${encodeURIComponent(sheetName)}')/range(address='${fetchAddress}')?$select=values`, 
+    { headers }
+  );
+  
+  if (!dataResp.ok) throw new Error(`Failed to fetch range: ${dataResp.statusText}`);
+  const dataJson = await dataResp.json();
+  const rows = dataJson.values; // Array of Arrays
+
+  // 5. Map Array-of-Arrays to Array-of-Objects using specific Columns
+  return rows.map(rowValues => {
+    const rowObj = {};
+    columns.forEach((colName, index) => {
+      // Safely assign value or empty string if undefined
+      let val = rowValues[index];
+      if (val === undefined || val === null) val = "";
+      rowObj[colName] = val;
+    });
+    return rowObj;
+  });
+}
+
+/**
  * Fetches organizational contacts using a delta query for efficiency.
- * @param {string} token - A valid MSAL access token.
- * @returns {Promise<Map<string, object[]>>} A map of contacts organized by company.
  */
 async function fetchAndProcessOrgContacts(token) {
     let cachedContactsMap = window.dataStore.OrgContacts || new Map();
@@ -110,24 +176,21 @@ async function fetchAndProcessOrgContacts(token) {
             const data = await response.json();
             changes = changes.concat(data.value);
             
-            // Check for the final deltaLink in the response
             if (data['@odata.deltaLink']) {
                 metadata.deltaLink = data['@odata.deltaLink'];
-                nextLink = null; // Exit loop
+                nextLink = null;
             } else {
-                nextLink = data['@odata.nextLink']; // Continue to next page of results
+                nextLink = data['@odata.nextLink'];
             }
         }
         
         console.log(`Successfully fetched ${changes.length} changes for contacts.`);
 
         if (changes.length > 0) {
-            // Apply changes to the cached map
             for (const contact of changes) {
                 const company = (contact.companyName || 'Unknown').trim().toLowerCase();
                 
                 if (contact['@removed']) {
-                    // Handle deletions
                     if (cachedContactsMap.has(company)) {
                         const companyContacts = cachedContactsMap.get(company).filter(c => c.id !== contact.id);
                         if (companyContacts.length > 0) {
@@ -137,9 +200,8 @@ async function fetchAndProcessOrgContacts(token) {
                         }
                     }
                 } else {
-                    // Handle additions/updates
                     const newContact = {
-                        id: contact.id, // Store ID for updates/deletions
+                        id: contact.id, 
                         Name: contact.displayName,
                         Title: contact.jobTitle,
                         Email: contact.mail
@@ -150,16 +212,15 @@ async function fetchAndProcessOrgContacts(token) {
                     const existingContacts = cachedContactsMap.get(company);
                     const index = existingContacts.findIndex(c => c.id === newContact.id);
                     if (index > -1) {
-                        existingContacts[index] = newContact; // Update
+                        existingContacts[index] = newContact;
                     } else {
-                        existingContacts.push(newContact); // Add
+                        existingContacts.push(newContact);
                     }
                 }
             }
             console.log("Applied changes to in-memory contact list.");
         }
         
-        // Save the updated map and the new deltaLink
         await idbUtil.setDataset("OrgContactsData", Object.fromEntries(cachedContactsMap));
         await idbUtil.setDataset("OrgContactsMetadata", metadata);
 
@@ -167,8 +228,6 @@ async function fetchAndProcessOrgContacts(token) {
 
   } catch (error) {
     console.error("Error fetching or processing organizational contacts:", error);
-
-    // Always clear the delta link on failure – an expired token requires a full sync
     if (metadata.deltaLink) {
         metadata.deltaLink = null;
         await idbUtil.setDataset("OrgContactsMetadata", metadata);
@@ -176,7 +235,6 @@ async function fetchAndProcessOrgContacts(token) {
     }
     return cachedContactsMap;
   }
-
 }
 
 
@@ -229,15 +287,69 @@ async function processFiles() {
         continue;
       }
 
-      let buf = bufferCache.get(fileId);
-      if (!buf) {
-        buf = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
-        bufferCache.set(fileId, buf);
+      // Check if we need to download the full buffer.
+      // If ALL entries for this workbook are flagged as "partialLoad", we skip full download.
+      const allPartial = rows.every(r => r.partialLoad === true);
+      
+      let buf = null;
+      if (!allPartial) {
+          buf = bufferCache.get(fileId);
+          if (!buf) {
+            // Only download if we haven't already and we actually need it for some sheets
+            buf = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
+            bufferCache.set(fileId, buf);
+          }
       }
 
       for (const row of rows) {
         const key = row.dataKey || row.filenamePrefix;
         const storageKey = `${key}Data`;
+        
+        // --- START NEW LOGIC: PARTIAL FETCH FROM CONFIG ---
+        if (row.partialLoad) {
+            const cached = await idbUtil.getDataset(storageKey);
+            
+            // Check cache validity
+            if (cached?.metadata?.lastModifiedDateTime === lastMod) {
+                console.log(`[processFiles] Cache hit for ${key}. Skipping fetch.`);
+                ds[key] = cached;
+                continue;
+            }
+
+            // Defaults: 2000 rows if not specified
+            const nRowsToFetch = row.nRows || 2000;
+            const columnsToMap = row.columns || [];
+            const sheetToFetch = row.sheetName || "";
+
+            console.log(`[processFiles] Fetching fresh partial data for ${key} (Last ${nRowsToFetch} rows) from sheet "${sheetToFetch}"...`);
+            
+            try {
+                if (!sheetToFetch || columnsToMap.length === 0) {
+                    throw new Error(`Missing sheetName or columns in config for partial load key: ${key}`);
+                }
+
+                const partialData = await fetchLastNRows(
+                    md.parentReference.driveId,
+                    md.id,
+                    sheetToFetch,
+                    columnsToMap,
+                    nRowsToFetch,
+                    token
+                );
+                
+                const stored = { dataframe: partialData, metadata: md };
+                ds[key] = stored;
+                await idbUtil.setDataset(storageKey, stored);
+                
+                continue; // Skip standard parsing logic
+            } catch (err) {
+                console.error(`[processFiles] Partial fetch failed for ${key}`, err);
+                // We do NOT fallback to full download because we likely didn't download the buffer above
+                continue; 
+            }
+        }
+        // --- END NEW LOGIC ---
+
         const isPricing = key === "Pricing" || /^Prices\s\d+/i.test(key);
 
         if (!isPricing) {
@@ -248,6 +360,11 @@ async function processFiles() {
           }
         }
 
+        // Standard Full Parsing
+        if (!buf) {
+             console.warn(`[processFiles] Unexpected missing buffer for ${key}. Skipping.`);
+             continue;
+        }
         const frame = parseExcelData(buf, row.skipRows, row.columns, row.sheetName);
 
         if (isPricing) {
@@ -310,7 +427,6 @@ async function processFiles() {
       console.log("[Pricing] cache valid – no parsing needed.");
     }
 
-    // Fetch and cache organizational contacts using delta query
     ds["OrgContacts"] = await fetchAndProcessOrgContacts(token);
     
     document.dispatchEvent(new Event("reports-ready"));
@@ -442,22 +558,17 @@ function getCustomerDetails(company) {
 
 /**
  * Calls the AWS Lambda endpoint to update a contact's company name.
- * @param {string} email - The primary email of the contact to update.
- * @param {string} newCompanyName - The correct company name from the sales data.
  */
 async function updateContactCompany(email, newCompanyName) {
   try {
-    // 1. Get an access token for our API using the new helper function from auth.js.
     const accessToken = await getApiAccessToken();
 
-    // 2. Define the payload
     const payload = {
       action: 'updateCompany',
       email: email,
       companyName: newCompanyName
     };
 
-    // 3. Make the secure fetch call with the Authorization header
     const contactUrl = `${apiUrl}/updateContact`;
     
     const response = await fetch(contactUrl, {
@@ -471,7 +582,6 @@ async function updateContactCompany(email, newCompanyName) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      // Throwing an error here will allow the caller to catch it
       throw new Error(`API Error: ${response.status} - ${errorText}`);
     }
 
@@ -481,15 +591,12 @@ async function updateContactCompany(email, newCompanyName) {
 
   } catch (error) {
     console.error('Error in updateContactCompany:', error);
-    // Re-throw the error so the calling function knows something went wrong
     throw error;
   }
 }
 
 /**
  * Gets structured company information from the backend research agent.
- * @param {string} companyName - The name of the company to research.
- * @returns {Promise<object>} A promise that resolves to the JSON object with company details.
  */
 async function getCompanyResearch(companyName) {
   const llmProxyUrl = `${apiUrl}/llm-proxy`;
@@ -516,25 +623,18 @@ async function getCompanyResearch(companyName) {
       throw new Error(`Company research failed: ${errorText}`);
     }
 
-
-    // 1. Parse the full response from the backend.
     const { model_data, citations } = await response.json();
 
-    // 2. Initialize the base note.
     let note = "These results are retrieved by Perplexity AI and could contain errors.";
 
-    // 3. Verify the website URL from the model against the citation URLs.
     const modelWebsite = model_data.website;
     const citationUrls = (citations || []).map(citation => citation.url);
     const isUrlVerified = citationUrls.includes(modelWebsite);
 
-    // 4. If the model's website URL is not in the list of verified citation
-    //    URLs, add a warning to the beginning of the note.
     if (!isUrlVerified) {
       note = "Unable to verify URL. " + note;
     }
 
-    // 5. Return the model's data with the new, dynamically generated note field.
     return {
       ...model_data,
       note: note
@@ -549,8 +649,6 @@ async function getCompanyResearch(companyName) {
 
 /**
  * Updates a customer's details in the in-memory dataStore and attempts a write-back.
- * @param {string} customerName - The name of the customer to update.
- * @param {object} updatedDetails - The full, updated customer details object.
  */
 async function updateCustomerDetails(customerName, updatedDetails) {
     const key = customerName.trim().replace(/\s+/g, " ").toLowerCase();
@@ -570,14 +668,10 @@ async function updateCustomerDetails(customerName, updatedDetails) {
 
 /**
  * Writes updated customer details back to the source Excel file on SharePoint.
- * This function locates the file, finds the customer row, merges changes, and saves.
- * @param {string} customerName - The name of the customer (for finding the row).
- * @param {object} updatedDetails - The data to write.
  */
 async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
     console.log(`[Write-Back] Initiating update for "${customerName}"...`);
     try {
-        // 1. Get configuration and metadata
         const config = (await loadConfig()).find(c => c.dataKey === 'CompanyInfo');
         if (!config) throw new Error("CompanyInfo configuration not found.");
 
@@ -589,11 +683,9 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
         const itemId = metadata.id;
         const { sheetName, columns, skipRows } = config;
 
-        // 2. Get authentication token
         const token = await getAccessToken();
         const authHeader = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-        // 3. Get all data from the worksheet's used range
         const rangeUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${sheetName}')/usedRange(valuesOnly=true)`;
         const rangeResponse = await fetch(rangeUrl, { headers: authHeader });
         if (!rangeResponse.ok) throw new Error(`Failed to get worksheet data: ${await rangeResponse.text()}`);
@@ -604,14 +696,12 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
             throw new Error(`Worksheet "${sheetName}" appears to be empty.`);
         }
 
-        // 4. Find the "Company" column index from the config, not the sheet
         const companyColumnIndex = columns.indexOf("Company");
         if (companyColumnIndex === -1) {
             throw new Error("'Company' column not defined in config.json.");
         }
 
         let rowIndex = -1;
-        // Start searching *after* any rows to be skipped (like headers)
         for (let i = skipRows; i < allRows.length; i++) {
             if (allRows[i][companyColumnIndex]?.toString().trim().toLowerCase() === customerName.trim().toLowerCase()) {
                 rowIndex = i;
@@ -625,17 +715,16 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
         let targetExcelRow;
         let originalValues;
 
-        if (rowIndex !== -1) { // Logic to UPDATE an existing row
+        if (rowIndex !== -1) { 
             targetExcelRow = rowIndex + 1;
             originalValues = allRows[rowIndex];
             console.log(`[Write-Back] Found "${customerName}" at Excel row ${targetExcelRow}. Merging changes.`);
-        } else { // Logic to ADD a new row
+        } else { 
             targetExcelRow = allRows.length + 1;
             originalValues = [];
             console.log(`[Write-Back] Customer "${customerName}" not found. Adding as new Excel row ${targetExcelRow}.`);
         }
         
-        // --- ROBUST ROW CONSTRUCTION ---
         const newValues = new Array(numColumns).fill("");
         for (let i = 0; i < numColumns; i++) {
             const colName = columns[i];
@@ -666,7 +755,6 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
             }
         }
 
-        // 5. Perform the PATCH request to update the specific range
         const updateAddress = `A${targetExcelRow}:${endColumn}${targetExcelRow}`;
         const updateUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${sheetName}')/range(address='${updateAddress}')`;
         const updateResponse = await fetch(updateUrl, {
