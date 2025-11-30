@@ -507,7 +507,122 @@
         font-weight: 600;
         color: #0d6efd;
     }
+    .os-container {
+      background-color: #f8f9fa;
+      border-radius: 12px;
+      overflow: hidden;
+    }
 
+    /* Floating Filter Bar */
+    .os-filter-bar {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .os-filter-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #8898aa;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      display: block;
+    }
+
+    /* Sleek Table Styles */
+    .os-table-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(0,0,0,0.05);
+      overflow: hidden;
+    }
+
+    .os-table thead th {
+      background-color: #f6f9fc;
+      color: #8898aa;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-bottom: 1px solid #e9ecef;
+      padding: 1rem 1.5rem;
+      font-weight: 600;
+    }
+
+    .os-table tbody td {
+      padding: 1rem 1.5rem;
+      vertical-align: middle;
+      color: #525f7f;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #f6f9fc;
+      transition: background-color 0.2s ease;
+    }
+
+    .os-table tbody tr:hover td {
+      background-color: #fcfcfc;
+    }
+
+    .os-table tbody tr.expanded-row-parent td {
+      background-color: #f8f9fe;
+      border-bottom-color: transparent;
+    }
+    
+    /* Type Badges */
+    .badge-os {
+      padding: 0.35em 0.8em;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
+    }
+    .badge-os-order {
+      background-color: #e0f2fe; /* Light Blue */
+      color: #0369a1;
+    }
+    .badge-os-sample {
+      background-color: #fef3c7; /* Light Amber */
+      color: #b45309;
+    }
+
+    /* Detail View Grid */
+    .os-detail-wrapper {
+      background-color: #f8f9fe;
+      padding: 1.5rem;
+      box-shadow: inset 0 4px 6px -4px rgba(0,0,0,0.1);
+    }
+    
+    .os-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .os-detail-item label {
+      display: block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: #8898aa;
+      margin-bottom: 0.2rem;
+    }
+
+    .os-detail-item span {
+      display: block;
+      font-size: 0.9rem;
+      color: #32325d;
+      font-weight: 500;
+      word-break: break-word;
+    }
+    
+    .row-toggle-icon {
+      transition: transform 0.3s ease;
+    }
+    .expanded-row-parent .row-toggle-icon {
+      transform: rotate(180deg);
+    }
   </style>
 </head>
 <body>
@@ -842,80 +957,80 @@
         <!-- Orders & Samples View Tab Pane -->
         <div class="tab-pane fade" id="orderSampleView" role="tabpanel" aria-labelledby="order-sample-tab">
           
-          <div class="card border-0 shadow-sm bg-light mb-3">
-            <div class="card-body py-3 px-4">
-              <div class="row g-3 align-items-end">
-                
-                <div class="col-lg-auto col-md-12">
-                  <label class="form-label small text-muted fw-bold text-uppercase ls-1">Record Type</label>
-                  <div class="btn-group w-100" role="group">
-                    <input type="radio" class="btn-check" name="osType" id="osTypeAll" value="all" checked>
-                    <label class="btn btn-outline-primary btn-sm" for="osTypeAll">All</label>
-                    <input type="radio" class="btn-check" name="osType" id="osTypeOrder" value="Order">
-                    <label class="btn btn-outline-primary btn-sm" for="osTypeOrder">Orders</label>
-                    <input type="radio" class="btn-check" name="osType" id="osTypeSample" value="Sample">
-                    <label class="btn btn-outline-primary btn-sm" for="osTypeSample">Samples</label>
-                  </div>
+          <div class="os-filter-bar">
+            <div class="row g-3 align-items-end">
+              
+              <div class="col-lg-auto col-md-12">
+                <label class="os-filter-label">Record Type</label>
+                <div class="btn-group w-100" role="group">
+                  <input type="radio" class="btn-check" name="osType" id="osTypeAll" value="all" checked>
+                  <label class="btn btn-outline-secondary btn-sm" for="osTypeAll">All</label>
+                  <input type="radio" class="btn-check" name="osType" id="osTypeOrder" value="Order">
+                  <label class="btn btn-outline-secondary btn-sm" for="osTypeOrder">Orders</label>
+                  <input type="radio" class="btn-check" name="osType" id="osTypeSample" value="Sample">
+                  <label class="btn btn-outline-secondary btn-sm" for="osTypeSample">Samples</label>
                 </div>
-
-                <div class="col-md-3 col-sm-6">
-                  <label class="form-label small text-muted">Order #</label>
-                  <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-hashtag text-secondary"></i></span>
-                    <input type="text" class="form-control border-start-0 ps-0" id="osSearchId" placeholder="Order ID...">
-                  </div>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                  <label class="form-label small text-muted">Customer</label>
-                  <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-user text-secondary"></i></span>
-                    <input type="text" class="form-control border-start-0 ps-0" id="osSearchCustomer" placeholder="Customer Name...">
-                  </div>
-                </div>
-                <div class="col-md-2 col-sm-6 os-order-only-field">
-                  <label class="form-label small text-muted">Cust PO</label>
-                  <input type="text" class="form-control form-control-sm" id="osSearchPO" placeholder="PO Number...">
-                </div>
-
-                <div class="col-lg-auto col-md-4 col-sm-6">
-                  <label class="form-label small text-muted">Date Range</label>
-                  <div class="input-group input-group-sm">
-                    <input type="date" class="form-control" id="osDateStart">
-                    <span class="input-group-text bg-white text-muted">to</span>
-                    <input type="date" class="form-control" id="osDateEnd">
-                  </div>
-                </div>
-
-                <div class="col-lg-auto col-md-3 col-sm-6 os-order-only-field ms-auto">
-                  <label class="form-label small text-muted">Total ($)</label>
-                  <div class="input-group input-group-sm">
-                    <input type="number" class="form-control" id="osPriceMin" placeholder="Min">
-                    <span class="input-group-text bg-white text-muted">-</span>
-                    <input type="number" class="form-control" id="osPriceMax" placeholder="Max">
-                  </div>
-                </div>
-
               </div>
+
+              <div class="col-md-3">
+                <label class="os-filter-label">Order # / ID</label>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-light border-end-0"><i class="fas fa-hashtag text-muted"></i></span>
+                  <input type="text" class="form-control border-start-0 ps-0" id="osSearchId" placeholder="Search ID...">
+                </div>
+              </div>
+              
+              <div class="col-md-3">
+                <label class="os-filter-label">Customer Name</label>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-light border-end-0"><i class="fas fa-user text-muted"></i></span>
+                  <input type="text" class="form-control border-start-0 ps-0" id="osSearchCustomer" placeholder="Search Customer...">
+                </div>
+              </div>
+
+              <div class="col-lg-auto col-md-4">
+                <label class="os-filter-label">Date Range</label>
+                <div class="input-group input-group-sm">
+                  <input type="date" class="form-control" id="osDateStart">
+                  <span class="input-group-text bg-light text-muted">to</span>
+                  <input type="date" class="form-control" id="osDateEnd">
+                </div>
+              </div>
+
+              <div class="col-auto ms-auto d-flex gap-2 os-order-only-field">
+                <div>
+                    <label class="os-filter-label">Min $</label>
+                    <input type="number" class="form-control form-control-sm" id="osPriceMin" placeholder="0.00" style="width: 80px;">
+                </div>
+                <div>
+                    <label class="os-filter-label">PO Number</label>
+                    <input type="text" class="form-control form-control-sm" id="osSearchPO" placeholder="PO #">
+                </div>
+              </div>
+
             </div>
           </div>
 
-          <div class="table-responsive bg-white rounded shadow-sm border" style="height: 65vh; overflow-y: auto;">
-            <table class="table table-hover mb-0" id="osTable" style="border-collapse: separate; border-spacing: 0;">
-              <thead class="table-light sticky-top" style="z-index: 5;">
-                <tr>
-                  <th style="width: 100px;">Type</th>
-                  <th>Order #</th>
-                  <th>Customer</th>
-                  <th>Date</th>
-                  <th>Cust PO</th>
-                  <th class="text-end">Total</th>
-                  <th style="width: 40px;"></th>
-                </tr>
-              </thead>
-              <tbody id="osTableBody" class="border-top-0">
-                </tbody>
-            </table>
+          <div class="os-table-container">
+            <div class="table-responsive" style="height: 65vh; overflow-y: auto;">
+              <table class="table os-table mb-0" id="osTable">
+                <thead class="sticky-top">
+                  <tr>
+                    <th width="100">Type</th>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>PO Number</th>
+                    <th class="text-end">Total Amount</th>
+                    <th width="50"></th>
+                  </tr>
+                </thead>
+                <tbody id="osTableBody">
+                  </tbody>
+              </table>
+            </div>
           </div>
+
         </div>
         
       </div>

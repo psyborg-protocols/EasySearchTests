@@ -1776,92 +1776,109 @@ document.addEventListener('DOMContentLoaded', () => {
       const filtered = this.data.filter(row => {
         // 1. Type Filter
         if (type !== 'all' && row.type.toLowerCase() !== type.toLowerCase()) return false;
-
-        // 2. ID Filter (Partial Match)
+        // 2. ID Filter
         if (id && !String(row.id || '').toLowerCase().includes(id)) return false;
-
-        // 3. Customer Filter (Partial Match)
+        // 3. Customer Filter
         if (customer && !String(row.customer || '').toLowerCase().includes(customer)) return false;
-
         // 4. Date Range
         if (row.dateObj) {
           if (dateStart && row.dateObj < dateStart) return false;
           if (dateEnd && row.dateObj > dateEnd) return false;
         }
-
-        // 5. Order Specific Filters (PO & Price)
+        // 5. Order Specific Filters
         if (row.type === 'Order') {
           if (po && !String(row.po || '').toLowerCase().includes(po)) return false;
           if (!isNaN(priceMin) && row.total < priceMin) return false;
           if (!isNaN(priceMax) && row.total > priceMax) return false;
         }
-
         return true;
       });
 
       if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted p-4">No records found matching criteria.</td></tr>`;
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center py-5">
+              <div class="text-muted">
+                <i class="fas fa-search fa-3x mb-3 text-light"></i>
+                <p class="mb-0 fs-5">No records found</p>
+                <small>Try adjusting your filters or search criteria</small>
+              </div>
+            </td>
+          </tr>`;
         return;
       }
 
-      // Limit render for performance (first 100)
+      // Limit render for performance
       const toRender = filtered.slice(0, 100);
 
       toRender.forEach((row, index) => {
+        // === Main Row ===
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
         tr.setAttribute('data-bs-toggle', 'collapse');
         tr.setAttribute('data-bs-target', `#detail-${index}`);
-        tr.classList.add('align-middle');
         
-        // Type Badge
-        const typeBadge = row.type === 'Order' 
-          ? `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-10">Order</span>`
-          : `<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-10">Sample</span>`;
+        // Toggle arrow animation class on click
+        tr.onclick = function() {
+            this.classList.toggle('expanded-row-parent');
+        };
 
-        // Total Formatting
-        const totalDisplay = row.type === 'Order' 
-          ? row.total.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) 
-          : '<span class="text-muted">-</span>';
-
-        const poDisplay = row.po || '<span class="text-muted">-</span>';
-        
+        // Styling logic
+        const isOrder = row.type === 'Order';
+        const badgeClass = isOrder ? 'badge-os-order' : 'badge-os-sample';
         const dateDisplay = row.dateObj 
           ? row.dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
           : row.dateStr || '-';
+        
+        const totalDisplay = isOrder 
+          ? `<span class="fw-bold text-dark">${row.total.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>`
+          : '<span class="text-muted small">N/A</span>';
 
         tr.innerHTML = `
-          <td>${typeBadge}</td>
-          <td class="fw-bold text-dark">${row.id || '-'}</td>
-          <td>${row.customer || '-'}</td>
-          <td>${dateDisplay}</td>
-          <td>${poDisplay}</td>
-          <td class="text-end fw-bold">${totalDisplay}</td>
-          <td class="text-center"><i class="fas fa-chevron-down text-muted small"></i></td>
+          <td><span class="badge-os ${badgeClass}">${row.type.toUpperCase()}</span></td>
+          <td class="fw-bold text-primary">${row.id || '-'}</td>
+          <td class="fw-semibold">${row.customer || '-'}</td>
+          <td class="text-muted">${dateDisplay}</td>
+          <td class="text-muted">${row.po || '-'}</td>
+          <td class="text-end">${totalDisplay}</td>
+          <td class="text-center"><i class="fas fa-chevron-down text-muted row-toggle-icon"></i></td>
         `;
 
-        // Detail Row (Accordion style)
+        // === Detail Row (The "Sleek Grid") ===
         const detailTr = document.createElement('tr');
         const detailTd = document.createElement('td');
         detailTd.colSpan = 7;
         detailTd.className = 'p-0 border-0';
         
-        // Build Definition List from Raw Data
-        let dlHtml = '<div class="p-3 bg-light border-bottom"><dl class="row mb-0" style="font-size: 0.9rem">';
+        // Sort keys so meaningful info is first? Or just alphabetic. 
+        // Let's rely on CSS grid to flow them nicely.
+        let gridItems = '';
         Object.entries(row.raw).forEach(([key, val]) => {
-          // Skip empty keys or extremely long internal keys if any
-          if(!key || key.startsWith('__')) return; 
-          dlHtml += `
-            <dt class="col-sm-3 text-secondary text-truncate" title="${key}">${key}</dt>
-            <dd class="col-sm-9 text-dark mb-1">${val || '<span class="text-muted italic">empty</span>'}</dd>
-          `;
+          if(!key || key.startsWith('__')) return;
+          // Simple value cleanup
+          const displayVal = val ? val : '<span class="text-muted italic">--</span>';
+          
+          gridItems += `
+            <div class="os-detail-item">
+                <label>${key}</label>
+                <span>${displayVal}</span>
+            </div>`;
         });
-        dlHtml += '</dl></div>';
 
         const collapseDiv = document.createElement('div');
         collapseDiv.id = `detail-${index}`;
         collapseDiv.className = 'collapse';
-        collapseDiv.innerHTML = dlHtml;
+        collapseDiv.innerHTML = `
+            <div class="os-detail-wrapper">
+                <div class="d-flex align-items-center mb-3">
+                    <h6 class="text-uppercase text-muted fw-bold mb-0 me-3" style="font-size: 0.75rem; letter-spacing:1px;">Record Details</h6>
+                    <div class="border-bottom flex-grow-1"></div>
+                </div>
+                <div class="os-detail-grid">
+                    ${gridItems}
+                </div>
+            </div>
+        `;
 
         detailTd.appendChild(collapseDiv);
         detailTr.appendChild(detailTd);
@@ -1870,11 +1887,10 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.appendChild(detailTr);
       });
       
-      // Add "Showing X of Y" footer if truncated
       if(filtered.length > 100) {
         const infoRow = document.createElement('tr');
         infoRow.innerHTML = `
-          <td colspan="7" class="text-center text-muted small py-2 bg-light">
+          <td colspan="7" class="text-center text-muted small py-3">
             Showing first 100 of ${filtered.length} results. Refine search to see more.
           </td>`;
         tbody.appendChild(infoRow);
