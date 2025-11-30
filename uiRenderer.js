@@ -1656,10 +1656,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const lastMonth = new Date();
       lastMonth.setDate(today.getDate() - 30);
       
-      document.getElementById('osDateStart').valueAsDate = lastMonth;
-      document.getElementById('osDateEnd').valueAsDate = today;
+      // Set the visual input boxes
+      const startInput = document.getElementById('osDateStart');
+      const endInput = document.getElementById('osDateEnd');
+      
+      if (startInput) startInput.valueAsDate = lastMonth;
+      if (endInput) endInput.valueAsDate = today;
 
-      // 2. Attach Event Listeners
+      // 2. Attach Event Listeners to all inputs
       const inputs = [
         'osTypeAll', 'osTypeOrder', 'osTypeSample',
         'osSearchId', 'osSearchCustomer', 'osSearchPO',
@@ -1678,11 +1682,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
 
-      // 3. Tab Activation Listener to refresh data
+      // 3. Tab Activation Listener
       const tabEl = document.getElementById('order-sample-tab');
       if(tabEl) {
         tabEl.addEventListener('shown.bs.tab', () => {
           this.loadData();
+          this.updateFilters(); // <--- CRITICAL: Applies the default dates to the data immediately
           this.render();
         });
       }
