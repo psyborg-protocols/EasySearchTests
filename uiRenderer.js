@@ -1900,6 +1900,5 @@ document.addEventListener('DOMContentLoaded', () => {
     handleContactMerge, // Expose the new merge handler
     confirmAndSaveChanges, // Expose the new save handler
     showProductInfoModal,
-    showCompetitorPricingModal,
-    ordersSamplesSearch
+    showCompetitorPricingModal
   };
