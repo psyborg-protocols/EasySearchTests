@@ -1651,43 +1651,81 @@ document.addEventListener('DOMContentLoaded', () => {
     },
 
     init: function() {
-      // 1. Initialize Date Filters (Last 30 Days)
+      // 1. Setup Default State Variables
+      this.usingDefaultDates = true; // Flag to track if we are using the auto-set dates
+
+      // Calculate default dates
       const today = new Date();
       const lastMonth = new Date();
       lastMonth.setDate(today.getDate() - 30);
-      
-      // Set the visual input boxes
+
       const startInput = document.getElementById('osDateStart');
       const endInput = document.getElementById('osDateEnd');
-      
-      if (startInput) startInput.valueAsDate = lastMonth;
-      if (endInput) endInput.valueAsDate = today;
 
-      // 2. Attach Event Listeners to all inputs
-      const inputs = [
-        'osTypeAll', 'osTypeOrder', 'osTypeSample',
-        'osSearchId', 'osSearchCustomer', 'osSearchPO',
-        'osDateStart', 'osDateEnd', 'osPriceMin', 'osPriceMax'
-      ];
+      // Helper to reset to defaults (used on load and tab switch)
+      const resetToDefaults = () => {
+          this.usingDefaultDates = true;
+          if (startInput) startInput.valueAsDate = lastMonth;
+          if (endInput) endInput.valueAsDate = today;
+      };
 
-      inputs.forEach(id => {
-        const el = document.getElementById(id);
-        if(!el) return;
-        
-        const eventType = (el.type === 'radio' || el.type === 'date') ? 'change' : 'input';
-        
-        el.addEventListener(eventType, () => {
+      // Initial set
+      resetToDefaults();
+
+      // 2. Define Event Handlers
+
+      // A. Date Handler: If user touches dates manually, disable auto-clearing
+      const onDateChange = () => {
+          this.usingDefaultDates = false;
           this.updateFilters();
           this.render();
-        });
+      };
+
+      // B. Text Handler: If typing and still using defaults, clear dates first
+      const onTextSearch = () => {
+          if (this.usingDefaultDates) {
+              // Clear the date inputs visually
+              if (startInput) startInput.value = '';
+              if (endInput) endInput.value = '';
+              // Mark flag as false so we don't clear again if they keep typing
+              this.usingDefaultDates = false;
+          }
+          this.updateFilters();
+          this.render();
+      };
+
+      // C. Generic Handler: Just update (for Radio buttons)
+      const onGenericChange = () => {
+          this.updateFilters();
+          this.render();
+      };
+
+      // 3. Attach Listeners
+
+      // Text Inputs -> Trigger auto-clear logic
+      ['osSearchId', 'osSearchCustomer', 'osSearchPO', 'osPriceMin', 'osPriceMax'].forEach(id => {
+          document.getElementById(id)?.addEventListener('input', onTextSearch);
       });
 
-      // 3. Tab Activation Listener
+      // Date Inputs -> Trigger manual override logic
+      ['osDateStart', 'osDateEnd'].forEach(id => {
+          document.getElementById(id)?.addEventListener('change', onDateChange);
+      });
+
+      // Radio Buttons -> Generic update
+      ['osTypeAll', 'osTypeOrder', 'osTypeSample'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.addEventListener('change', onGenericChange);
+      });
+
+      // 4. Tab Activation Listener
+      // Reset to "Last 30 Days" every time the user opens the tab
       const tabEl = document.getElementById('order-sample-tab');
       if(tabEl) {
         tabEl.addEventListener('shown.bs.tab', () => {
+          resetToDefaults(); // Restore defaults on tab open
           this.loadData();
-          this.updateFilters(); // <--- CRITICAL: Applies the default dates to the data immediately
+          this.updateFilters();
           this.render();
         });
       }
