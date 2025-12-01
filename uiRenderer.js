@@ -1814,13 +1814,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if(!tbody) return;
       tbody.innerHTML = '';
 
+      // Map the "Raw Excel Column Name" -> "Display Label"
+      const labelMap = {
+        "Cost of Order": "Internal Cost",
+        "Ship To Customer(date)": "Date Shipped",
+        "Customer order(date)": "Order Date",
+        "Supplier": "Parts",
+        "Track": "Track No.",
+        "Order": "Order No."
+      };
+
       const { type, id, customer, po, dateStart, dateEnd, priceMin, priceMax } = this.filters;
 
       const filtered = this.data.filter(row => {
         // 0. Base Data Integrity Check
-        // Exclude row if Customer is missing/empty OR Date is invalid/missing
         const hasCustomer = row.customer && String(row.customer).trim().length > 0;
-        const hasDate = !!row.dateObj; // Checks if date parsed successfully
+        const hasDate = !!row.dateObj; 
 
         if (!hasCustomer || !hasDate) return false;
 
@@ -1938,9 +1947,12 @@ document.addEventListener('DOMContentLoaded', () => {
               displayVal = formatIfPrice(key, val);
           }
           
+          // 3. Apply Label Map
+          const displayLabel = labelMap[key] || key;
+
           gridItems += `
             <div class="os-detail-item">
-                <label>${key}</label>
+                <label>${displayLabel}</label>
                 <span>${displayVal}</span>
             </div>`;
         });
