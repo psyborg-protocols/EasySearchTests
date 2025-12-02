@@ -36,29 +36,28 @@ const ReportManager = {
     return (Date.now() - meta.lastRun) > intervalMs;
   },
 
-updateBadge() {
+  updateBadge() {
     const badge = document.getElementById('reportNotificationBadge');
     const btn = document.getElementById('generateReportsBtn');
     
     if (!badge || !btn) return;
     
-    // Count how many are due
     const dueCount = this.modules.filter(m => this.isDue(m.id)).length;
     
     if (dueCount > 0) {
       badge.classList.add('visible');
-      // UX Enhancement: Update the hover text to explain the badge
+      // UX Enhancement: Update hover text
       btn.setAttribute('title', `${dueCount} Reports Due - Open Dashboard`);
-      btn.setAttribute('data-bs-original-title', `${dueCount} Reports Due - Open Dashboard`); // Bootstrap tooltip support
+      btn.setAttribute('data-bs-original-title', `${dueCount} Reports Due - Open Dashboard`);
     } else {
       badge.classList.remove('visible');
       btn.setAttribute('title', 'Open Reports Dashboard');
       btn.setAttribute('data-bs-original-title', 'Open Reports Dashboard');
     }
     
-    // Refresh bootstrap tooltip if initialized
+    // Refresh bootstrap tooltip if active
     const tooltip = bootstrap.Tooltip.getInstance(btn);
-    if (tooltip) tooltip.hide(); // Hide if open to prevent stale text
+    if (tooltip) tooltip.hide();
   },
 
   async markRun(reportId) {
@@ -74,15 +73,12 @@ updateBadge() {
     // 3. Update DOM Elements specifically (Don't re-render whole dashboard)
     const lastRunText = new Date(meta.lastRun).toLocaleDateString() + ' ' + new Date(meta.lastRun).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     
-    // Update "Last Run" Text
     const lastRunEl = document.getElementById(`lastrun-${reportId}`);
     if (lastRunEl) lastRunEl.textContent = lastRunText;
 
-    // Update Status Badge
     const statusEl = document.getElementById(`status-${reportId}`);
     if (statusEl) statusEl.innerHTML = `<span class="badge bg-success ms-2">Ready</span>`;
 
-    // Remove "Due" styling from card
     const cardEl = document.getElementById(`card-${reportId}`);
     if (cardEl) cardEl.classList.remove('report-due');
   },
@@ -93,11 +89,7 @@ updateBadge() {
     this.statusMap[reportId] = meta;
     await window.idbUtil.saveReportMeta(reportId, meta);
     
-    // Re-check due status and update UI
     this.updateBadge();
-    
-    // For interval changes, we DO re-render to immediately reflect "Due" status if applicable
-    // (User isn't actively looking at a report result when changing settings)
     this.renderDashboard();
   },
 
@@ -164,7 +156,6 @@ updateBadge() {
       grid.appendChild(div);
     });
 
-    // Attach Event Listeners
     document.querySelectorAll('.interval-select').forEach(sel => {
         sel.addEventListener('change', (e) => {
             this.updateInterval(e.target.dataset.id, e.target.value);
@@ -182,20 +173,23 @@ updateBadge() {
     const module = this.modules.find(m => m.id === reportId);
     if (!module) return;
 
-    // UI Feedback
+    // UI Feedback - Note the specific class 'generating-text'
     const container = document.getElementById(`container-${reportId}`);
     const itemTarget = document.getElementById(`item-${reportId}`);
     container.style.display = 'block';
-    itemTarget.innerHTML = `<span class="spinner-border spinner-border-sm text-primary" role="status"></span> <span class="text-muted ms-2">Generating...</span>`;
+    itemTarget.innerHTML = `<span class="spinner-border spinner-border-sm text-primary" role="status"></span> <span class="text-muted ms-2 generating-text">Generating...</span>`;
 
-    // The legacy functions expect "modalEl" to find #item-{id} inside it. 
-    // We pass the document or the modal content wrapper.
     const modalEl = document.getElementById('reportsModal'); 
 
     if (typeof window[module.generatorFunctionName] === 'function') {
         try {
             await window[module.generatorFunctionName](modalEl, reportId);
-            // On success, update timestamp
+            
+            // CLEANUP: Remove the "Generating..." text manually
+            // The legacy script removed the spinner but left this text.
+            const genText = itemTarget.querySelector('.generating-text');
+            if (genText) genText.remove();
+
             await this.markRun(reportId);
         } catch (err) {
             console.error(err);
@@ -262,24 +256,17 @@ window.initReports = async function initReports() {
   
   if (!btnGen || !modalEl) return;
 
-  // Initialize Modal
   const bsReportsModal = new bootstrap.Modal(modalEl);
 
-  // Load Status on startup
   await ReportManager.loadStatus();
-  
-  // Initial Badge Check
   ReportManager.updateBadge();
 
-  // Button Click -> Show Modal -> Render Dashboard
   btnGen.onclick = () => {
     ReportManager.renderDashboard();
     bsReportsModal.show();
   };
   
-  // Also expose ReportManager for debug
   window.ReportManager = ReportManager;
 };
 
-// Start everything up
 document.addEventListener('DOMContentLoaded', window.initReports);
