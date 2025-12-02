@@ -36,16 +36,29 @@ const ReportManager = {
     return (Date.now() - meta.lastRun) > intervalMs;
   },
 
-  updateBadge() {
+updateBadge() {
     const badge = document.getElementById('reportNotificationBadge');
-    if (!badge) return;
+    const btn = document.getElementById('generateReportsBtn');
     
-    const anyDue = this.modules.some(m => this.isDue(m.id));
-    if (anyDue) {
+    if (!badge || !btn) return;
+    
+    // Count how many are due
+    const dueCount = this.modules.filter(m => this.isDue(m.id)).length;
+    
+    if (dueCount > 0) {
       badge.classList.add('visible');
+      // UX Enhancement: Update the hover text to explain the badge
+      btn.setAttribute('title', `${dueCount} Reports Due - Open Dashboard`);
+      btn.setAttribute('data-bs-original-title', `${dueCount} Reports Due - Open Dashboard`); // Bootstrap tooltip support
     } else {
       badge.classList.remove('visible');
+      btn.setAttribute('title', 'Open Reports Dashboard');
+      btn.setAttribute('data-bs-original-title', 'Open Reports Dashboard');
     }
+    
+    // Refresh bootstrap tooltip if initialized
+    const tooltip = bootstrap.Tooltip.getInstance(btn);
+    if (tooltip) tooltip.hide(); // Hide if open to prevent stale text
   },
 
   async markRun(reportId) {
