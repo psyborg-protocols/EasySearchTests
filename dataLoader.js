@@ -821,10 +821,12 @@ function getColumnLetter(colIndex) {
 async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
   try {
     const configList = await loadConfig();
-    const config = configList.find(c => c.dataKey === dataKey || c.filenamePrefix === dataKey);
-    
+    const config = configList.find(
+      (c) => c.dataKey === dataKey || c.filenamePrefix === dataKey
+    );
+
     if (!config) throw new Error(`Configuration not found for dataKey: ${dataKey}`);
-    
+
     // Get file metadata from store
     const storedData = window.dataStore[dataKey];
     if (!storedData || !storedData.metadata) {
@@ -832,111 +834,140 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
       throw new Error(`Metadata missing for ${dataKey}. Ensure app is fully loaded.`);
     }
 
-    const driveId = storedData.metadata.parentReference.driveId;
-    const itemId = storedData.metadata.id;
+    const driveId  = storedData.metadata.parentReference.driveId;
+    const itemId   = storedData.metadata.id;
     const sheetName = config.sheetName;
-    const columns = config.columns;
-    
+    const columns   = config.columns;
+
     // Determine which column letter to search in (e.g., "Order No." might be Column A)
     const colIndex = columns.indexOf(searchColName);
-    if (colIndex === -1) throw new Error(`Column "${searchColName}" not found in config for ${dataKey}`);
-    
+    if (colIndex === -1) {
+      throw new Error(`Column "${searchColName}" not found in config for ${dataKey}`);
+    }
+
     const colLetter = getColumnLetter(colIndex); // e.g., "A"
-    
-    const token = await getAccessToken();
-    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-    console.log(`[Deep Search] Step 1: Determining bounds for ${dataKey} (Sheet: ${sheetName})...`);
+    const token   = await getAccessToken();
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
-    // 1. Get UsedRange to define boundaries (Fixes "Resource not found for 'find'" on unbounded ranges)
-    const usedRangeUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${encodeURIComponent(sheetName)}')/usedRange?$select=address`;
-    
+    console.log(
+      `[Deep Search] Step 1: Determining bounds for ${dataKey} (Sheet: ${sheetName})...`
+    );
+
+    // 1. Get UsedRange to define boundaries
+    const usedRangeUrl =
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}` +
+      `/workbook/worksheets('${encodeURIComponent(sheetName)}')/usedRange?$select=address`;
+
     const usedRangeResp = await fetch(usedRangeUrl, { headers });
-    if (!usedRangeResp.ok) throw new Error(`Failed to get used range: ${usedRangeResp.statusText}`);
+    if (!usedRangeResp.ok) {
+      throw new Error(`Failed to get used range: ${usedRangeResp.statusText}`);
+    }
     const usedRangeData = await usedRangeResp.json();
-    
+
     // Address format: Sheet1!A1:Z1000
     const match = usedRangeData.address.match(/!([A-Za-z]+)(\d+):([A-Za-z]+)(\d+)/);
-    if (!match) throw new Error(`Could not parse usedRange address: ${usedRangeData.address}`);
-    
-    // Construct bounded column range: e.g. A2:A5000 (assuming row 1 is header, but find handles it anyway)
-    const startRow = match[2]; 
-    const endRow = match[4];
-    const searchAddress = `${colLetter}${startRow}:${colLetter}${endRow}`;
+    if (!match) {
+      throw new Error(`Could not parse usedRange address: ${usedRangeData.address}`);
+    }
 
-    console.log(`[Deep Search] Step 2: Searching range ${searchAddress} for "${searchValue}"...`);
+    const usedStartRow = parseInt(match[2], 10);
+    const usedEndRow   = parseInt(match[4], 10);
 
-    // 2. Call Find on the specific BOUNDED range
-    const findUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${encodeURIComponent(sheetName)}')/range(address='${searchAddress}')/find`;
-    
-    const findPayload = {
-      text: searchValue,
-      matchCase: false,
-      completeMatch: true 
-    };
-
-    const findResp = await fetch(findUrl, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(findPayload)
-    });
-
-    if (findResp.status === 404) {
-      console.log(`[Deep Search] Value "${searchValue}" not found.`);
+    // Assume first row is header -> start searching from the next row
+    const dataStartRow = Math.max(usedStartRow + 1, 2);
+    if (dataStartRow > usedEndRow) {
+      console.warn(
+        `[Deep Search] No data rows in usedRange for ${dataKey}. (${usedRangeData.address})`
+      );
       return null;
     }
-    
-    if (!findResp.ok) {
-      const errText = await findResp.text();
-      // Handle Graph API specific "ItemNotFound" error inside JSON
-      if (errText.includes("ItemNotFound")) return null;
-      throw new Error(`Graph Find Error: ${findResp.status} ${errText}`);
+
+    const searchAddress = `${colLetter}${dataStartRow}:${colLetter}${usedEndRow}`;
+    console.log(
+      `[Deep Search] Step 2: Fetching column range ${searchAddress} to search for "${searchValue}"...`
+    );
+
+    // 2. Fetch the column range values
+    const colRangeUrl =
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}` +
+      `/workbook/worksheets('${encodeURIComponent(sheetName)}')/range(address='${searchAddress}')?$select=values`;
+
+    const colResp = await fetch(colRangeUrl, { headers });
+    if (!colResp.ok) {
+      throw new Error(`Failed to fetch column range ${searchAddress}: ${colResp.statusText}`);
     }
 
-    const findResult = await findResp.json();
-    const resultAddress = findResult.address; // e.g. Sheet1!A5432
-    
-    // Extract Row Number
-    const rowMatch = resultAddress.match(/!([A-Za-z]+)(\d+)/);
-    if (!rowMatch) throw new Error(`Could not parse result address: ${resultAddress}`);
-    const rowIndex = rowMatch[2];
-    
-    console.log(`[Deep Search] Step 3: Fetching full row ${rowIndex}...`);
+    const colJson   = await colResp.json();
+    const colValues = colJson.values || []; // array of [ [value], [value], ... ]
 
-    // 3. Fetch that specific row
-    const lastColLetter = getColumnLetter(columns.length - 1);
-    const rowRangeAddress = `A${rowIndex}:${lastColLetter}${rowIndex}`;
-    
-    const rowUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${encodeURIComponent(sheetName)}')/range(address='${rowRangeAddress}')?$select=values`;
-    
+    // 3. Search locally in JS
+    const normalizedTarget = String(searchValue).trim().toLowerCase();
+    let foundRowIndex = null; // actual Excel row index (1-based)
+
+    for (let i = 0; i < colValues.length; i++) {
+      const cellVal = colValues[i][0];
+      if (cellVal === undefined || cellVal === null) continue;
+
+      const normalizedCell = String(cellVal).trim().toLowerCase();
+      if (normalizedCell === normalizedTarget) {
+        // i = 0 corresponds to dataStartRow
+        foundRowIndex = dataStartRow + i;
+        break;
+      }
+    }
+
+    if (foundRowIndex == null) {
+      console.log(
+        `[Deep Search] Value "${searchValue}" not found in range ${searchAddress}.`
+      );
+      return null;
+    }
+
+    console.log(
+      `[Deep Search] Step 3: Fetching full row ${foundRowIndex} for "${searchValue}"...`
+    );
+
+    // 4. Fetch that specific row
+    const lastColLetter   = getColumnLetter(columns.length - 1);
+    const rowRangeAddress = `A${foundRowIndex}:${lastColLetter}${foundRowIndex}`;
+
+    const rowUrl =
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}` +
+      `/workbook/worksheets('${encodeURIComponent(sheetName)}')/range(address='${rowRangeAddress}')?$select=values`;
+
     const rowResp = await fetch(rowUrl, { headers });
     if (!rowResp.ok) throw new Error("Failed to fetch row data");
-    
-    const rowJson = await rowResp.json();
-    const rowValues = rowJson.values[0]; 
 
-    // 4. Map to object
+    const rowJson   = await rowResp.json();
+    const rowValues = rowJson.values[0];
+
+    // 5. Map to object (preserving your date-serial conversion logic)
     const rowObj = {};
     columns.forEach((colName, index) => {
       let val = rowValues[index];
       if (val === undefined || val === null) val = "";
 
-      if (typeof val === 'number' && /date/i.test(colName)) {
-          const dateObj = excelSerialDateToJSDate(val);
-          if (!isNaN(dateObj.getTime())) {
-              val = dateObj.toLocaleDateString("en-US", { year: 'numeric', month: 'numeric', day: 'numeric' });
-          }
+      if (typeof val === "number" && /date/i.test(colName)) {
+        const dateObj = excelSerialDateToJSDate(val);
+        if (!isNaN(dateObj.getTime())) {
+          val = dateObj.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+          });
+        }
       }
       rowObj[colName] = val;
     });
 
     return rowObj;
-
   } catch (error) {
     console.error("Deep Search failed:", error);
     throw error;
   }
 }
+
 
 window.dataStore = window.dataStore || {}; 
 window.dataStore.fileLinks = window.dataStore.fileLinks || {};
