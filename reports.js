@@ -77,7 +77,7 @@ const ReportManager = {
     if (lastRunEl) lastRunEl.textContent = lastRunText;
 
     const statusEl = document.getElementById(`status-${reportId}`);
-    if (statusEl) statusEl.innerHTML = `<span class="badge bg-success ms-2">Ready</span>`;
+    if (statusEl) statusEl.innerHTML = `<span class="badge bg-success ms-2">Current</span>`;
 
     const cardEl = document.getElementById(`card-${reportId}`);
     if (cardEl) cardEl.classList.remove('report-due');
@@ -109,7 +109,7 @@ const ReportManager = {
 
       const statusBadge = isDue 
         ? `<span class="badge bg-danger ms-2">Due</span>` 
-        : (meta.lastRun ? `<span class="badge bg-success ms-2">Ready</span>` : '');
+        : (meta.lastRun ? `<span class="badge bg-success ms-2">Current</span>` : '');
 
       const cardClass = isDue ? 'report-card report-due' : 'report-card';
 
