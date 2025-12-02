@@ -5,7 +5,7 @@
 
 function openIndexedDB() {
   return new Promise((resolve, reject) => {
-    const request = window.indexedDB.open("DataViewerDB", 1);
+    const request = window.indexedDB.open("DataViewerDB", 2); // Increment version for schema changes
     request.onerror = (event) => {
       console.error("Error opening IndexedDB", event);
       reject("Error opening IndexedDB");
@@ -14,6 +14,10 @@ function openIndexedDB() {
       const db = event.target.result;
       if (!db.objectStoreNames.contains("datasets")) {
         db.createObjectStore("datasets");
+      }
+      // New store for report settings (interval, lastRun, etc.)
+      if (!db.objectStoreNames.contains("reportSettings")) {
+        db.createObjectStore("reportSettings");
       }
     };
     request.onsuccess = (event) => {
@@ -58,22 +62,65 @@ function getDataset(key) {
   });
 }
 
+// --- Report Settings Specific Methods ---
+
+function saveReportMeta(reportId, metaObj) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const db = await openIndexedDB();
+      const tx = db.transaction("reportSettings", "readwrite");
+      const store = tx.objectStore("reportSettings");
+      const request = store.put(metaObj, reportId);
+      request.onsuccess = () => resolve();
+      request.onerror = (e) => reject(e);
+    } catch (e) { reject(e); }
+  });
+}
+
+function getReportMeta(reportId) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const db = await openIndexedDB();
+      const tx = db.transaction("reportSettings", "readonly");
+      const store = tx.objectStore("reportSettings");
+      const request = store.get(reportId);
+      request.onsuccess = (e) => resolve(e.target.result || null);
+      request.onerror = (e) => reject(e);
+    } catch (e) { reject(e); }
+  });
+}
+
+async function getAllReportMeta() {
+    try {
+      const db = await openIndexedDB();
+      return new Promise((resolve, reject) => {
+          const tx = db.transaction("reportSettings", "readonly");
+          const store = tx.objectStore("reportSettings");
+          const request = store.getAll(); // Get values, keys not needed if ID is inside
+          request.onsuccess = (e) => resolve(e.target.result || []);
+          request.onerror = (e) => reject(e);
+      });
+    } catch (e) { return []; }
+}
+
 async function clearDatasets() {
-  const db = await openIndexedDB();                   // open or create DB
+  const db = await openIndexedDB();                   
   const tx = db.transaction("datasets", "readwrite");
-  tx.objectStore("datasets").clear();                 // schedule clear
+  tx.objectStore("datasets").clear();                 
   await new Promise((res, rej) => {
-    tx.oncomplete = () => res();                      // resolves when tx done
+    tx.oncomplete = () => res();                      
     tx.onerror    = () => rej(tx.error || "IDB error while clearing");
   });
   console.log("[IndexedDB] datasets store cleared.");
 }
 
-// Expose functions globally so they can be used by other modules.
+// Expose functions globally
 window.idbUtil = {
   openIndexedDB,
   setDataset,
   getDataset,
-  clearDatasets
+  clearDatasets,
+  saveReportMeta,
+  getReportMeta,
+  getAllReportMeta
 };
-  
