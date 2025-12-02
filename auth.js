@@ -9,7 +9,7 @@ const msalConfig = {
     },
     cache: {
         cacheLocation: "sessionStorage",
-        storeAuthStateInCookie: false,
+        storeAuthStateInCookie: true,
     }
 };
 
@@ -75,35 +75,39 @@ async function signIn() {
 // Sign out and clear the user session
 function signOut() {
     if (msalInstance) {
-      const accounts = msalInstance.getAllAccounts();
-  
-      if (accounts.length > 0) {
-        accounts.forEach(account => {
-          msalInstance.logoutPopup({
-            account: account,
-            postLogoutRedirectUri: msalConfig.auth.redirectUri,
-            mainWindowRedirectUri: msalConfig.auth.redirectUri
-          }).then(() => {
-            console.log(`[signOut] Successfully logged out: ${account.username}`);
+        const accounts = msalInstance.getAllAccounts();
+        
+        // 1. Determine which account to sign out. 
+        //    Use the global userAccount if set, otherwise fallback to the first account found.
+        const accountToLogout = userAccount || (accounts.length > 0 ? accounts[0] : null);
+
+        if (accountToLogout) {
+            console.log(`[signOut] Initiating logoutRedirect for: ${accountToLogout.username}`);
+            
+            // 2. Clear local storage/session data immediately
             clearMSALStorage();
             UIrenderer.updateUIForLoggedOutUser();
-          }).catch(error => {
-            console.error('[signOut] Error logging out via popup:', error);
-          });
-        });
-      } else {
-        console.log('[signOut] No accounts found to log out.');
-        clearMSALStorage();
-        UIrenderer.updateUIForLoggedOutUser();
-      }
+
+            // 3. Redirect the browser to the Microsoft logout endpoint
+            //    This replaces the 'logoutPopup' loop.
+            msalInstance.logoutRedirect({
+                account: accountToLogout,
+                postLogoutRedirectUri: msalConfig.auth.redirectUri
+            });
+        } else {
+            // Edge case: No MSAL accounts found, just clean up locally
+            console.log('[signOut] No MSAL accounts found to log out. Cleaning local storage.');
+            clearMSALStorage();
+            UIrenderer.updateUIForLoggedOutUser();
+        }
     } else {
-      console.warn("[signOut] MSAL instance was not initialized.");
+        console.warn("[signOut] MSAL instance was not initialized.");
     }
-  
+
     userAccount = null;
-  }
+}
   
-  function clearMSALStorage() {
+function clearMSALStorage() {
     console.log("[clearMSALStorage] Clearing MSAL caches and storages.");
     sessionStorage.clear();
     localStorage.clear();
@@ -116,7 +120,7 @@ function signOut() {
       .forEach(key => localStorage.removeItem(key));
   
     console.log("[clearMSALStorage] All MSAL storage cleared.");
-  }
+}
   
 /**
  * Acquires an access token for a specific set of scopes.
@@ -142,11 +146,7 @@ async function getScopedAccessToken(scopes) {
         return tokenResponse.accessToken;
     } catch (error) {
         console.warn("[getScopedAccessToken] Silent token acquisition failed.", error);
-        
-        // REMOVED: The fallback to acquireTokenPopup. 
-        // We throw the error so the main app knows authentication failed 
-        // and can wait for the user to click "Sign In" (which uses redirect).
-        
+            
         if (error instanceof msal.InteractionRequiredAuthError) {
             // This error means the user needs to sign in again explicitly
             throw error;
