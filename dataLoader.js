@@ -802,8 +802,131 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
 }
 
 
-window.dataStore = {}; 
-window.dataStore.fileLinks = {};
+/**
+ * Calculates Excel column letter from index (0 -> A, 1 -> B, etc.)
+ */
+function getColumnLetter(colIndex) {
+  let letter = '';
+  let idx = colIndex;
+  while (idx >= 0) {
+      letter = String.fromCharCode((idx % 26) + 65) + letter;
+      idx = Math.floor(idx / 26) - 1;
+  }
+  return letter;
+}
+
+/**
+ * DEEP SEARCH: Finds a specific value in a remote Excel sheet and returns the full row.
+ * Used for finding old Orders/Samples not in the "Recent" cache.
+ */
+async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
+  try {
+    const configList = await loadConfig();
+    const config = configList.find(c => c.dataKey === dataKey || c.filenamePrefix === dataKey);
+    
+    if (!config) throw new Error(`Configuration not found for dataKey: ${dataKey}`);
+    
+    // Get file metadata from store
+    const storedData = window.dataStore[dataKey];
+    if (!storedData || !storedData.metadata) {
+      // If store is empty, try to fetch metadata manually or fail gracefully
+      throw new Error(`Metadata missing for ${dataKey}. Ensure app is fully loaded.`);
+    }
+
+    const driveId = storedData.metadata.parentReference.driveId;
+    const itemId = storedData.metadata.id;
+    const sheetName = config.sheetName;
+    const columns = config.columns;
+    
+    // Determine which column letter to search in (e.g., "Order No." might be Column A)
+    const colIndex = columns.indexOf(searchColName);
+    if (colIndex === -1) throw new Error(`Column "${searchColName}" not found in config for ${dataKey}`);
+    
+    const colLetter = getColumnLetter(colIndex); // e.g., "A"
+    
+    const token = await getAccessToken();
+    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+    console.log(`[Deep Search] Searching ${dataKey} (Sheet: ${sheetName}) in Col ${colLetter} for "${searchValue}"...`);
+
+    // 1. Call the Excel "Find" API
+    // We search the specific column range (e.g. A:A) to be efficient
+    const findUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${encodeURIComponent(sheetName)}')/range(address='${colLetter}:${colLetter}')/find`;
+    
+    const findPayload = {
+      text: searchValue,
+      matchCase: false,
+      completeMatch: true // Important: Exact match only
+    };
+
+    const findResp = await fetch(findUrl, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(findPayload)
+    });
+
+    if (findResp.status === 404) {
+      console.log(`[Deep Search] Value "${searchValue}" not found.`);
+      return null;
+    }
+    
+    if (!findResp.ok) {
+      const errText = await findResp.text();
+      if (errText.includes("ItemNotFound")) return null;
+      throw new Error(`Graph Find Error: ${findResp.status} ${errText}`);
+    }
+
+    const findResult = await findResp.json();
+    const address = findResult.address; // e.g., "Sheet1!A5432"
+    
+    // Extract Row Number
+    const match = address.match(/!([A-Za-z]+)(\d+)/);
+    if (!match) throw new Error(`Could not parse address: ${address}`);
+    
+    const rowIndex = match[2]; // e.g., "5432"
+    
+    // 2. Fetch that specific row
+    // Construct range A{row}:Z{row}
+    const lastColLetter = getColumnLetter(columns.length - 1);
+    const rowRangeAddress = `A${rowIndex}:${lastColLetter}${rowIndex}`;
+    
+    // Request "values" to get raw numbers (needed for dates)
+    const rowUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${encodeURIComponent(sheetName)}')/range(address='${rowRangeAddress}')?$select=values`;
+    
+    const rowResp = await fetch(rowUrl, { headers });
+    if (!rowResp.ok) throw new Error("Failed to fetch row data");
+    
+    const rowJson = await rowResp.json();
+    const rowValues = rowJson.values[0]; 
+
+    // 3. Map to object
+    const rowObj = {};
+    columns.forEach((colName, index) => {
+      let val = rowValues[index];
+      if (val === undefined || val === null) val = "";
+
+      // Date conversion: reuse excelSerialDateToJSDate if available in scope
+      if (typeof val === 'number' && /date/i.test(colName)) {
+          const dateObj = excelSerialDateToJSDate(val); // Assumes excelSerialDateToJSDate is available in this file scope
+          if (!isNaN(dateObj.getTime())) {
+              val = dateObj.toLocaleDateString("en-US", { year: 'numeric', month: 'numeric', day: 'numeric' });
+          }
+      }
+      rowObj[colName] = val;
+    });
+
+    console.log(`[Deep Search] Success! Found record at row ${rowIndex}.`);
+    return rowObj;
+
+  } catch (error) {
+    console.error("Deep Search failed:", error);
+    throw error;
+  }
+}
+
+window.dataStore = window.dataStore || {}; 
+window.dataStore.fileLinks = window.dataStore.fileLinks || {};
+
 window.dataLoader = {
   loadConfig,
   fetchLatestFileMetadata,
@@ -813,5 +936,6 @@ window.dataLoader = {
   getCustomerDetails,
   updateContactCompany,
   getCompanyResearch,
-  updateCustomerDetails
+  updateCustomerDetails,
+  findRecordInRemoteSheet
 };

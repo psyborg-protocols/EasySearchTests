@@ -1636,6 +1636,10 @@ document.addEventListener('DOMContentLoaded', () => {
     Orders & Samples Search Module
     ========================================================================== */
 
+/* ==========================================================================
+    Orders & Samples Search Module
+    ========================================================================== */
+
   const OrderSampleSearch = {
     // State
     data: [],
@@ -1649,10 +1653,15 @@ document.addEventListener('DOMContentLoaded', () => {
       priceMin: null,
       priceMax: null
     },
+    // New: Track deep search state
+    deepSearchState: {
+      loading: false,
+      term: null
+    },
 
     init: function() {
       // 1. Setup Default State Variables
-      this.usingDefaultDates = true; // Flag to track if we are using the auto-set dates
+      this.usingDefaultDates = true; 
 
       // Calculate default dates
       const today = new Date();
@@ -1665,6 +1674,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Helper to reset to defaults (used on load and tab switch)
       const resetToDefaults = () => {
           this.usingDefaultDates = true;
+          this.deepSearchState = { loading: false, term: null }; // Reset deep search
           if (startInput) startInput.valueAsDate = lastMonth;
           if (endInput) endInput.valueAsDate = today;
       };
@@ -1673,57 +1683,46 @@ document.addEventListener('DOMContentLoaded', () => {
       resetToDefaults();
 
       // 2. Define Event Handlers
-
-      // A. Date Handler: If user touches dates manually, disable auto-clearing
       const onDateChange = () => {
           this.usingDefaultDates = false;
           this.updateFilters();
           this.render();
       };
 
-      // B. Text Handler: If typing and still using defaults, clear dates first
       const onTextSearch = () => {
           if (this.usingDefaultDates) {
-              // Clear the date inputs visually
               if (startInput) startInput.value = '';
               if (endInput) endInput.value = '';
-              // Mark flag as false so we don't clear again if they keep typing
               this.usingDefaultDates = false;
           }
           this.updateFilters();
           this.render();
       };
 
-      // C. Generic Handler: Just update (for Radio buttons)
       const onGenericChange = () => {
           this.updateFilters();
           this.render();
       };
 
       // 3. Attach Listeners
-
-      // Text Inputs -> Trigger auto-clear logic
       ['osSearchId', 'osSearchCustomer', 'osSearchPO', 'osPriceMin', 'osPriceMax'].forEach(id => {
           document.getElementById(id)?.addEventListener('input', onTextSearch);
       });
 
-      // Date Inputs -> Trigger manual override logic
       ['osDateStart', 'osDateEnd'].forEach(id => {
           document.getElementById(id)?.addEventListener('change', onDateChange);
       });
 
-      // Radio Buttons -> Generic update
       ['osTypeAll', 'osTypeOrder', 'osTypeSample'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.addEventListener('change', onGenericChange);
       });
 
       // 4. Tab Activation Listener
-      // Reset to "Last 30 Days" every time the user opens the tab
       const tabEl = document.getElementById('order-sample-tab');
       if(tabEl) {
         tabEl.addEventListener('shown.bs.tab', () => {
-          resetToDefaults(); // Restore defaults on tab open
+          resetToDefaults(); 
           this.loadData();
           this.updateFilters();
           this.render();
@@ -1735,32 +1734,30 @@ document.addEventListener('DOMContentLoaded', () => {
       const orders = window.dataStore.Orders?.dataframe || [];
       const samples = window.dataStore.Samples?.dataframe || [];
 
-      // Normalize Orders
       const normOrders = orders.map(r => ({
         type: 'Order',
         id: r["Order No."],
         customer: r["Customer"],
-        dateStr: r["Order Date"], // Keep original string for display
+        dateStr: r["Order Date"], 
         dateObj: ReportUtils.parseDate(r["Order Date"]),
         po: r["Cust PO"],
         total: parseFloat(String(r["Invoice Total"]).replace(/[^0-9.-]/g, '')) || 0,
         raw: r
       }));
 
-      // Normalize Samples
       const normSamples = samples.map(r => ({
         type: 'Sample',
         id: r["Order"],
         customer: r["Customer"],
         dateStr: r["Customer order(date)"],
         dateObj: ReportUtils.parseDate(r["Customer order(date)"]),
-        po: null, // N/A
-        total: null, // N/A
+        po: null, 
+        total: null, 
         raw: r
       }));
 
       this.data = [...normOrders, ...normSamples];
-      // Sort by Date Descending by default
+      // Keep existing data, sort by Date Descending
       this.data.sort((a, b) => (b.dateObj || 0) - (a.dateObj || 0));
     },
 
@@ -1776,7 +1773,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(this.filters.type === 'Sample') {
           div.style.opacity = '0.4';
           div.style.pointerEvents = 'none';
-          if(input) input.value = ''; // Clear value if disabled
+          if(input) input.value = ''; 
         } else {
           div.style.opacity = '1';
           div.style.pointerEvents = 'auto';
@@ -1787,7 +1784,6 @@ document.addEventListener('DOMContentLoaded', () => {
       this.filters.id = document.getElementById('osSearchId').value.trim().toLowerCase();
       this.filters.customer = document.getElementById('osSearchCustomer').value.trim().toLowerCase();
       
-      // Only read PO/Price if not in Sample mode
       if (this.filters.type !== 'Sample') {
         this.filters.po = document.getElementById('osSearchPO').value.trim().toLowerCase();
         this.filters.priceMin = document.getElementById('osPriceMin').valueAsNumber;
@@ -1798,15 +1794,77 @@ document.addEventListener('DOMContentLoaded', () => {
         this.filters.priceMax = NaN;
       }
 
-      // Dates
       const dStart = document.getElementById('osDateStart').valueAsDate;
       const dEnd = document.getElementById('osDateEnd').valueAsDate;
-      
-      // Adjust logic to include the full end day
       if(dEnd) dEnd.setHours(23, 59, 59, 999);
       
       this.filters.dateStart = dStart;
       this.filters.dateEnd = dEnd;
+    },
+
+    // NEW FUNCTION: Handles the "Search Server" logic
+    performDeepSearch: async function(term, contextType) {
+        if (!term) return;
+        
+        this.deepSearchState.loading = true;
+        this.deepSearchState.term = term;
+        this.render(); // Update UI to show spinner
+
+        try {
+            let result = null;
+            let resultType = '';
+
+            // Search logic based on context
+            if (contextType === 'Order') {
+                // 1. Try Order No.
+                result = await dataLoader.findRecordInRemoteSheet("Orders", "Order No.", term);
+                if (result) resultType = 'Order';
+                
+                // 2. Try Cust PO if not found
+                if (!result) {
+                     result = await dataLoader.findRecordInRemoteSheet("Orders", "Cust PO", term);
+                     if (result) resultType = 'Order';
+                }
+            } 
+            else if (contextType === 'Sample') {
+                result = await dataLoader.findRecordInRemoteSheet("Samples", "Order", term);
+                if (result) resultType = 'Sample';
+            }
+
+            if (result) {
+                // Normalize the deep search result
+                const normalized = {
+                    type: resultType,
+                    id: result["Order No."] || result["Order"],
+                    customer: result["Customer"],
+                    dateStr: result["Order Date"] || result["Customer order(date)"],
+                    dateObj: ReportUtils.parseDate(result["Order Date"] || result["Customer order(date)"]),
+                    po: result["Cust PO"] || null,
+                    total: parseFloat(String(result["Invoice Total"] || '0').replace(/[^0-9.-]/g, '')) || 0,
+                    raw: result,
+                    isDeepSearchResult: true // Mark for UI highlighting
+                };
+                
+                // Inject into local data
+                this.data.unshift(normalized);
+                
+                // Clear date filters so the old record is visible
+                document.getElementById('osDateStart').value = '';
+                this.filters.dateStart = null;
+                
+                // Optional: show a simple alert or toast
+                // alert(`Found match!\nDate: ${normalized.dateStr}`);
+            } else {
+                alert(`No match found on server for "${term}" in ${contextType}s.`);
+            }
+
+        } catch (error) {
+            console.error(error);
+            alert("Server search failed. See console for details.");
+        } finally {
+            this.deepSearchState.loading = false;
+            this.render();
+        }
     },
 
     render: function() {
@@ -1814,7 +1872,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if(!tbody) return;
       tbody.innerHTML = '';
 
-      // Map the "Raw Excel Column Name" -> "Display Label"
       const labelMap = {
         "Cost of Order": "Internal Cost",
         "Ship To Customer(date)": "Date Shipped",
@@ -1827,28 +1884,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const { type, id, customer, po, dateStart, dateEnd, priceMin, priceMax } = this.filters;
 
       const filtered = this.data.filter(row => {
-        // 0. Base Data Integrity Check
         const hasCustomer = row.customer && String(row.customer).trim().length > 0;
         const hasDate = !!row.dateObj; 
-
         if (!hasCustomer || !hasDate) return false;
 
-        // 1. Type Filter
         if (type !== 'all' && row.type.toLowerCase() !== type.toLowerCase()) return false;
-        
-        // 2. ID Filter
         if (id && !String(row.id || '').toLowerCase().includes(id)) return false;
-        
-        // 3. Customer Filter (Search Box)
         if (customer && !String(row.customer || '').toLowerCase().includes(customer)) return false;
         
-        // 4. Date Range
         if (row.dateObj) {
           if (dateStart && row.dateObj < dateStart) return false;
           if (dateEnd && row.dateObj > dateEnd) return false;
         }
         
-        // 5. Order Specific Filters
         if (row.type === 'Order') {
           if (po && !String(row.po || '').toLowerCase().includes(po)) return false;
           if (!isNaN(priceMin) && row.total < priceMin) return false;
@@ -1858,29 +1906,55 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
       });
 
+      // === UPDATED EMPTY STATE ===
       if (filtered.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="7" class="text-center py-5">
-              <div class="text-muted">
-                <i class="fas fa-search fa-3x mb-3 text-light"></i>
-                <p class="mb-0 fs-5">No records found</p>
-                <small>Try adjusting your filters or search criteria</small>
-              </div>
-            </td>
-          </tr>`;
+        let emptyContent = `
+          <div class="text-muted">
+            <i class="fas fa-search fa-3x mb-3 text-light"></i>
+            <p class="mb-0 fs-5">No recent records found</p>
+          </div>`;
+
+        // Determine if we should show the "Deep Search" button
+        const searchId = this.filters.id; 
+        const searchPO = this.filters.po;
+        const activeType = this.filters.type; 
+
+        if (this.deepSearchState.loading) {
+             emptyContent = `
+              <div class="text-primary py-4">
+                <div class="spinner-border mb-3" role="status"></div>
+                <p class="mb-0">Searching entire history on server...</p>
+                <small class="text-muted">This may take a few seconds</small>
+              </div>`;
+        } else if (searchId || searchPO) {
+            // Only offer deep search if specific ID or PO is entered
+            const term = searchId || searchPO;
+            const searchContext = activeType === 'all' ? 'Order' : activeType;
+            
+            // Check context validity (e.g. don't search POs in Samples)
+            const isValidContext = !(activeType === 'Sample' && searchPO);
+
+            if (isValidContext) {
+                emptyContent += `
+                <div class="mt-3">
+                    <p class="small mb-2 text-muted">Looking for an older record?</p>
+                    <button class="btn btn-sm btn-outline-primary" 
+                        onclick="OrderSampleSearch.performDeepSearch('${term}', '${searchContext}')">
+                        <i class="fas fa-cloud-download-alt me-1"></i> Search Server for "${term}"
+                    </button>
+                </div>`;
+            }
+        }
+
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-5">${emptyContent}</td></tr>`;
         return;
       }
 
-      // Limit render for performance
       const toRender = filtered.slice(0, 100);
 
-      // Helper formatter for prices inside the detail view
       const formatIfPrice = (key, value) => {
           if (!value) return value; 
-          
           const lowerKey = key.toLowerCase();
-          // Heuristic: if key contains price/cost/total/amount AND value looks like a number
           if (lowerKey.match(/price|cost|total|amount/)) {
               const clean = String(value).replace(/[^0-9.-]/g, '');
               const num = parseFloat(clean);
@@ -1892,15 +1966,11 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
       toRender.forEach((row, index) => {
-        // === Main Row ===
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
         tr.setAttribute('data-bs-toggle', 'collapse');
         tr.setAttribute('data-bs-target', `#detail-${index}`);
-        
-        tr.onclick = function() {
-            this.classList.toggle('expanded-row-parent');
-        };
+        tr.onclick = function() { this.classList.toggle('expanded-row-parent'); };
 
         const isOrder = row.type === 'Order';
         const badgeClass = isOrder ? 'badge-os-order' : 'badge-os-sample';
@@ -1912,9 +1982,14 @@ document.addEventListener('DOMContentLoaded', () => {
           ? `<span class="fw-bold text-dark">${row.total.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>`
           : '<span class="text-muted small">N/A</span>';
 
+        // Add visual indicator for deep search results
+        const deepSearchBadge = row.isDeepSearchResult 
+            ? `<span class="badge bg-info text-dark ms-2 shadow-sm" title="Fetched from server history" style="font-size:0.65rem">SERVER</span>` 
+            : '';
+
         tr.innerHTML = `
           <td><span class="badge-os ${badgeClass}">${row.type.toUpperCase()}</span></td>
-          <td class="fw-bold text-primary">${row.id || '-'}</td>
+          <td class="fw-bold text-primary">${row.id || '-'}${deepSearchBadge}</td>
           <td class="fw-semibold">${row.customer || '-'}</td>
           <td class="text-muted">${dateDisplay}</td>
           <td class="text-muted">${row.po || '-'}</td>
@@ -1922,7 +1997,6 @@ document.addEventListener('DOMContentLoaded', () => {
           <td class="text-center"><i class="fas fa-chevron-down text-muted row-toggle-icon"></i></td>
         `;
 
-        // === Detail Row ===
         const detailTr = document.createElement('tr');
         const detailTd = document.createElement('td');
         detailTd.colSpan = 7;
@@ -1933,21 +2007,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         keys.forEach(key => {
           const val = row.raw[key];
-
-          // 1. Filter out internals or literal "blank" keys
           if (key.startsWith('__')) return;
           if (key.toLowerCase() === 'blank') return; 
 
-          // 2. Format Value
           let displayVal = val;
-          
           if (val === null || val === undefined || String(val).trim() === '') {
               displayVal = '<span class="text-muted italic">--</span>';
           } else {
               displayVal = formatIfPrice(key, val);
           }
-          
-          // 3. Apply Label Map
           const displayLabel = labelMap[key] || key;
 
           gridItems += `
@@ -1964,7 +2032,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="os-detail-wrapper">
                 <div class="d-flex align-items-center mb-3">
                     <h6 class="text-uppercase text-muted fw-bold mb-0 me-3" style="font-size: 0.75rem; letter-spacing:1px;">Record Details</h6>
-                    <div class="border-bottom flex-grow-1"></div>
+                    ${row.isDeepSearchResult ? '<span class="badge bg-info text-dark">Historical Record</span>' : ''}
+                    <div class="border-bottom flex-grow-1 ms-3"></div>
                 </div>
                 <div class="os-detail-grid">
                     ${gridItems}
@@ -1974,7 +2043,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         detailTd.appendChild(collapseDiv);
         detailTr.appendChild(detailTd);
-
         tbody.appendChild(tr);
         tbody.appendChild(detailTr);
       });
