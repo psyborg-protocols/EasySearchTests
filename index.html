@@ -1129,19 +1129,18 @@
   
   <!-- Reports modal -->
   <div class="modal fade" id="reportsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Generating Reports…</h5>
+    <div class="modal-dialog modal-xl modal-dialog-centered"> <div class="modal-content" style="background-color: #f4f6f8;"> <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold text-dark"><i class="fas fa-chart-line text-primary me-2"></i>Reports Dashboard</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <ul class="list-group">
-            <!-- will be filled dynamically -->
-          </ul>
+          <div class="container-fluid px-0">
+             <div id="reportsDashboardGrid" class="row g-4">
+                </div>
+          </div>
         </div>
-        <div class="modal-footer">
-          <!-- will be filled dynamically -->
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
       </div>
     </div>
