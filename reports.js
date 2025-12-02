@@ -1,5 +1,3 @@
-/* reports.js (Main Registry & Dashboard Logic) --------------------------------------------- */
-
 const ReportManager = {
   intervals: {
     none: { label: "Manual Only", ms: 0 },
@@ -51,22 +49,42 @@ const ReportManager = {
   },
 
   async markRun(reportId) {
+    // 1. Update State
     const meta = this.statusMap[reportId] || { id: reportId, interval: 'none' };
     meta.lastRun = Date.now();
     this.statusMap[reportId] = meta;
     await window.idbUtil.saveReportMeta(reportId, meta);
+    
+    // 2. Update Global Badge
     this.updateBadge();
-    this.renderDashboard(); // Re-render to update "Last Run" text
+
+    // 3. Update DOM Elements specifically (Don't re-render whole dashboard)
+    const lastRunText = new Date(meta.lastRun).toLocaleDateString() + ' ' + new Date(meta.lastRun).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    // Update "Last Run" Text
+    const lastRunEl = document.getElementById(`lastrun-${reportId}`);
+    if (lastRunEl) lastRunEl.textContent = lastRunText;
+
+    // Update Status Badge
+    const statusEl = document.getElementById(`status-${reportId}`);
+    if (statusEl) statusEl.innerHTML = `<span class="badge bg-success ms-2">Ready</span>`;
+
+    // Remove "Due" styling from card
+    const cardEl = document.getElementById(`card-${reportId}`);
+    if (cardEl) cardEl.classList.remove('report-due');
   },
 
   async updateInterval(reportId, newInterval) {
     const meta = this.statusMap[reportId] || { id: reportId };
     meta.interval = newInterval;
-    // If setting a schedule and never run, mark lastRun as 0 so it shows due immediately? 
-    // Or null. Logic in isDue handles null as due.
     this.statusMap[reportId] = meta;
     await window.idbUtil.saveReportMeta(reportId, meta);
+    
+    // Re-check due status and update UI
     this.updateBadge();
+    
+    // For interval changes, we DO re-render to immediately reflect "Due" status if applicable
+    // (User isn't actively looking at a report result when changing settings)
     this.renderDashboard();
   },
 
@@ -93,11 +111,11 @@ const ReportManager = {
       const div = document.createElement('div');
       div.className = 'col-md-6 col-lg-4';
       div.innerHTML = `
-        <div class="card h-100 ${cardClass}">
+        <div class="card h-100 ${cardClass}" id="card-${mod.id}">
           <div class="card-header">
             <div class="d-flex align-items-center">
                 <span>${mod.title}</span>
-                ${statusBadge}
+                <span id="status-${mod.id}">${statusBadge}</span>
             </div>
           </div>
           <div class="card-body">
@@ -115,7 +133,7 @@ const ReportManager = {
             <div class="d-flex justify-content-between align-items-end mt-3">
                 <div class="report-meta">
                     <i class="far fa-clock me-1"></i> Last Run:<br>
-                    <strong>${lastRunText}</strong>
+                    <strong id="lastrun-${mod.id}">${lastRunText}</strong>
                 </div>
                 <button class="btn btn-primary btn-sm run-report-btn" data-id="${mod.id}">
                     <i class="fas fa-play me-1"></i> Run
