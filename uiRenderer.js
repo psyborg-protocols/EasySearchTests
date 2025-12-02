@@ -1794,9 +1794,22 @@ document.addEventListener('DOMContentLoaded', () => {
         this.filters.priceMax = NaN;
       }
 
-      const dStart = document.getElementById('osDateStart').valueAsDate;
-      const dEnd = document.getElementById('osDateEnd').valueAsDate;
-      if(dEnd) dEnd.setHours(23, 59, 59, 999);
+// Use raw value (YYYY-MM-DD) to construct Local Date, matching ReportUtils.parseDate behavior
+      const rawStart = document.getElementById('osDateStart').value;
+      const rawEnd = document.getElementById('osDateEnd').value;
+
+      let dStart = null;
+      if (rawStart) {
+          const [y, m, d] = rawStart.split('-').map(Number);
+          dStart = new Date(y, m - 1, d); // Local Midnight
+      }
+
+      let dEnd = null;
+      if (rawEnd) {
+          const [y, m, d] = rawEnd.split('-').map(Number);
+          dEnd = new Date(y, m - 1, d);
+          dEnd.setHours(23, 59, 59, 999); // End of Local Day
+      }
       
       this.filters.dateStart = dStart;
       this.filters.dateEnd = dEnd;

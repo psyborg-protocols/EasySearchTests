@@ -156,15 +156,14 @@ async function fetchLastNRows(driveId, itemId, sheetName, columns, nRows, token)
 
       // --- DATE FIX: Convert serial numbers to Date Strings ---
       // We assume any column with "Date" or "date" in the name AND a numeric value is an Excel date.
-      if (typeof val === 'number' && /date/i.test(colName)) {
+if (typeof val === 'number' && /date/i.test(colName)) {
           const dateObj = excelSerialDateToJSDate(val);
           if (!isNaN(dateObj.getTime())) {
-              // Convert to "MM/DD/YYYY" format (or your preferred locale)
-              val = dateObj.toLocaleDateString("en-US", {
-                  year: 'numeric',
-                  month: 'numeric',
-                  day: 'numeric'
-              });
+              // Use UTC methods to prevent timezone shifting (e.g. 1/1 becoming 12/31)
+              const month = dateObj.getUTCMonth() + 1;
+              const day = dateObj.getUTCDate();
+              const year = dateObj.getUTCFullYear();
+              val = `${month}/${day}/${year}`;
           }
       }
 
