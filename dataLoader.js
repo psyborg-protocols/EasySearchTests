@@ -801,7 +801,6 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
     }
 }
 
-
 /**
  * Calculates Excel column letter from index (0 -> A, 1 -> B, etc.)
  */
@@ -847,16 +846,33 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
     const token = await getAccessToken();
     const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-    console.log(`[Deep Search] Searching ${dataKey} (Sheet: ${sheetName}) in Col ${colLetter} for "${searchValue}"...`);
+    console.log(`[Deep Search] Step 1: Determining bounds for ${dataKey} (Sheet: ${sheetName})...`);
 
-    // 1. Call the Excel "Find" API
-    // We search the specific column range (e.g. A:A) to be efficient
-    const findUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${encodeURIComponent(sheetName)}')/range(address='${colLetter}:${colLetter}')/find`;
+    // 1. Get UsedRange to define boundaries (Fixes "Resource not found for 'find'" on unbounded ranges)
+    const usedRangeUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${encodeURIComponent(sheetName)}')/usedRange?$select=address`;
+    
+    const usedRangeResp = await fetch(usedRangeUrl, { headers });
+    if (!usedRangeResp.ok) throw new Error(`Failed to get used range: ${usedRangeResp.statusText}`);
+    const usedRangeData = await usedRangeResp.json();
+    
+    // Address format: Sheet1!A1:Z1000
+    const match = usedRangeData.address.match(/!([A-Za-z]+)(\d+):([A-Za-z]+)(\d+)/);
+    if (!match) throw new Error(`Could not parse usedRange address: ${usedRangeData.address}`);
+    
+    // Construct bounded column range: e.g. A2:A5000 (assuming row 1 is header, but find handles it anyway)
+    const startRow = match[2]; 
+    const endRow = match[4];
+    const searchAddress = `${colLetter}${startRow}:${colLetter}${endRow}`;
+
+    console.log(`[Deep Search] Step 2: Searching range ${searchAddress} for "${searchValue}"...`);
+
+    // 2. Call Find on the specific BOUNDED range
+    const findUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${encodeURIComponent(sheetName)}')/range(address='${searchAddress}')/find`;
     
     const findPayload = {
       text: searchValue,
       matchCase: false,
-      completeMatch: true // Important: Exact match only
+      completeMatch: true 
     };
 
     const findResp = await fetch(findUrl, {
@@ -872,25 +888,25 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
     
     if (!findResp.ok) {
       const errText = await findResp.text();
+      // Handle Graph API specific "ItemNotFound" error inside JSON
       if (errText.includes("ItemNotFound")) return null;
       throw new Error(`Graph Find Error: ${findResp.status} ${errText}`);
     }
 
     const findResult = await findResp.json();
-    const address = findResult.address; // e.g., "Sheet1!A5432"
+    const resultAddress = findResult.address; // e.g. Sheet1!A5432
     
     // Extract Row Number
-    const match = address.match(/!([A-Za-z]+)(\d+)/);
-    if (!match) throw new Error(`Could not parse address: ${address}`);
+    const rowMatch = resultAddress.match(/!([A-Za-z]+)(\d+)/);
+    if (!rowMatch) throw new Error(`Could not parse result address: ${resultAddress}`);
+    const rowIndex = rowMatch[2];
     
-    const rowIndex = match[2]; // e.g., "5432"
-    
-    // 2. Fetch that specific row
-    // Construct range A{row}:Z{row}
+    console.log(`[Deep Search] Step 3: Fetching full row ${rowIndex}...`);
+
+    // 3. Fetch that specific row
     const lastColLetter = getColumnLetter(columns.length - 1);
     const rowRangeAddress = `A${rowIndex}:${lastColLetter}${rowIndex}`;
     
-    // Request "values" to get raw numbers (needed for dates)
     const rowUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${encodeURIComponent(sheetName)}')/range(address='${rowRangeAddress}')?$select=values`;
     
     const rowResp = await fetch(rowUrl, { headers });
@@ -899,15 +915,14 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
     const rowJson = await rowResp.json();
     const rowValues = rowJson.values[0]; 
 
-    // 3. Map to object
+    // 4. Map to object
     const rowObj = {};
     columns.forEach((colName, index) => {
       let val = rowValues[index];
       if (val === undefined || val === null) val = "";
 
-      // Date conversion: reuse excelSerialDateToJSDate if available in scope
       if (typeof val === 'number' && /date/i.test(colName)) {
-          const dateObj = excelSerialDateToJSDate(val); // Assumes excelSerialDateToJSDate is available in this file scope
+          const dateObj = excelSerialDateToJSDate(val);
           if (!isNaN(dateObj.getTime())) {
               val = dateObj.toLocaleDateString("en-US", { year: 'numeric', month: 'numeric', day: 'numeric' });
           }
@@ -915,7 +930,6 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
       rowObj[colName] = val;
     });
 
-    console.log(`[Deep Search] Success! Found record at row ${rowIndex}.`);
     return rowObj;
 
   } catch (error) {

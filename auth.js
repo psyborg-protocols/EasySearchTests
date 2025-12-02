@@ -133,6 +133,7 @@ async function getScopedAccessToken(scopes) {
         }
     }
 
+    // Try to get the token silently
     try {
         const tokenResponse = await msalInstance.acquireTokenSilent({
             scopes,
@@ -140,15 +141,18 @@ async function getScopedAccessToken(scopes) {
         });
         return tokenResponse.accessToken;
     } catch (error) {
-        console.warn("Silent token acquisition failed, trying popup...", error);
-        try {
-            const tokenResponse = await msalInstance.acquireTokenPopup({ scopes });
-            userAccount = tokenResponse.account;
-            return tokenResponse.accessToken;
-        } catch (err) {
-            console.error("Error acquiring token interactively:", err);
-            throw err;
+        console.warn("[getScopedAccessToken] Silent token acquisition failed.", error);
+        
+        // REMOVED: The fallback to acquireTokenPopup. 
+        // We throw the error so the main app knows authentication failed 
+        // and can wait for the user to click "Sign In" (which uses redirect).
+        
+        if (error instanceof msal.InteractionRequiredAuthError) {
+            // This error means the user needs to sign in again explicitly
+            throw error;
         }
+        
+        throw error;
     }
 }
 
