@@ -203,52 +203,6 @@
     }
     .generate-reports-btn {
       position: absolute;
-      top: 15px; /* Adjusted to hover above the tabs/card */
-      width: 40px; /* Fixed width */
-      height: 40px; /* Fixed height */
-      z-index: 30;
-      border: none;
-      cursor: pointer;
-      padding: 0; /* Remove padding to make size consistent with width/height */
-      border-radius: 6px;
-      transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-      display: flex; /* For centering content */
-      align-items: center; /* For centering content */
-      justify-content: center; /* For centering content */
-      background: rgba(255, 255, 255, 0.8); /* Slightly transparent white */
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-
-    #appContainer .generate-reports-btn:hover {
-      background: rgba(201, 201, 201, 0.9); /* light gray on hover */
-      transform: scale(1.1);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-
-    .generate-reports-btn svg,
-    .generate-reports-btn i { /* Apply to both SVG and FontAwesome icon */
-      transition: transform 0.2s ease;
-      font-size: 1.2rem; /* Adjust icon size */
-    }
-    .report-download-btn{
-      border:none;
-      background:transparent;
-      padding:4px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
-    .report-download-btn svg{
-      width:20px;
-      height:20px;
-      fill:#5f6368;
-      transition:transform .2s ease;
-    }
-    .report-download-btn:hover svg{
-      transform:scale(1.15);
-    }
-.generate-reports-btn {
-      position: absolute;
       top: 15px; 
       width: 40px; 
       height: 40px; 
@@ -272,7 +226,6 @@
       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
 
-    /* Notification Badge */
     .report-badge {
         position: absolute;
         top: -5px;
@@ -282,7 +235,7 @@
         background-color: #dc3545;
         border-radius: 50%;
         border: 2px solid white;
-        display: none; /* Hidden by default */
+        display: none; 
         box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         animation: pulse-red 2s infinite;
     }
@@ -296,7 +249,6 @@
       100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
     }
 
-    /* Report Cards in Dashboard */
     .report-card {
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         border: 1px solid #e9ecef;
@@ -327,27 +279,36 @@
         border-top: 1px solid #e9ecef;
         padding: 10px;
     }
-    /* Container for the actual report output (spinner/download btn) */
     .report-output-container {
         min-height: 40px;
         display: flex;
         align-items: center;
         justify-content: flex-end;
     }
-    /* Reuse existing button styles */
-    .report-download-btn svg { width: 24px; height: 24px; fill: #0d6efd; }    
+    .report-download-btn{
+      border:none;
+      background:transparent;
+      padding:4px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .report-download-btn svg { width: 24px; height: 24px; fill: #5f6368; }    
+    .report-download-btn:hover svg { transform: scale(1.15); }
+
     .truck-bright-green {
-      color: #4CBB17 !important; /* bright green */
+      color: #4CBB17 !important; 
     }
 
     .truck-faded-grey {
-      color: #b0b0b0 !important; /* soft grey for subtle appearance */
+      color: #b0b0b0 !important; 
     }
     .file-link i      { font-size: .9rem; color:#6c757d; }
     .file-link:hover i{ color:#343a40;   }
 
-    #codeEditor .CodeMirror { height:100% !important; }   /* fill the pane */
-    /* --- New Code Console Styles --- */
+    #codeEditor .CodeMirror { height:100% !important; }   
+    
+    /* Code Console Styles */
     #codeModal .modal-dialog {
       max-width: 100%;
       height: 100%;
@@ -357,7 +318,7 @@
       height: 100vh;
       border: 0;
       border-radius: 0;
-      background-color: #282a36; /* Dracula background */
+      background-color: #282a36; 
       color: #f8f8f2;
     }
     #codeModal .modal-header {
@@ -366,7 +327,7 @@
       padding: 0.75rem 1.5rem;
     }
     #codeModal .modal-header .modal-title {
-      color: #bd93f9; /* Dracula purple */
+      color: #bd93f9; 
       font-weight: 600;
     }
     #codeModal .modal-body {
@@ -375,16 +336,15 @@
       flex-direction: column;
       overflow: hidden;
     }
-    /* --- UPDATED FOR SCROLLING --- */
     #codeEditor {
-      height: 60%; /* Initial height */
+      height: 60%; 
       flex-shrink: 0;
-      overflow-y: auto; /* Make editor scrollable if code is long */
+      overflow-y: auto; 
     }
     #codeLog {
-      flex-grow: 1; /* Fill remaining vertical space */
-      flex-basis: 0; /* Start with zero height, let flex-grow manage it */
-      overflow-y: auto; /* Add a scrollbar when content overflows */
+      flex-grow: 1; 
+      flex-basis: 0; 
+      overflow-y: auto; 
       background-color: #21222c;
       font-family: monospace;
       font-size: 0.9rem;
@@ -407,33 +367,34 @@
       height: 100% !important;
       font-size: 1rem;
     }
+    
     /* Tab styling */
     .nav-tabs {
-      border-bottom: none; /* Remove default border to make them stick out */
-      margin-top: 1rem; /* Space from top of app container */
-      margin-bottom: -1px; /* Overlap with the card border */
+      border-bottom: none; 
+      margin-top: 1rem; 
+      margin-bottom: -1px; 
       position: relative;
-      z-index: 10; /* Ensure tabs are above the card */
+      z-index: 10; 
     }
     .nav-tabs .nav-item {
-      margin-bottom: 0; /* Remove default bottom margin */
+      margin-bottom: 0; 
     }
     .nav-tabs .nav-link {
       background-color: #e9ecef;
       border: 1px solid #dee2e6;
-      border-bottom: none; /* Make them stick out */
+      border-bottom: none; 
       border-top-left-radius: 0.5rem;
       border-top-right-radius: 0.5rem;
       padding: 0.5rem 1rem;
       color: #495057;
       font-weight: 500;
-      margin-right: 0.25rem; /* Space between tabs */
+      margin-right: 0.25rem; 
       transition: background-color 0.2s ease, color 0.2s ease;
     }
 
     .nav-tabs .nav-link.active {
       background-color: #fff;
-      border-color: #dee2e6 #dee2e6 #fff; /* Only bottom border is white to blend with card */
+      border-color: #dee2e6 #dee2e6 #fff; 
       color: #2D2A32;
       font-weight: 700;
     }
@@ -460,12 +421,10 @@
       margin-bottom: 0.25rem;
       font-size: 0.9rem;
     }
-    /* Styles for initially hidden content in Customer Info tab */
     .customer-info-content-hidden {
       display: none;
     }
     
-    /* --- Quote Calculator Styles --- */
     #quoteCalculatorTable [contenteditable="true"] {
         background-color: #eef2ff;
         outline: 1px dashed #aabaff;
@@ -482,7 +441,7 @@
     #quoteCalculatorTable .placeholder-row [contenteditable="true"] {
         background-color: #f9fafb;
     }
-    /* Custom styles for the product info modal */
+    
     .modal-header-details {
         padding: 1rem 1.5rem;
         background-color: #f8f9fa;
@@ -512,9 +471,8 @@
         padding: 2px 6px;
         border-radius: 4px;
     }
-    /* --- AI Research Confirmation Box --- */
     #aiConfirmationBox {
-      display: none; /* Initially hidden */
+      display: none; 
       background-color: #e6f7ff;
       border: 1px solid #91d5ff;
       border-left: 5px solid #1890ff;
@@ -527,32 +485,28 @@
       transition: background-color 0.3s ease;
     }
     .table.b2b-pricing-active #priceTable tr {
-      background-color: #f3f5ff; /* Subtle blue tint for B2B */
+      background-color: #f3f5ff; 
     }
     .table.b2b-pricing-active #priceTable tr:hover {
-      background-color: #e6eaf8; /* Slightly darker hover for B2B */
+      background-color: #e6eaf8; 
     }
     .price-check-link {
-      color: #0d6efd; /* Bootstrap primary */
+      color: #0d6efd; 
       cursor: pointer;
       transition: opacity 0.2s ease;
-      text-decoration: none; /* No underline */
+      text-decoration: none; 
       font-weight: 500;
       display: inline-block; 
-      white-space: nowrap; /* Keep it on one line */
+      white-space: nowrap; 
     }
     .price-check-link:hover {
-      color: #0d6efd; /* Keep color on hover */
+      color: #0d6efd; 
       opacity: 0.7;
-      text-decoration: none; /* No underline on hover */
+      text-decoration: none; 
     }
-    /* === NEW Product Dashboard Modal Styles === */
-    #productInfoModal .modal-dl dt {
-      font-size: 0.9rem;
-    }
-    #productInfoModal .modal-dl dd {
-      font-size: 0.9rem;
-    }
+    
+    #productInfoModal .modal-dl dt { font-size: 0.9rem; }
+    #productInfoModal .modal-dl dd { font-size: 0.9rem; }
     #productInfoModal .metric-card {
         background-color: #f8f9fa;
         border: 1px solid #e9ecef;
@@ -596,13 +550,12 @@
         font-weight: 600;
         color: #0d6efd;
     }
+    
     .os-container {
       background-color: #f8f9fa;
       border-radius: 12px;
       overflow: hidden;
     }
-
-    /* Floating Filter Bar */
     .os-filter-bar {
       background: #ffffff;
       border-radius: 12px;
@@ -611,7 +564,6 @@
       margin-bottom: 1.5rem;
       border: 1px solid rgba(0,0,0,0.05);
     }
-    
     .os-filter-label {
       font-size: 0.7rem;
       text-transform: uppercase;
@@ -621,8 +573,6 @@
       margin-bottom: 0.4rem;
       display: block;
     }
-
-    /* Sleek Table Styles */
     .os-table-container {
       background: white;
       border-radius: 12px;
@@ -630,7 +580,6 @@
       border: 1px solid rgba(0,0,0,0.05);
       overflow: hidden;
     }
-
     .os-table thead th {
       background-color: #f6f9fc;
       color: #8898aa;
@@ -641,7 +590,6 @@
       padding: 1rem 1.5rem;
       font-weight: 600;
     }
-
     .os-table tbody td {
       padding: 1rem 1.5rem;
       vertical-align: middle;
@@ -650,17 +598,13 @@
       border-bottom: 1px solid #f6f9fc;
       transition: background-color 0.2s ease;
     }
-
     .os-table tbody tr:hover td {
       background-color: #fcfcfc;
     }
-
     .os-table tbody tr.expanded-row-parent td {
       background-color: #f8f9fe;
       border-bottom-color: transparent;
     }
-    
-    /* Type Badges */
     .badge-os {
       padding: 0.35em 0.8em;
       border-radius: 6px;
@@ -669,27 +613,23 @@
       letter-spacing: 0.5px;
     }
     .badge-os-order {
-      background-color: #e0f2fe; /* Light Blue */
+      background-color: #e0f2fe; 
       color: #0369a1;
     }
     .badge-os-sample {
-      background-color: #fef3c7; /* Light Amber */
+      background-color: #fef3c7; 
       color: #b45309;
     }
-
-    /* Detail View Grid */
     .os-detail-wrapper {
       background-color: #f8f9fe;
       padding: 1.5rem;
       box-shadow: inset 0 4px 6px -4px rgba(0,0,0,0.1);
     }
-    
     .os-detail-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       gap: 1.5rem;
     }
-
     .os-detail-item label {
       display: block;
       font-size: 0.7rem;
@@ -697,7 +637,6 @@
       color: #8898aa;
       margin-bottom: 0.2rem;
     }
-
     .os-detail-item span {
       display: block;
       font-size: 0.9rem;
@@ -705,7 +644,6 @@
       font-weight: 500;
       word-break: break-word;
     }
-    
     .row-toggle-icon {
       transition: transform 0.3s ease;
     }
@@ -718,7 +656,6 @@
   <h1 class="app-title text-center my-3 glowing-text">BrandyWise</h1>
   <button id="userDisplayName" class="btn btn-outline-secondary position-absolute top-0 end-0 m-3"></button>
   
-  <!-- Logout Button (moved outside appContainer) -->
   <button id="signOutButton" class="btn btn-outline-secondary position-absolute top-0 start-0 m-3">
     <i class="fas fa-sign-out-alt"></i> Sign Out
   </button>
@@ -746,14 +683,11 @@
       <div id="reportNotificationBadge" class="report-badge"></div>
     </button>
     <!-- Code-Console button -->
-    <button id="openCodeBtn"
-            title="Open Code Console"
-            class="generate-reports-btn"
-            style="right: 60px;">
+    <button id="openCodeBtn" title="Open Code Console" class="generate-reports-btn" style="right: 60px;">
       <i class="fa-solid fa-terminal"></i>
     </button>
     
-    <!-- Tabs for Search and Customer Info -->
+    <!-- Tabs -->
     <ul class="nav nav-tabs" id="mainTabs" role="tablist">
       <li class="nav-item" role="presentation">
         <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#searchView" type="button" role="tab" aria-controls="searchView" aria-selected="true">Search</button>
@@ -764,34 +698,33 @@
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="order-sample-tab" data-bs-toggle="tab" data-bs-target="#orderSampleView" type="button" role="tab" aria-controls="orderSampleView" aria-selected="false">Recent Activity</button>
       </li>
+      <!-- New Quoting Tab -->
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="quoting-tab" data-bs-toggle="tab" data-bs-target="#quotingView" type="button" role="tab" aria-controls="quotingView" aria-selected="false">Quoting</button>
+      </li>
     </ul>
 
     <div class="card bg-white p-4 rounded shadow">
       <!-- Tab Content -->
       <div class="tab-content" id="mainTabsContent">
+        
         <!-- Search View Tab Pane -->
         <div class="tab-pane fade show active" id="searchView" role="tabpanel" aria-labelledby="search-tab">
-          
           <!-- Main Structural Row -->
           <div class="row">
-            
-            <!-- ====== Left Column: Customer & Order History ====== -->
+            <!-- Left Column: Customer & Order History -->
             <div class="col-md-4">
-              <!-- Customer Title -->
               <div class="d-flex align-items-center gap-2">
                 <h4 class="m-0">Customer</h4>
                 <a id="salesFileLink" class="file-link d-none" target="_blank" title="Open latest Sales workbook">
                   <i class="fa-solid fa-link"></i>
                 </a>
               </div>
-              <!-- Customer Dropdown -->
               <div class="dropdown position-relative my-3">
                 <input type="text" id="customerSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
                 <ul id="customerDropdown" class="dropdown-menu w-100"></ul>
               </div>
-              <!-- Order History Subtitle -->
               <h5 class="mt-3">Order History</h5>
-              <!-- Order History Table -->
               <div class="table-responsive" style="max-height: 500px;">
                 <table class="table table-bordered table-striped">
                   <thead>
@@ -804,21 +737,15 @@
                     </tr>
                   </thead>
                   <tbody id="orderHistoryTable">
-                    <tr>
-                      <td colspan="5" class="text-muted fst-italic">
-                        search for a customer to display order history
-                      </td>
-                    </tr>
+                    <tr><td colspan="5" class="text-muted fst-italic">search for a customer to display order history</td></tr>
                   </tbody>
                 </table>
               </div>
             </div>
 
-            <!-- ====== Right Column: Product, Pricing, Calculator ====== -->
+            <!-- Right Column -->
             <div class="col-md-8">
-              <!-- Nested Row for Titles -->
               <div class="row">
-                <!-- Product Title & Search -->
                 <div class="col-md-7">
                   <div class="d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center gap-2">
@@ -837,7 +764,6 @@
                     <ul id="productDropdown" class="dropdown-menu w-100"></ul>
                   </div>
                 </div>
-                <!-- Pricing Title & Toggle -->
                 <div class="col-md-5">
                    <div class="d-flex align-items-center gap-2">
                     <h4 class="m-0">Pricing</h4>
@@ -853,16 +779,13 @@
                       <span class="b2c">B2B</span>
                     </label>
                     <a id="competitorPriceLink" class="price-check-link ms-3" style="display: none; margin-left: auto !important;">
-                      View competitor pricing
-                      <i class="bi bi-bar-chart-line-fill ms-1"></i>
+                      View competitor pricing <i class="bi bi-bar-chart-line-fill ms-1"></i>
                     </a>
                   </div>
                 </div>
               </div>
               
-              <!-- Nested Row for Tables -->
               <div class="row">
-                <!-- Matching Products Table -->
                 <div class="col-md-7">
                    <h5 class="d-flex align-items-center gap-2">
                     Matching Products
@@ -883,40 +806,26 @@
                         </tr>
                       </thead>
                       <tbody id="productTable">
-                        <tr>
-                          <td colspan="5" class="text-muted fst-italic">
-                            search for a product
-                          </td>
-                        </tr>
+                        <tr><td colspan="5" class="text-muted fst-italic">search for a product</td></tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
-                <!-- Prices Table -->
                 <div class="col-md-5">
                   <h5>Prices</h5>
                   <div class="table-responsive" style="max-height: 300px;">
                     <table class="table table-bordered table-striped">
                       <thead>
-                        <tr>
-                          <th>FB Price</th>
-                          <th>HB Price</th>
-                          <th>LTB Price</th>
-                        </tr>
+                        <tr><th>FB Price</th><th>HB Price</th><th>LTB Price</th></tr>
                       </thead>
                       <tbody id="priceTable">
-                        <tr>
-                          <td colspan="3" class="text-muted fst-italic">
-                            select a product
-                          </td>
-                        </tr>
+                        <tr><td colspan="3" class="text-muted fst-italic">select a product</td></tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
               </div>
 
-              <!-- Nested Row for Quote Calculator -->
               <div class="row mt-4">
                 <div class="col-12">
                   <div class="accordion" id="quoteAccordion">
@@ -942,7 +851,6 @@
                                 </tr>
                               </thead>
                               <tbody id="quoteCalculatorBody">
-                                <!-- Row 1 (Main) -->
                                 <tr>
                                   <td data-col="product"></td>
                                   <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
@@ -952,7 +860,6 @@
                                   <td data-col="margin" class="fw-bold"></td>
                                   <td data-col="totalprofit" class="fw-bold"></td>
                                 </tr>
-                                <!-- Row 2 (Placeholder) -->
                                 <tr class="placeholder-row">
                                   <td data-col="product"></td>
                                   <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.updateRow(this.parentElement)"></td>
@@ -971,55 +878,33 @@
                   </div>
                 </div>
               </div>
-
             </div>
-
           </div>
         </div>
 
         <!-- Customer Info View Tab Pane -->
         <div class="tab-pane fade" id="customerInfoView" role="tabpanel" aria-labelledby="customer-info-tab">
           <div class="row">
-            <!-- Column 1: Customer Search and Order History -->
             <div class="col-md-4">
               <h4 class="mb-3">Customer</h4>
-              <a id="salesFileLinkCustomerInfo" class="file-link d-none" target="_blank"
-                title="Open latest Sales workbook">
-                <i class="fa-solid fa-link"></i>
-              </a>
+              <a id="salesFileLinkCustomerInfo" class="file-link d-none" target="_blank" title="Open latest Sales workbook"><i class="fa-solid fa-link"></i></a>
               <div class="dropdown position-relative mb-3">
                 <input type="text" id="customerInfoSearch" class="form-control" placeholder="Search Customer..." autocomplete="off">
                 <ul id="customerInfoDropdown" class="dropdown-menu w-100"></ul>
               </div>
-              <div id="customerOrderHistoryContainer" class="customer-info-content-hidden mt-3"> <!-- Added mt-3 here -->
+              <div id="customerOrderHistoryContainer" class="customer-info-content-hidden mt-3">
                 <h5>Order History</h5>
                 <div class="table-responsive" style="max-height: 300px;">
                   <table class="table table-bordered table-striped">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Product</th>
-                        <th>Description</th>
-                        <th>Qty</th>
-                        <th>Price</th>
-                      </tr>
-                    </thead>
-                    <tbody id="customerInfoOrderHistoryTable">
-                      <tr>
-                        <td colspan="5" class="text-muted fst-italic">
-                          select a customer to display order history
-                        </td>
-                      </tr>
-                    </tbody>
+                    <thead><tr><th>Date</th><th>Product</th><th>Description</th><th>Qty</th><th>Price</th></tr></thead>
+                    <tbody id="customerInfoOrderHistoryTable"><tr><td colspan="5" class="text-muted fst-italic">select a customer to display order history</td></tr></tbody>
                   </table>
                 </div>
               </div>
             </div>
-
-            <!-- Column 2: Customer Details -->
             <div class="col-md-5">
               <h4 class="mb-3">Customer Details</h4>
-              <div id="customerFieldsContainer" class="customer-info-content-hidden mt-3"> <!-- Added mt-3 here -->
+              <div id="customerFieldsContainer" class="customer-info-content-hidden mt-3">
                 <div class="customer-info-field d-flex flex-column">
                   <strong>Sales by Year:</strong>
                   <canvas id="salesByYearChart" style="width:100%;max-width:320px;aspect-ratio:2/1"></canvas>
@@ -1029,15 +914,12 @@
                 <div class="customer-info-field"><strong>Type:</strong> <span id="customerType">N/A</span></div>
                 <div class="customer-info-field"><strong>Remarks:</strong> <span id="customerRemarks">N/A</span></div>
                 <div class="customer-info-field"><strong>Website:</strong> <span id="customerWebsite">N/A</span></div>
-                <!-- AI Confirmation Box -->
                 <div id="aiConfirmationBox"></div>
               </div>
             </div>
-
-            <!-- Column 3: Contact Cards -->
             <div class="col-md-3">
               <h4 class="mb-3">Contacts</h4>
-              <div id="contactCardsContainer" class="customer-info-content-hidden mt-3"> <!-- Added mt-3 here -->
+              <div id="contactCardsContainer" class="customer-info-content-hidden mt-3">
                 <p class="text-muted fst-italic">No contacts available</p>
               </div>
             </div>
@@ -1046,9 +928,9 @@
 
         <!-- Orders & Samples View Tab Pane -->
         <div class="tab-pane fade" id="orderSampleView" role="tabpanel" aria-labelledby="order-sample-tab">
-          
           <div class="os-filter-bar">
-            <div class="row g-2 align-items-end"> <div class="col-auto">
+            <div class="row g-2 align-items-end">
+              <div class="col-auto">
                 <label class="os-filter-label">Type</label>
                 <div class="btn-group" role="group">
                   <input type="radio" class="btn-check" name="osType" id="osTypeAll" value="all" checked>
@@ -1059,7 +941,6 @@
                   <label class="btn btn-outline-secondary btn-sm" for="osTypeSample">Samples</label>
                 </div>
               </div>
-
               <div class="col-md-2">
                 <label class="os-filter-label">Order ID</label>
                 <div class="input-group input-group-sm">
@@ -1067,7 +948,6 @@
                   <input type="text" class="form-control border-start-0 ps-0" id="osSearchId" placeholder="ID...">
                 </div>
               </div>
-              
               <div class="col-md-2">
                 <label class="os-filter-label">Customer</label>
                 <div class="input-group input-group-sm">
@@ -1075,7 +955,6 @@
                   <input type="text" class="form-control border-start-0 ps-0" id="osSearchCustomer" placeholder="Name...">
                 </div>
               </div>
-
               <div class="col-auto">
                 <label class="os-filter-label">Date Range</label>
                 <div class="input-group input-group-sm" style="max-width: 240px;">
@@ -1084,7 +963,6 @@
                   <input type="date" class="form-control" id="osDateEnd">
                 </div>
               </div>
-
               <div class="col-auto ms-auto d-flex gap-2 os-order-only-field">
                 <div>
                     <label class="os-filter-label">Price ($)</label>
@@ -1099,30 +977,25 @@
                     <input type="text" class="form-control form-control-sm" id="osSearchPO" placeholder="PO..." style="width: 100px;">
                 </div>
               </div>
-
             </div>
           </div>
-
           <div class="os-table-container">
             <div class="table-responsive" style="height: 65vh; overflow-y: auto;">
               <table class="table os-table mb-0" id="osTable">
                 <thead class="sticky-top">
                   <tr>
-                    <th width="100">Type</th>
-                    <th>Order ID</th>
-                    <th>Customer</th>
-                    <th>Date</th>
-                    <th>PO Number</th>
-                    <th class="text-end">Total Amount</th>
-                    <th width="50"></th>
+                    <th width="100">Type</th><th>Order ID</th><th>Customer</th><th>Date</th><th>PO Number</th><th class="text-end">Total Amount</th><th width="50"></th>
                   </tr>
                 </thead>
-                <tbody id="osTableBody">
-                  </tbody>
+                <tbody id="osTableBody"></tbody>
               </table>
             </div>
           </div>
+        </div>
 
+        <!-- NEW Quoting View Tab Pane -->
+        <div class="tab-pane fade" id="quotingView" role="tabpanel" aria-labelledby="quoting-tab">
+            <!-- Content will be injected by quoting.js -->
         </div>
         
       </div>
@@ -1137,8 +1010,7 @@
         </div>
         <div class="modal-body">
           <div class="container-fluid px-0">
-             <div id="reportsDashboardGrid" class="row g-4">
-                </div>
+             <div id="reportsDashboardGrid" class="row g-4"></div>
           </div>
         </div>
         <div class="modal-footer border-0">
@@ -1155,12 +1027,8 @@
         <div class="modal-header">
           <h5 class="modal-title"><i class="fas fa-terminal me-2"></i>Code Console</h5>
           <div class="ms-auto d-flex align-items-center gap-2">
-              <button id="runCodeBtn" class="btn btn-success btn-sm">
-                <i class="fa fa-play me-1"></i> Run
-              </button>
-              <button id="clearLogBtn" class="btn btn-secondary btn-sm">
-                <i class="fa fa-broom me-1"></i> Clear Log
-              </button>
+              <button id="runCodeBtn" class="btn btn-success btn-sm"><i class="fa fa-play me-1"></i> Run</button>
+              <button id="clearLogBtn" class="btn btn-secondary btn-sm"><i class="fa fa-broom me-1"></i> Clear Log</button>
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
           </div>
         </div>
@@ -1175,10 +1043,8 @@
 
   <!-- Product Info Modal -->
   <div class="modal fade" id="productInfoModal" tabindex="-1" aria-labelledby="productInfoModalLabel" aria-hidden="true">
-    <!-- MODIFIED: Increased size to modal-xl -->
     <div class="modal-dialog modal-xl modal-dialog-centered">
       <div class="modal-content">
-        
         <div class="modal-header modal-header-details">
           <div>
             <h5 class="modal-title part-number" id="productInfoModalLabel">Product Details</h5>
@@ -1186,103 +1052,50 @@
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        
-        <!-- MODIFIED: Replaced body with 2-column layout -->
         <div class="modal-body" id="productInfoModalBody">
           <div class="row">
-            <!-- Column 1: Inventory & Key Metrics -->
             <div class="col-lg-5 col-md-6">
-              <!-- REMOVED: <h4>Inventory & Metrics</h4> -->
-              
-              <!-- Inventory Details -->
-              <dl class="row modal-dl" id="productInfoModalInventoryList">
-                <!-- This content will be generated by uiRenderer.js -->
-              </dl>
-
-              <!-- Key Metrics -->
+              <dl class="row modal-dl" id="productInfoModalInventoryList"></dl>
               <div class="row g-2">
-                <!-- KEPT: Months of Supply in left column -->
                 <div class="col-6">
                     <div class="metric-card">
-                        <h6>
-                          Months of Supply
-                          <i class="fas fa-info-circle text-muted ms-1" 
-                            style="font-size: 0.8rem; cursor: help;"
-                            data-bs-toggle="tooltip" 
-                            data-bs-html="true"
-                            data-bs-placement="top" 
-                            title="<b>Calculation:</b> Current Inventory ÷ Monthly Sales Average<br>
-                            <i>(Monthly Sales Average = Total Sales Last 12 Months ÷ 12)</i>">
-                          </i>
-                        </h6>
-                        <div class="metric-value" id="productMonthsOfSupply">
-                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                        </div>
+                        <h6>Months of Supply <i class="fas fa-info-circle text-muted ms-1" style="font-size: 0.8rem; cursor: help;" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="top" title="<b>Calculation:</b> Current Inventory ÷ Monthly Sales Average<br><i>(Monthly Sales Average = Total Sales Last 12 Months ÷ 12)</i>"></i></h6>
+                        <div class="metric-value" id="productMonthsOfSupply"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>
                     </div>
                 </div>
               </div>
             </div>
-
-            <!-- Column 2: Sales BI -->
             <div class="col-lg-7 col-md-6">
               <div class="row g-2">
                 <div class="col-6">
                     <div class="metric-card">
-                        <h6>
-                          Sales (Last 12 Mo)
-                          <i class="fas fa-info-circle text-muted ms-1" 
-                            style="font-size: 0.8rem; cursor: help;"
-                            data-bs-toggle="tooltip" 
-                            data-bs-placement="top" 
-                            title="Total units sold in the past 365 days. The percentage shows the growth or decline compared to the previous year.">
-                          </i>
-                        </h6>
-                        <div class="metric-value" id="productYoYSales">
-                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                        </div>
+                        <h6>Sales (Last 12 Mo) <i class="fas fa-info-circle text-muted ms-1" style="font-size: 0.8rem; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Total units sold in the past 365 days."></i></h6>
+                        <div class="metric-value" id="productYoYSales"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>
                     </div>
                 </div>
                 <div class="col-6">
                     <div class="metric-card">
-                        <h6>
-                          Avg. Order Qty
-                          <i class="fas fa-info-circle text-muted ms-1" 
-                            style="font-size: 0.8rem; cursor: help;"
-                            data-bs-toggle="tooltip" 
-                            data-bs-placement="top" 
-                            title="The average number of units purchased in a single order (Total Units Sold / Total Number of Orders) across all history.">
-                          </i>
-                        </h6>
-                        <div class="metric-value" id="productAvgOrderQty">
-                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                        </div>
+                        <h6>Avg. Order Qty <i class="fas fa-info-circle text-muted ms-1" style="font-size: 0.8rem; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Total Units Sold / Total Number of Orders"></i></h6>
+                        <div class="metric-value" id="productAvgOrderQty"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>
                     </div>
                 </div>
               </div>
-
               <div class="metric-card">
                 <h6>Sales History (Last 24 Months)</h6>
-                <div style="position: relative; width: 100%; padding-top: 50%;"> <!-- 50% = 1:2 aspect ratio -->
+                <div style="position: relative; width: 100%; padding-top: 50%;">
                   <canvas id="productSalesChart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
                 </div>
               </div>
-
-              <!-- Top Customers  -->
               <div class="metric-card">
                 <h6>Top 5 Customers (Last 12 Mo)</h6>
-                <ul class="top-customer-list" id="productTopCustomersList">
-                  <!-- This content will be generated by uiRenderer.js -->
-                </ul>
+                <ul class="top-customer-list" id="productTopCustomersList"></ul>
               </div>
-
             </div>
           </div>
         </div>
-        
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
-
       </div>
     </div>
   </div>
@@ -1305,25 +1118,23 @@
   </div>
 
   <!-- Competitor Pricing Modal -->
-  </div> <div class="modal fade" id="competitorPriceModal" tabindex="-1" aria-labelledby="competitorPriceModalLabel" aria-hidden="true">
+  <div class="modal fade" id="competitorPriceModal" tabindex="-1" aria-labelledby="competitorPriceModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content shadow-lg">
         <div class="modal-header border-0 pb-0">
           <h5 class="modal-title" id="competitorPriceModalLabel">Competitor Pricing</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body p-4" id="competitorPriceModalBody">
-          </div>
+        <div class="modal-body p-4" id="competitorPriceModalBody"></div>
         <div class="modal-footer border-0 bg-light">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
       </div>
     </div>
   </div>
-  <div class="modal fade show" id="pricingWarningModal" tabindex="-1" style="display: none;" aria-modal="true" role="dialog">
 
   <!--CodeMirror CDN-->
-  <link  href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/javascript/javascript.min.js"></script>
   <script src="codeConsole.js"></script>
@@ -1351,13 +1162,12 @@
   <script src="providers/perigreeProvider.js"></script>
   <script src="providers/ellsworthProvider.js"></script>
   <script src="uiRenderer.js"></script>
+  <script src="quoting.js"></script> <!-- New script -->
   <script src="app.js"></script>
-  <script>document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-    new bootstrap.Tooltip(el);
+  <script>
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+      new bootstrap.Tooltip(el);
     });
-    // uncomment to show the pricing warning modal on load
-    // const warningModal = new bootstrap.Modal(document.getElementById('pricingWarningModal'));
-    // warningModal.show();
   </script>
 </body>
 </html>

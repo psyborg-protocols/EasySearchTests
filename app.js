@@ -62,6 +62,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     console.error("Error loading datasets from IndexedDB:", error);
   }
 
+  // Initialize Quoting App UI (Shell) immediately
+  if (window.QuotingApp) {
+      window.QuotingApp.init('quotingView');
+  }
+
   // 2. After loading from cache, check for an active session and fetch fresh data in the background.
   try {
     const token = await getAccessToken();      
