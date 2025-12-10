@@ -147,7 +147,7 @@ const ReportManager = {
           const d = new Date(nextDueTs);
           nextDueText = d.toLocaleDateString();
           if (meta.customNextRun) {
-              nextDueText += ' (Scheduled)';
+              nextDueText += ' <small class="text-muted fw-normal">(Scheduled)</small>';
               nextDueClass = 'text-primary fw-bold';
           } else if (isDue) {
               nextDueClass = 'text-danger fw-bold';
@@ -194,14 +194,16 @@ const ReportManager = {
                     </div>
                     <div>
                         <i class="far fa-calendar-alt me-1 text-muted"></i> Next: 
-                        <span class="position-relative d-inline-block">
-                            <span class="${nextDueClass}" style="cursor:pointer; border-bottom:1px dotted #999" title="Click to schedule start date">
+                        <label class="position-relative d-inline-block" style="cursor:pointer;">
+                            <span class="${nextDueClass}" style="border-bottom:1px dotted #999" title="Click to schedule start date">
                                 ${nextDueText}
                             </span>
-                            <!-- Invisible date input overlay -->
+                            <!-- Invisible date input overlay - using label triggers input automatically -->
                             <input type="date" class="next-run-input" data-id="${mod.id}" 
-                                   style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
-                        </span>
+                                   style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; z-index:10; cursor:pointer;"
+                                   onclick="try{this.showPicker()}catch(e){}"
+                            >
+                        </label>
                     </div>
                 </div>
                 <button class="btn btn-primary btn-sm run-report-btn" data-id="${mod.id}">
@@ -255,9 +257,7 @@ const ReportManager = {
             }
         });
         
-        // Add click listener to prevent event bubbling if needed, 
-        // though default behavior usually works fine with opacity overlay
-        inp.addEventListener('click', (e) => e.stopPropagation());
+        // Removed click stopPropagation to ensure label interaction works
     });
 
     // 3. Run Button
