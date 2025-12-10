@@ -21,7 +21,7 @@
     const q = Number(qty);
     if (!Number.isFinite(p) || !Number.isFinite(q) || q <= 0) return undefined;
     const v = p / q;
-    return Math.round(v * 100) / 100; // 2 decimals
+    return Math.floor(v * 100) / 100; // changed Math.round to Math.floor to match gluegun's default rounding
   }
 
   class GluegunProvider extends Provider {
