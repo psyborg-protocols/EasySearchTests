@@ -1,5 +1,5 @@
 // ---------------------------------------------
-// app.js — Improved startup + login flow
+// app.js — Simple startup + login flow
 // ---------------------------------------------
 
 const APP_VERSION = "1.1.0";
@@ -11,13 +11,18 @@ document.addEventListener("DOMContentLoaded", async function () {
     const currentVersion = localStorage.getItem("APP_VERSION");
     if (currentVersion !== APP_VERSION) {
         console.log(`[Version Check] ${currentVersion} → ${APP_VERSION}`);
+        // Clear cached datasets when the app version changes
         await idbUtil.clearDatasets();
         localStorage.setItem("APP_VERSION", APP_VERSION);
         location.reload();
         return;
     }
 
-    initializeAuth(); // ← redirect handling now happens internally
+    // ------------------------------
+    // AUTH INITIALIZATION
+    // ------------------------------
+    // Process MSAL redirect result and restore any existing session
+    await initializeAuth();
 
     // ------------------------------
     // LOAD CACHE FIRST (instant UI)
@@ -45,7 +50,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             if (cachedCompanyInfo) window.dataStore["CompanyInfo"] = cachedCompanyInfo;
             if (cachedEquivalents) window.dataStore["Equivalents"] = cachedEquivalents;
-            if (cachedOrgContacts) window.dataStore["OrgContacts"] = new Map(Object.entries(cachedOrgContacts));
+            if (cachedOrgContacts) {
+                window.dataStore["OrgContacts"] = new Map(
+                    Object.entries(cachedOrgContacts)
+                );
+            }
             if (cachedOrders) window.dataStore["Orders"] = cachedOrders;
             if (cachedSamples) window.dataStore["Samples"] = cachedSamples;
 
@@ -62,10 +71,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     // ------------------------------
-    // OPTIONAL: Try background refresh
+    // OPTIONAL: Try background refresh (only if already logged in)
     // ------------------------------
     try {
-        const token = await getAccessToken(); // Will auto-redirect if expired
+        const token = await getAccessToken();
         if (token) {
             console.log("[Startup] Refreshing data in background...");
             await dataLoader.processFiles();
@@ -76,34 +85,42 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
 
             console.log("[Startup] Background refresh complete.");
-            
+
             // Re-check reports logic after fresh data load
             if (window.ReportManager) {
                 await window.ReportManager.checkDueReportsAndTrackVisits();
             }
+        } else {
+            console.log(
+                "[Startup] Not signed in yet — skipping background refresh."
+            );
         }
     } catch (e) {
-        console.log("[Startup] No active session yet — waiting for login.");
+        console.error("[Startup] Error during background refresh:", e);
     }
 
     // ------------------------------
     // BUTTONS
     // ------------------------------
+    const signInButton = document.getElementById("signInButton");
+    if (signInButton) {
+        signInButton.addEventListener("click", () => {
+            signIn(); // Redirect happens here
+        });
+    }
 
-    document.getElementById("signInButton").addEventListener("click", async () => {
-        await signIn(); // Redirect happens here
-    });
-
-    document.getElementById("signOutButton").addEventListener("click", () => {
-        signOut();
-    });
+    const signOutButton = document.getElementById("signOutButton");
+    if (signOutButton) {
+        signOutButton.addEventListener("click", () => {
+            signOut();
+        });
+    }
 
     // ------------------------------
     // FILE LINK POPULATION
     // ------------------------------
-
     const exposeFileLinks = () => {
-        const { fileLinks = {} } = window.dataStore;
+        const { fileLinks = {} } = window.dataStore || {};
         const setLink = (id, url) => {
             const el = document.getElementById(id);
             if (!el) return;
