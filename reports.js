@@ -361,7 +361,6 @@ const ReportManager = {
             <div style="padding: 30px;">
                 <p>Hello,</p>
                 <p>We noticed you have <strong>${dueReports.length} reports</strong> that are currently due for review based on your scheduled preferences.</p>
-                <p>Keeping up with these reports helps ensure you don't miss critical revenue drops or inventory issues.</p>
                 <ul style="padding-left: 20px; margin-top: 20px;">
                     ${reportListHtml}
                 </ul>
