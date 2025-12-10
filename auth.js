@@ -27,7 +27,7 @@ const graphScopes = [
     "Files.ReadWrite.All",
     "Sites.Read.All",
     "OrgContact.Read.All",
-    "Mail.Send" 
+    "Mail.Send.Shared" 
 ];
 
 let msalInstance = null;
@@ -200,10 +200,8 @@ async function sendMail(subject, htmlBody, toEmail) {
     // Note: The user logged in must have "Send As" or "Send on Behalf" permissions for this mailbox.
     let endpoint = `https://graph.microsoft.com/v1.0/users/${SHARED_MAILBOX_ADDRESS}/sendMail`;
     
-    // Fallback: If SHARED_MAILBOX_ADDRESS isn't set or valid, use 'me'
-    if (SHARED_MAILBOX_ADDRESS.includes("brandywinematerials.com")) {
-         endpoint = `https://graph.microsoft.com/v1.0/users/${SHARED_MAILBOX_ADDRESS}/sendMail`;
-    } else {
+    // Fallback logic for development environments where the constant might not be set
+    if (!SHARED_MAILBOX_ADDRESS.includes("brandywinematerials.com")) {
          endpoint = `https://graph.microsoft.com/v1.0/me/sendMail`;
     }
 
@@ -218,21 +216,8 @@ async function sendMail(subject, htmlBody, toEmail) {
         });
 
         if (!response.ok) {
-            // If shared mailbox fails (e.g., permissions), try sending as 'me' as fallback
-            if (response.status === 403 || response.status === 404) {
-                console.warn(`[Mail] Failed to send as ${SHARED_MAILBOX_ADDRESS}. Retrying as 'me'.`);
-                const fallbackResponse = await fetch(`https://graph.microsoft.com/v1.0/me/sendMail`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(mailData)
-                });
-                if(!fallbackResponse.ok) throw new Error(await fallbackResponse.text());
-                return;
-            }
-            throw new Error(await response.text());
+            const errorText = await response.text();
+            throw new Error(`Email Send Failed: ${errorText}`);
         }
     } catch (error) {
         console.error("Error sending email:", error);
