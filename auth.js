@@ -12,7 +12,7 @@ const msalConfig = {
         // navigateToLoginRequestUrl defaults to true; we also do our own deep-link restore
     },
     cache: {
-        cacheLocation: "sessionStorage",
+        cacheLocation: "localStorage",
         storeAuthStateInCookie: true
     }
 };
