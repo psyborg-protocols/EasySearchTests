@@ -15,7 +15,7 @@ const msalConfig = {
 };
 
 // Update this to your actual shared mailbox address
-const SHARED_MAILBOX_ADDRESS = "shared-mailbox@brandywinematerials.com"; 
+const SHARED_MAILBOX_ADDRESS = "reminders@brandywinematerials.com"; 
 
 // Custom API scopes
 const contactUpdateScope = `api://${msalConfig.auth.clientId}/Contacts.Update`;
