@@ -14,16 +14,20 @@ const msalConfig = {
     }
 };
 
+// Update this to your actual shared mailbox address
+const SHARED_MAILBOX_ADDRESS = "shared-mailbox@brandywinematerials.com"; 
+
 // Custom API scopes
 const contactUpdateScope = `api://${msalConfig.auth.clientId}/Contacts.Update`;
 const companyResearchScope = `api://${msalConfig.auth.clientId}/Company.Research`;
 
-// Graph scopes
+// Graph scopes - Added Mail.Send
 const graphScopes = [
     "User.Read",
     "Files.ReadWrite.All",
     "Sites.Read.All",
-    "OrgContact.Read.All"
+    "OrgContact.Read.All",
+    "Mail.Send" 
 ];
 
 let msalInstance = null;
@@ -165,4 +169,73 @@ async function getApiAccessToken() {
 
 async function getLLMAccessToken() {
     return getScopedAccessToken([companyResearchScope]);
+}
+
+/**
+ * Sends an email via Microsoft Graph API.
+ * Uses the shared mailbox path if user has permissions, otherwise defaults to 'me'.
+ */
+async function sendMail(subject, htmlBody, toEmail) {
+    const token = await getAccessToken();
+    
+    const mailData = {
+        message: {
+            subject: subject,
+            body: {
+                contentType: "HTML",
+                content: htmlBody
+            },
+            toRecipients: [
+                {
+                    emailAddress: {
+                        address: toEmail
+                    }
+                }
+            ]
+        },
+        saveToSentItems: true
+    };
+
+    // Try sending from shared mailbox first
+    // Note: The user logged in must have "Send As" or "Send on Behalf" permissions for this mailbox.
+    let endpoint = `https://graph.microsoft.com/v1.0/users/${SHARED_MAILBOX_ADDRESS}/sendMail`;
+    
+    // Fallback: If SHARED_MAILBOX_ADDRESS isn't set or valid, use 'me'
+    if (SHARED_MAILBOX_ADDRESS.includes("brandywinematerials.com")) {
+         endpoint = `https://graph.microsoft.com/v1.0/users/${SHARED_MAILBOX_ADDRESS}/sendMail`;
+    } else {
+         endpoint = `https://graph.microsoft.com/v1.0/me/sendMail`;
+    }
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(mailData)
+        });
+
+        if (!response.ok) {
+            // If shared mailbox fails (e.g., permissions), try sending as 'me' as fallback
+            if (response.status === 403 || response.status === 404) {
+                console.warn(`[Mail] Failed to send as ${SHARED_MAILBOX_ADDRESS}. Retrying as 'me'.`);
+                const fallbackResponse = await fetch(`https://graph.microsoft.com/v1.0/me/sendMail`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(mailData)
+                });
+                if(!fallbackResponse.ok) throw new Error(await fallbackResponse.text());
+                return;
+            }
+            throw new Error(await response.text());
+        }
+    } catch (error) {
+        console.error("Error sending email:", error);
+        throw error;
+    }
 }

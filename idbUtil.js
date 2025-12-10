@@ -5,7 +5,7 @@
 
 function openIndexedDB() {
   return new Promise((resolve, reject) => {
-    const request = window.indexedDB.open("DataViewerDB", 2); // Increment version for schema changes
+    const request = window.indexedDB.open("DataViewerDB", 3); // Increment version for new store
     request.onerror = (event) => {
       console.error("Error opening IndexedDB", event);
       reject("Error opening IndexedDB");
@@ -15,9 +15,13 @@ function openIndexedDB() {
       if (!db.objectStoreNames.contains("datasets")) {
         db.createObjectStore("datasets");
       }
-      // New store for report settings (interval, lastRun, etc.)
+      // Store for report settings (interval, lastRun, etc.)
       if (!db.objectStoreNames.contains("reportSettings")) {
         db.createObjectStore("reportSettings");
+      }
+      // New store for generic app stats (visit counts)
+      if (!db.objectStoreNames.contains("appStats")) {
+        db.createObjectStore("appStats");
       }
     };
     request.onsuccess = (event) => {
@@ -103,6 +107,34 @@ async function getAllReportMeta() {
     } catch (e) { return []; }
 }
 
+// --- Visit Stats Methods ---
+
+function saveVisitStats(statsObj) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const db = await openIndexedDB();
+      const tx = db.transaction("appStats", "readwrite");
+      const store = tx.objectStore("appStats");
+      const request = store.put(statsObj, "visitStats");
+      request.onsuccess = () => resolve();
+      request.onerror = (e) => reject(e);
+    } catch (e) { reject(e); }
+  });
+}
+
+function getVisitStats() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const db = await openIndexedDB();
+      const tx = db.transaction("appStats", "readonly");
+      const store = tx.objectStore("appStats");
+      const request = store.get("visitStats");
+      request.onsuccess = (e) => resolve(e.target.result || null);
+      request.onerror = (e) => reject(e);
+    } catch (e) { reject(e); }
+  });
+}
+
 async function clearDatasets() {
   const db = await openIndexedDB();                   
   const tx = db.transaction("datasets", "readwrite");
@@ -122,5 +154,7 @@ window.idbUtil = {
   clearDatasets,
   saveReportMeta,
   getReportMeta,
-  getAllReportMeta
+  getAllReportMeta,
+  saveVisitStats,
+  getVisitStats
 };

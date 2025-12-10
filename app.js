@@ -76,6 +76,11 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
 
             console.log("[Startup] Background refresh complete.");
+            
+            // Re-check reports logic after fresh data load
+            if (window.ReportManager) {
+                await window.ReportManager.checkDueReportsAndTrackVisits();
+            }
         }
     } catch (e) {
         console.log("[Startup] No active session yet — waiting for login.");

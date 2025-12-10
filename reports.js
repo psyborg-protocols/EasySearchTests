@@ -71,7 +71,7 @@ const ReportManager = {
     // 2. Update Global Badge
     this.updateBadge();
 
-    // 3. Update DOM Elements specifically (Don't re-render whole dashboard)
+    // 3. Update DOM Elements specifically
     const lastRunText = new Date(meta.lastRun).toLocaleDateString() + ' ' + new Date(meta.lastRun).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     
     const lastRunEl = document.getElementById(`lastrun-${reportId}`);
@@ -174,7 +174,7 @@ const ReportManager = {
     const module = this.modules.find(m => m.id === reportId);
     if (!module) return;
 
-    // UI Feedback - Note the specific class 'generating-text'
+    // UI Feedback
     const container = document.getElementById(`container-${reportId}`);
     const itemTarget = document.getElementById(`item-${reportId}`);
     container.style.display = 'block';
@@ -186,12 +186,20 @@ const ReportManager = {
         try {
             await window[module.generatorFunctionName](modalEl, reportId);
             
-            // CLEANUP: Remove the "Generating..." text manually
-            // The legacy script removed the spinner but left this text.
             const genText = itemTarget.querySelector('.generating-text');
             if (genText) genText.remove();
 
-            await this.markRun(reportId);
+            // *** CRITICAL CHANGE ***
+            // Removed automatic await this.markRun(reportId);
+            // Instead, we attach the listener to the download button now.
+            const downloadBtn = itemTarget.querySelector('.report-download-btn');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', () => {
+                    this.markRun(reportId);
+                    console.log(`[Report] ${reportId} marked as run on download.`);
+                });
+            }
+
         } catch (err) {
             console.error(err);
             itemTarget.innerHTML = `<span class="text-danger small">Error generating report.</span>`;
@@ -199,6 +207,107 @@ const ReportManager = {
     } else {
         console.error("Generator function not found for", reportId);
         itemTarget.innerHTML = `<span class="text-danger small">Func Not Found</span>`;
+    }
+  },
+
+  // --- NEW FEATURE: Visit Tracking & Reminder Email ---
+
+  async checkDueReportsAndTrackVisits() {
+    const dueReports = this.modules.filter(m => this.isDue(m.id));
+    if (dueReports.length === 0) return;
+
+    // 1. Get stats from IDB
+    const stats = await window.idbUtil.getVisitStats() || { count: 0, lastDate: null, emailSentDate: null };
+    const todayStr = new Date().toDateString(); // "Wed Dec 10 2025"
+
+    // 2. Logic: Increment count if it's a new day
+    if (stats.lastDate !== todayStr) {
+        stats.count += 1;
+        stats.lastDate = todayStr;
+        await window.idbUtil.saveVisitStats(stats);
+        console.log(`[VisitTracker] New day visit. Count for due reports: ${stats.count}`);
+    }
+
+    // 3. Logic: Send email if count >= 3 AND email not sent today
+    if (stats.count >= 3 && stats.emailSentDate !== todayStr) {
+        console.log("[VisitTracker] Threshold reached. Sending reminder email...");
+        try {
+            await this.sendReminderEmail(dueReports);
+            stats.emailSentDate = todayStr;
+            stats.count = 0; // Reset counter after sending
+            await window.idbUtil.saveVisitStats(stats);
+            console.log("[VisitTracker] Email sent and stats updated.");
+        } catch (e) {
+            console.error("[VisitTracker] Failed to send email:", e);
+        }
+    }
+  },
+
+  async sendReminderEmail(dueReports) {
+    if (!userAccount || !userAccount.username) return;
+
+    const reportListHtml = dueReports.map(r => 
+        `<li style="margin-bottom: 10px;">
+            <strong>${r.title}</strong><br>
+            <span style="color: #666;">${r.desc}</span><br>
+            <a href="${window.location.origin}${window.location.pathname}?runReport=${r.id}" 
+               style="color: #0d6efd; text-decoration: none; font-weight: bold;">
+               Open Report →
+            </a>
+         </li>`
+    ).join('');
+
+    const emailBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+            <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-bottom: 1px solid #e0e0e0;">
+                <h2 style="color: #2D2A32; margin: 0;">BrandyWise Reports Due</h2>
+            </div>
+            <div style="padding: 30px;">
+                <p>Hello,</p>
+                <p>We noticed you have <strong>${dueReports.length} reports</strong> that are currently due for review based on your scheduled preferences.</p>
+                <p>Keeping up with these reports helps ensure you don't miss critical revenue drops or inventory issues.</p>
+                <ul style="padding-left: 20px; margin-top: 20px;">
+                    ${reportListHtml}
+                </ul>
+                <p style="margin-top: 30px; font-size: 0.9em; color: #888;">
+                    Clicking a link above will take you directly to the dashboard to generate the report.
+                </p>
+            </div>
+            <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa;">
+                BrandyWine Materials LLC
+            </div>
+        </div>
+    `;
+
+    await window.sendMail("Reminder: You have pending reports", emailBody, userAccount.username);
+  },
+
+  // --- NEW FEATURE: Deep Linking ---
+  async handleDeepLink() {
+    const params = new URLSearchParams(window.location.search);
+    const reportId = params.get('runReport');
+    
+    if (reportId) {
+        console.log(`[DeepLink] Found runReport=${reportId}`);
+        // 1. Open Modal
+        const btnGen = document.getElementById('generateReportsBtn');
+        if (btnGen) {
+            btnGen.click(); // Triggers renderDashboard and modal show
+        }
+        
+        // 2. Wait for modal DOM to populate, then run
+        setTimeout(() => {
+            // Scroll to card
+            const card = document.getElementById(`card-${reportId}`);
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Run report
+            this.runReport(reportId);
+            
+            // Clean URL without reload
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.pushState({path:newUrl},'',newUrl);
+        }, 800);
     }
   }
 };
@@ -261,6 +370,12 @@ window.initReports = async function initReports() {
 
   await ReportManager.loadStatus();
   ReportManager.updateBadge();
+
+  // Check logic for reminders
+  await ReportManager.checkDueReportsAndTrackVisits();
+
+  // Check logic for deep links
+  setTimeout(() => ReportManager.handleDeepLink(), 1000);
 
   btnGen.onclick = () => {
     ReportManager.renderDashboard();
