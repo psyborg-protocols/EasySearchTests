@@ -1,6 +1,7 @@
-// auth.js
+// ---------------------------------------------
+// auth.js — Improved redirect-based MSAL flow
+// ---------------------------------------------
 
-// Microsoft Authentication Configuration
 const msalConfig = {
     auth: {
         clientId: "26f834bc-3365-486c-95ff-1a45a24488b5",
@@ -9,15 +10,15 @@ const msalConfig = {
     },
     cache: {
         cacheLocation: "sessionStorage",
-        storeAuthStateInCookie: true,
+        storeAuthStateInCookie: true
     }
 };
 
-// --- API Configuration ---
+// Custom API scopes
 const contactUpdateScope = `api://${msalConfig.auth.clientId}/Contacts.Update`;
-const companyResearchScope = `api://${msalConfig.auth.clientId}/Company.Research`; // NEW: Scope for the LLM feature
+const companyResearchScope = `api://${msalConfig.auth.clientId}/Company.Research`;
 
-// MS Graph API scopes needed for accessing OneDrive files
+// Graph scopes
 const graphScopes = [
     "User.Read",
     "Files.ReadWrite.All",
@@ -25,11 +26,10 @@ const graphScopes = [
     "OrgContact.Read.All"
 ];
 
-// Global variables for the MSAL instance and user account
-let msalInstance;
+let msalInstance = null;
 let userAccount = null;
 
-// Consolidated function to update UI and load OneDrive files after a successful login
+// Update UI on login
 function handleLoginResponse(account) {
     userAccount = account;
     if (userAccount) {
@@ -37,107 +37,101 @@ function handleLoginResponse(account) {
     }
 }
 
-// Initialize the MSAL authentication module
+// Updated initialization logic
 function initializeAuth() {
     msalInstance = new msal.PublicClientApplication(msalConfig);
 
-    // Check if there's an already logged-in user
-    const accounts = msalInstance.getAllAccounts();
-    if (accounts.length > 0) {
-        handleLoginResponse(accounts[0]);
-    }
-
-    // Process any redirect response
+    // First process the redirect result BEFORE checking accounts
     msalInstance.handleRedirectPromise()
-        .then(response => {
-            if (response) {
+        .then(async (response) => {
+            if (response && response.account) {
+                console.log("[Auth] Completed redirect login.");
                 handleLoginResponse(response.account);
+
+                // After a redirect login, acquire a fresh token + start data load
+                try {
+                    const token = await getAccessToken();
+                    console.log("[Auth] Token acquired after redirect login.");
+                    await dataLoader.processFiles();
+                    window.reportsReady = true;
+                    document.dispatchEvent(new Event("reports-ready"));
+                } catch (err) {
+                    console.error("[Auth] Failed token request after redirect login:", err);
+                }
+                return;
+            }
+
+            // No redirect happened — normal startup
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length > 0) {
+                console.log("[Auth] Existing account restored.");
+                handleLoginResponse(accounts[0]);
+            } else {
+                console.log("[Auth] No existing account; waiting for user to sign in.");
             }
         })
-        .catch(error => {
-            console.error("Error during authentication:", error);
+        .catch((error) => {
+            console.error("Error during redirect processing:", error);
         });
 }
 
-// Sign in using redirect
+/**
+ * Sign-in using redirect
+ */
 async function signIn() {
-    try {
-        // Use loginRedirect instead of loginPopup
-        await msalInstance.loginRedirect({ scopes: graphScopes });
-        // The page will now reload, so no code below this line needs to run
-    } catch (error) {
-        console.error("Sign-in error:", error);
-        throw error;
-    }
+    console.log("[SignIn] Redirecting to Microsoft login...");
+    await msalInstance.loginRedirect({ scopes: graphScopes });
 }
 
-
-// Sign out and clear the user session
+/**
+ * Sign-out using redirect
+ */
 function signOut() {
-    if (msalInstance) {
-        const accounts = msalInstance.getAllAccounts();
-        
-        // 1. Determine which account to sign out. 
-        //    Use the global userAccount if set, otherwise fallback to the first account found.
-        const accountToLogout = userAccount || (accounts.length > 0 ? accounts[0] : null);
+    if (!msalInstance) return;
 
-        if (accountToLogout) {
-            console.log(`[signOut] Initiating logoutRedirect for: ${accountToLogout.username}`);
-            
-            // 2. Clear local storage/session data immediately
-            clearMSALStorage();
-            UIrenderer.updateUIForLoggedOutUser();
+    const accounts = msalInstance.getAllAccounts();
+    const accountToLogout = userAccount || (accounts.length > 0 ? accounts[0] : null);
 
-            // 3. Redirect the browser to the Microsoft logout endpoint
-            //    This replaces the 'logoutPopup' loop.
-            msalInstance.logoutRedirect({
-                account: accountToLogout,
-                postLogoutRedirectUri: msalConfig.auth.redirectUri
-            });
-        } else {
-            // Edge case: No MSAL accounts found, just clean up locally
-            console.log('[signOut] No MSAL accounts found to log out. Cleaning local storage.');
-            clearMSALStorage();
-            UIrenderer.updateUIForLoggedOutUser();
-        }
-    } else {
-        console.warn("[signOut] MSAL instance was not initialized.");
+    clearMSALStorage();
+    UIrenderer.updateUIForLoggedOutUser();
+
+    if (accountToLogout) {
+        msalInstance.logoutRedirect({
+            account: accountToLogout,
+            postLogoutRedirectUri: msalConfig.auth.redirectUri
+        });
     }
-
-    userAccount = null;
 }
-  
+
 function clearMSALStorage() {
-    console.log("[clearMSALStorage] Clearing MSAL caches and storages.");
     sessionStorage.clear();
     localStorage.clear();
+
     Object.keys(sessionStorage)
-      .filter(key => key.includes('msal'))
-      .forEach(key => sessionStorage.removeItem(key));
-  
+        .filter(k => k.includes("msal"))
+        .forEach(k => sessionStorage.removeItem(k));
+
     Object.keys(localStorage)
-      .filter(key => key.includes('msal'))
-      .forEach(key => localStorage.removeItem(key));
-  
-    console.log("[clearMSALStorage] All MSAL storage cleared.");
+        .filter(k => k.includes("msal"))
+        .forEach(k => localStorage.removeItem(k));
 }
-  
+
 /**
- * Acquires an access token for a specific set of scopes.
- * @param {string[]} scopes - An array of scopes to request for the token.
- * @returns {Promise<string>} The access token.
+ * Generic token acquisition: silent → redirect required
  */
 async function getScopedAccessToken(scopes) {
+    // Ensure we know the active account
     if (!userAccount) {
         const accounts = msalInstance.getAllAccounts();
         if (accounts.length > 0) {
             userAccount = accounts[0];
         } else {
-            throw new Error("User not logged in. Cannot acquire token.");
+            console.log("[Token] No user account found — redirecting to login...");
+            msalInstance.loginRedirect({ scopes });
+            return; // Browser leaves this page
         }
     }
 
-    // Try to get the token silently
     try {
         const tokenResponse = await msalInstance.acquireTokenSilent({
             scopes,
@@ -145,37 +139,30 @@ async function getScopedAccessToken(scopes) {
         });
         return tokenResponse.accessToken;
     } catch (error) {
-        console.warn("[getScopedAccessToken] Silent token acquisition failed.", error);
-            
+        console.warn("[Token] Silent acquisition failed — likely token expired.", error);
+
         if (error instanceof msal.InteractionRequiredAuthError) {
-            // This error means the user needs to sign in again explicitly
-            throw error;
+            console.log("[Token] Redirecting for reauthentication...");
+            msalInstance.acquireTokenRedirect({
+                scopes,
+                account: userAccount
+            });
+            return; // Browser redirects
         }
-        
+
         throw error;
     }
 }
 
-/**
- * Acquires an access token specifically for the Microsoft Graph API.
- * @returns {Promise<string>} The access token for MS Graph.
- */
+// Convenience wrappers
 async function getAccessToken() {
     return getScopedAccessToken(graphScopes);
 }
 
-/**
- * Acquires an access token for updating contacts via our backend API.
- * @returns {Promise<string>} The access token for the backend API.
- */
 async function getApiAccessToken() {
     return getScopedAccessToken([contactUpdateScope]);
 }
 
-/**
- * NEW: Acquires an access token for the LLM proxy via our backend API.
- * @returns {Promise<string>} The access token for the backend LLM feature.
- */
 async function getLLMAccessToken() {
     return getScopedAccessToken([companyResearchScope]);
 }
