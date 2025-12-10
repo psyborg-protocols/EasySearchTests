@@ -28,13 +28,35 @@ const ReportManager = {
 
   isDue(reportId) {
     const meta = this.statusMap[reportId];
-    if (!meta || !meta.interval || meta.interval === 'none') return false;
+    if (!meta) return false;
+
+    // 1. Check for Custom Schedule Override
+    if (meta.customNextRun) {
+        return Date.now() >= meta.customNextRun;
+    }
+
+    // 2. Fallback to Standard Interval Logic
+    if (!meta.interval || meta.interval === 'none') return false;
     if (!meta.lastRun) return true; // Never run, but has schedule
     
     const intervalMs = this.intervals[meta.interval]?.ms || 0;
     if (intervalMs === 0) return false;
 
     return (Date.now() - meta.lastRun) > intervalMs;
+  },
+
+  getNextDueDate(reportId) {
+      const meta = this.statusMap[reportId];
+      if (!meta) return null;
+
+      // Custom Schedule takes precedence for display
+      if (meta.customNextRun) return meta.customNextRun;
+      
+      if (!meta.interval || meta.interval === 'none') return null;
+      if (!meta.lastRun) return Date.now(); // Due now
+
+      const intervalMs = this.intervals[meta.interval]?.ms || 0;
+      return meta.lastRun + intervalMs;
   },
 
   updateBadge() {
@@ -64,24 +86,19 @@ const ReportManager = {
   async markRun(reportId) {
     // 1. Update State
     const meta = this.statusMap[reportId] || { id: reportId, interval: 'none' };
+    
     meta.lastRun = Date.now();
+    // Clear any custom schedule once the report is run, reverting to standard interval
+    if (meta.customNextRun) delete meta.customNextRun; 
+
     this.statusMap[reportId] = meta;
     await window.idbUtil.saveReportMeta(reportId, meta);
     
     // 2. Update Global Badge
     this.updateBadge();
 
-    // 3. Update DOM Elements specifically
-    const lastRunText = new Date(meta.lastRun).toLocaleDateString() + ' ' + new Date(meta.lastRun).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    
-    const lastRunEl = document.getElementById(`lastrun-${reportId}`);
-    if (lastRunEl) lastRunEl.textContent = lastRunText;
-
-    const statusEl = document.getElementById(`status-${reportId}`);
-    if (statusEl) statusEl.innerHTML = `<span class="badge bg-success ms-2">Current</span>`;
-
-    const cardEl = document.getElementById(`card-${reportId}`);
-    if (cardEl) cardEl.classList.remove('report-due');
+    // 3. Update Dashboard
+    this.renderDashboard();
   },
 
   async updateInterval(reportId, newInterval) {
@@ -92,6 +109,19 @@ const ReportManager = {
     
     this.updateBadge();
     this.renderDashboard();
+  },
+
+  async setCustomSchedule(reportId, timestamp) {
+      const meta = this.statusMap[reportId] || { id: reportId };
+      if (timestamp) {
+          meta.customNextRun = timestamp;
+      } else {
+          delete meta.customNextRun;
+      }
+      this.statusMap[reportId] = meta;
+      await window.idbUtil.saveReportMeta(reportId, meta);
+      this.updateBadge();
+      this.renderDashboard();
   },
 
   renderDashboard() {
@@ -105,8 +135,29 @@ const ReportManager = {
       const interval = meta.interval || 'none';
       
       const lastRunText = meta.lastRun 
-        ? new Date(meta.lastRun).toLocaleDateString() + ' ' + new Date(meta.lastRun).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        ? new Date(meta.lastRun).toLocaleDateString()
         : 'Never';
+
+      // Logic for "Next Due" display
+      const nextDueTs = this.getNextDueDate(mod.id);
+      let nextDueText = 'Manual';
+      let nextDueClass = 'text-muted';
+      
+      if (nextDueTs) {
+          const d = new Date(nextDueTs);
+          nextDueText = d.toLocaleDateString();
+          if (meta.customNextRun) {
+              nextDueText += ' (Scheduled)';
+              nextDueClass = 'text-primary fw-bold';
+          } else if (isDue) {
+              nextDueClass = 'text-danger fw-bold';
+              nextDueText = 'Now';
+          }
+      } else if (interval !== 'none') {
+          // Fallback if never run but has interval
+          nextDueClass = 'text-danger fw-bold';
+          nextDueText = 'Now';
+      }
 
       const statusBadge = isDue 
         ? `<span class="badge bg-danger ms-2">Due</span>` 
@@ -136,10 +187,22 @@ const ReportManager = {
                 </select>
             </div>
 
-            <div class="d-flex justify-content-between align-items-end mt-3">
+            <div class="d-flex justify-content-between align-items-end mt-2" style="font-size: 0.85rem;">
                 <div class="report-meta">
-                    <i class="far fa-clock me-1"></i> Last Run:<br>
-                    <strong id="lastrun-${mod.id}">${lastRunText}</strong>
+                    <div class="mb-1">
+                        <i class="far fa-clock me-1 text-muted"></i> Last: <strong>${lastRunText}</strong>
+                    </div>
+                    <div>
+                        <i class="far fa-calendar-alt me-1 text-muted"></i> Next: 
+                        <span class="position-relative d-inline-block">
+                            <span class="${nextDueClass}" style="cursor:pointer; border-bottom:1px dotted #999" title="Click to schedule start date">
+                                ${nextDueText}
+                            </span>
+                            <!-- Invisible date input overlay -->
+                            <input type="date" class="next-run-input" data-id="${mod.id}" 
+                                   style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+                        </span>
+                    </div>
                 </div>
                 <button class="btn btn-primary btn-sm run-report-btn" data-id="${mod.id}">
                     <i class="fas fa-play me-1"></i> Run
@@ -157,12 +220,47 @@ const ReportManager = {
       grid.appendChild(div);
     });
 
+    // --- Attach Listeners ---
+
+    // 1. Interval Select
     document.querySelectorAll('.interval-select').forEach(sel => {
         sel.addEventListener('change', (e) => {
             this.updateInterval(e.target.dataset.id, e.target.value);
         });
     });
 
+    // 2. Custom Schedule Input
+    document.querySelectorAll('.next-run-input').forEach(inp => {
+        // Pre-fill value so picker opens on current schedule
+        const id = inp.dataset.id;
+        const ts = this.getNextDueDate(id);
+        if (ts) {
+            const d = new Date(ts);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            inp.value = `${yyyy}-${mm}-${dd}`;
+        }
+
+        inp.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (val) {
+                // Parse as local date to start of day
+                const [y, m, d] = val.split('-').map(Number);
+                const dateObj = new Date(y, m - 1, d); // Local Midnight
+                this.setCustomSchedule(e.target.dataset.id, dateObj.getTime());
+            } else {
+                // User cleared the input
+                this.setCustomSchedule(e.target.dataset.id, null);
+            }
+        });
+        
+        // Add click listener to prevent event bubbling if needed, 
+        // though default behavior usually works fine with opacity overlay
+        inp.addEventListener('click', (e) => e.stopPropagation());
+    });
+
+    // 3. Run Button
     document.querySelectorAll('.run-report-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             this.runReport(e.target.closest('button').dataset.id);
@@ -189,9 +287,7 @@ const ReportManager = {
             const genText = itemTarget.querySelector('.generating-text');
             if (genText) genText.remove();
 
-            // *** CRITICAL CHANGE ***
-            // Removed automatic await this.markRun(reportId);
-            // Instead, we attach the listener to the download button now.
+            // Mark run on download click
             const downloadBtn = itemTarget.querySelector('.report-download-btn');
             if (downloadBtn) {
                 downloadBtn.addEventListener('click', () => {
