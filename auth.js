@@ -1,17 +1,23 @@
 // ---------------------------------------------
-// auth.js — Redirect-based MSAL flow (auto-redirect ONCE)
+// auth.js — Redirect-based MSAL flow (safe auto-login-once)
+// Goals:
+//  - No infinite redirect loops
+//  - Minimal user interaction: auto-redirect once when a token is needed
+//  - Keep deep-link restore behavior
 // ---------------------------------------------
 
 const msalConfig = {
-  auth: {
-    clientId: "26f834bc-3365-486c-95ff-1a45a24488b5",
-    authority: "https://login.microsoftonline.com/b4b6e20e-14bd-4419-bf0a-c7d2c948c513",
-    redirectUri: "https://psyborg-protocols.github.io/EasySearchTests/",
-  },
-  cache: {
-    cacheLocation: "localStorage",
-    storeAuthStateInCookie: true,
-  },
+    auth: {
+        clientId: "26f834bc-3365-486c-95ff-1a45a24488b5",
+        authority:
+            "https://login.microsoftonline.com/b4b6e20e-14bd-4419-bf0a-c7d2c948c513",
+        redirectUri: "https://psyborg-protocols.github.io/EasySearchTests/",
+        // navigateToLoginRequestUrl defaults to true; we also do our own deep-link restore
+    },
+    cache: {
+        cacheLocation: "localStorage",
+        storeAuthStateInCookie: true
+    }
 };
 
 // Update this to your actual shared mailbox address
@@ -23,46 +29,83 @@ const companyResearchScope = `api://${msalConfig.auth.clientId}/Company.Research
 
 // Graph scopes - includes Mail.Send for shared mailbox
 const graphScopes = [
-  "User.Read",
-  "Files.ReadWrite.All",
-  "Sites.Read.All",
-  "OrgContact.Read.All",
-  "Mail.Send.Shared",
+    "User.Read",
+    "Files.ReadWrite.All",
+    "Sites.Read.All",
+    "OrgContact.Read.All",
+    "Mail.Send.Shared"
 ];
 
 let msalInstance = null;
 let userAccount = null;
 let authReady = false;
 
-const AUTOLOGIN_FLAG = "msal_autologin_attempted";
+// One-per-tab guards to prevent redirect loops
+const AUTOLOGIN_ATTEMPTED_KEY = "msal_autologin_attempted_v1";
+const REDIRECT_IN_PROGRESS_KEY = "msal_redirect_in_progress_v1";
 
 // ------------------------------
-// Helpers
+// Small helpers
 // ------------------------------
 
-function isInAuthRedirectCallback() {
-  const h = window.location.hash || "";
-  // code/state/error show up in the hash for redirect responses in SPAs
-  return h.includes("code=") || h.includes("state=") || h.includes("error=");
+function isRedirectCallbackUrl() {
+    // If the URL has an auth response in the hash, we're in the middle of the redirect round-trip.
+    const h = window.location.hash || "";
+    return h.includes("code=") || h.includes("state=") || h.includes("error=");
 }
 
 function setActiveAccount(account) {
-  userAccount = account || null;
-  if (msalInstance && userAccount) {
-    msalInstance.setActiveAccount(userAccount);
-  }
+    userAccount = account || null;
+
+    if (msalInstance && userAccount && typeof msalInstance.setActiveAccount === "function") {
+        msalInstance.setActiveAccount(userAccount);
+    }
+
+    if (userAccount && window.UIrenderer &&
+        typeof UIrenderer.updateUIForLoggedInUser === "function") {
+        UIrenderer.updateUIForLoggedInUser();
+    }
 }
 
-function handleLoginResponse(account) {
-  setActiveAccount(account);
+function clearAutoLoginGuardsOnSuccess() {
+    try {
+        sessionStorage.removeItem(AUTOLOGIN_ATTEMPTED_KEY);
+        sessionStorage.removeItem(REDIRECT_IN_PROGRESS_KEY);
+    } catch (_) {}
+}
 
-  if (
-    userAccount &&
-    window.UIrenderer &&
-    typeof UIrenderer.updateUIForLoggedInUser === "function"
-  ) {
-    UIrenderer.updateUIForLoggedInUser();
-  }
+function markRedirectInProgress() {
+    try {
+        sessionStorage.setItem(REDIRECT_IN_PROGRESS_KEY, "1");
+    } catch (_) {}
+}
+
+function clearRedirectInProgress() {
+    try {
+        sessionStorage.removeItem(REDIRECT_IN_PROGRESS_KEY);
+    } catch (_) {}
+}
+
+function hasTriedAutoLogin() {
+    try {
+        return sessionStorage.getItem(AUTOLOGIN_ATTEMPTED_KEY) === "1";
+    } catch (_) {
+        return false;
+    }
+}
+
+function markTriedAutoLogin() {
+    try {
+        sessionStorage.setItem(AUTOLOGIN_ATTEMPTED_KEY, "1");
+    } catch (_) {}
+}
+
+function isRedirectInProgress() {
+    try {
+        return sessionStorage.getItem(REDIRECT_IN_PROGRESS_KEY) === "1";
+    } catch (_) {
+        return false;
+    }
 }
 
 // ------------------------------
@@ -70,45 +113,48 @@ function handleLoginResponse(account) {
 // ------------------------------
 
 async function initializeAuth() {
-  msalInstance = new msal.PublicClientApplication(msalConfig);
+    if (authReady && msalInstance) return;
 
-  try {
-    // 1) Always finish redirect processing first
-    const response = await msalInstance.handleRedirectPromise();
+    msalInstance = new msal.PublicClientApplication(msalConfig);
 
-    if (response?.account) {
-      console.log("[Auth] Completed redirect login.");
-      handleLoginResponse(response.account);
+    // Always process redirect first.
+    try {
+        const response = await msalInstance.handleRedirectPromise();
 
-      // Success: clear the auto-login guard
-      sessionStorage.removeItem(AUTOLOGIN_FLAG);
+        // We have returned from a redirect round trip (success or failure)
+        clearRedirectInProgress();
 
-      // Restore original deep link if we saved one pre-login
-      const postLoginUrl = sessionStorage.getItem("postLoginUrl");
-      if (postLoginUrl) {
-        sessionStorage.removeItem("postLoginUrl");
-        window.location.replace(postLoginUrl);
-        return;
-      }
+        if (response && response.account) {
+            console.log("[Auth] Completed redirect login.");
+            setActiveAccount(response.account);
 
-      authReady = true;
-      return;
+            // Restore original deep link if we saved one pre-login
+            const postLoginUrl = sessionStorage.getItem("postLoginUrl");
+            if (postLoginUrl) {
+                sessionStorage.removeItem("postLoginUrl");
+                // Replace so we don't clutter history
+                window.location.replace(postLoginUrl);
+                return;
+            }
+
+            clearAutoLoginGuardsOnSuccess();
+        } else {
+            // No fresh redirect result — try to restore an existing session
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length > 0) {
+                console.log("[Auth] Existing account restored.");
+                setActiveAccount(accounts[0]);
+            } else {
+                console.log("[Auth] No existing account; waiting for sign-in.");
+            }
+        }
+    } catch (error) {
+        // If redirect failed, clear in-progress so we don't get stuck.
+        clearRedirectInProgress();
+        console.error("[Auth] Error during redirect processing:", error);
+    } finally {
+        authReady = true;
     }
-
-    // 2) No fresh redirect result — try to restore an existing session
-    const accounts = msalInstance.getAllAccounts();
-    if (accounts.length > 0) {
-      console.log("[Auth] Existing account restored.");
-      handleLoginResponse(accounts[0]);
-    } else {
-      console.log("[Auth] No existing account; waiting for user to sign in.");
-    }
-
-    authReady = true;
-  } catch (error) {
-    console.error("[Auth] Error during redirect processing:", error);
-    authReady = true; // allow app to continue; user can click sign-in
-  }
 }
 
 // ------------------------------
@@ -116,132 +162,147 @@ async function initializeAuth() {
 // ------------------------------
 
 async function signIn() {
-  if (!msalInstance || !authReady) {
-    console.warn("[Auth] signIn called before auth ready; initializing now.");
-    await initializeAuth();
-  }
+    if (!msalInstance || !authReady) {
+        console.warn("[Auth] signIn called before initializeAuth; initializing now.");
+        await initializeAuth();
+    }
 
-  console.log("[SignIn] Redirecting to Microsoft login...");
+    console.log("[SignIn] Redirecting to Microsoft login...");
 
-  // Save current URL (supports deep links with hash/query)
-  try {
-    sessionStorage.setItem("postLoginUrl", window.location.href);
-  } catch (e) {
-    console.warn("[Auth] Could not persist post-login URL:", e);
-  }
+    // Save current URL (supports deep links with hash/query)
+    try {
+        sessionStorage.setItem("postLoginUrl", window.location.href);
+    } catch (e) {
+        console.warn("[Auth] Could not persist post-login URL:", e);
+    }
 
-  // User-initiated login should reset the guard
-  sessionStorage.removeItem(AUTOLOGIN_FLAG);
-
-  await msalInstance.loginRedirect({ scopes: graphScopes });
+    markRedirectInProgress();
+    await msalInstance.loginRedirect({ scopes: graphScopes });
 }
 
 function signOut() {
-  if (!msalInstance) return;
+    if (!msalInstance) return;
 
-  const accounts = msalInstance.getAllAccounts();
-  const accountToLogout = userAccount || (accounts.length > 0 ? accounts[0] : null);
+    const accounts = msalInstance.getAllAccounts();
+    const accountToLogout =
+        userAccount || (accounts.length > 0 ? accounts[0] : null);
 
-  if (
-    window.UIrenderer &&
-    typeof UIrenderer.updateUIForLoggedOutUser === "function"
-  ) {
-    UIrenderer.updateUIForLoggedOutUser();
-  }
+    if (window.UIrenderer &&
+        typeof UIrenderer.updateUIForLoggedOutUser === "function") {
+        UIrenderer.updateUIForLoggedOutUser();
+    }
 
-  if (accountToLogout) {
-    msalInstance.logoutRedirect({
-      account: accountToLogout,
-      postLogoutRedirectUri: msalConfig.auth.redirectUri,
-    });
-  } else {
-    console.log("[Auth] No account to log out.");
-  }
+    if (accountToLogout) {
+        msalInstance.logoutRedirect({
+            account: accountToLogout,
+            postLogoutRedirectUri: msalConfig.auth.redirectUri
+        });
+    } else {
+        console.log("[Auth] No account to log out.");
+    }
 }
 
 // ------------------------------
-// Token acquisition (auto-redirect ONCE)
+// Token acquisition
+//  - By default, will auto-redirect ONCE per tab session if interaction is required.
+//  - This prevents the "stuck" state without causing infinite loops.
 // ------------------------------
 
-async function getScopedAccessToken(scopes, opts = {}) {
-  const { autoRedirectOnce = false, reason = "unspecified" } = opts;
+async function getScopedAccessToken(scopes, options = {}) {
+    const {
+        autoRedirectOnce = true,       // minimal interaction
+        redirectScopes = scopes,       // what to request interactively
+        reason = "token"               // for logging
+    } = options;
 
-  if (!msalInstance) {
-    console.warn("[Token] msalInstance not initialized.");
-    return null;
-  }
-
-  if (!authReady) {
-    console.warn("[Token] Auth not ready yet; returning null.");
-    return null;
-  }
-
-  // Ensure we know the active account
-  if (!userAccount) {
-    const accounts = msalInstance.getAllAccounts();
-    if (accounts.length > 0) {
-      setActiveAccount(accounts[0]);
-    } else {
-      console.log("[Token] No logged-in user; returning null.");
-      return null; // <- no redirect here
+    if (!msalInstance || !authReady) {
+        console.warn("[Token] Auth not ready; initializing.");
+        await initializeAuth();
     }
-  }
 
-  try {
-    const tokenResponse = await msalInstance.acquireTokenSilent({
-      scopes,
-      account: userAccount,
-    });
+    if (!msalInstance) {
+        console.warn("[Token] msalInstance not initialized.");
+        return null;
+    }
 
-    // Success: clear auto-login guard
-    sessionStorage.removeItem(AUTOLOGIN_FLAG);
+    // Determine account
+    let account =
+        (typeof msalInstance.getActiveAccount === "function" ? msalInstance.getActiveAccount() : null) ||
+        userAccount ||
+        (msalInstance.getAllAccounts()[0] || null);
 
-    return tokenResponse.accessToken;
-  } catch (error) {
-    console.warn("[Token] Silent acquisition failed.", { reason, error });
-
-    if (error instanceof msal.InteractionRequiredAuthError) {
-      // Prevent redirect loops:
-      // - never redirect while processing a redirect response
-      // - only redirect once per page-load/session
-      if (autoRedirectOnce) {
-        const attempted = sessionStorage.getItem(AUTOLOGIN_FLAG) === "1";
-        if (!attempted && !isInAuthRedirectCallback()) {
-          console.log(
-            `[Token] Interaction required; auto-redirecting ONCE (reason=${reason}).`
-          );
-          sessionStorage.setItem(AUTOLOGIN_FLAG, "1");
-
-          try {
-            sessionStorage.setItem("postLoginUrl", window.location.href);
-          } catch (_) {}
-
-          await msalInstance.loginRedirect({ scopes });
-          return null; // navigation happens
+    if (!account) {
+        console.log("[Token] No logged-in user.");
+        if (autoRedirectOnce) {
+            await maybeAutoRedirect(redirectScopes, reason);
         }
-      }
-
-      console.log(
-        "[Token] Interaction required; returning null so caller/UI can decide what to do."
-      );
-      return null;
+        return null;
     }
 
-    throw error;
-  }
+    // Keep active account aligned
+    if (!userAccount || (userAccount.homeAccountId !== account.homeAccountId)) {
+        setActiveAccount(account);
+    }
+
+    try {
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+            scopes,
+            account
+        });
+        return tokenResponse.accessToken;
+    } catch (error) {
+        console.warn("[Token] Silent acquisition failed.", error);
+
+        if (error instanceof msal.InteractionRequiredAuthError) {
+            console.log("[Token] Interaction required.");
+            if (autoRedirectOnce) {
+                await maybeAutoRedirect(redirectScopes, reason);
+            }
+            return null;
+        }
+
+        throw error;
+    }
+}
+
+async function maybeAutoRedirect(scopesForRedirect, reason) {
+    // Never redirect if we are already in the callback hash or a redirect is already underway.
+    if (isRedirectCallbackUrl() || isRedirectInProgress()) {
+        console.log(`[Token] Suppressing auto-redirect (${reason}): redirect callback/in-progress.`);
+        return;
+    }
+
+    // Only once per tab session, to prevent loops.
+    if (hasTriedAutoLogin()) {
+        console.log(`[Token] Suppressing auto-redirect (${reason}): already attempted once this session.`);
+        return;
+    }
+
+    markTriedAutoLogin();
+
+    // Save deep link and redirect
+    try {
+        sessionStorage.setItem("postLoginUrl", window.location.href);
+    } catch (e) {
+        console.warn("[Auth] Could not persist post-login URL:", e);
+    }
+
+    console.log(`[Token] Auto-redirecting to sign-in (${reason})...`);
+    markRedirectInProgress();
+    await msalInstance.loginRedirect({ scopes: scopesForRedirect });
 }
 
 // Convenience wrappers
-async function getAccessToken(opts) {
-  return getScopedAccessToken(graphScopes, opts);
+async function getAccessToken(options = {}) {
+    return getScopedAccessToken(graphScopes, { ...options, redirectScopes: graphScopes });
 }
 
-async function getApiAccessToken(opts) {
-  return getScopedAccessToken([contactUpdateScope], opts);
+async function getApiAccessToken(options = {}) {
+    return getScopedAccessToken([contactUpdateScope], { ...options, redirectScopes: [contactUpdateScope] });
 }
 
-async function getLLMAccessToken(opts) {
-  return getScopedAccessToken([companyResearchScope], opts);
+async function getLLMAccessToken(options = {}) {
+    return getScopedAccessToken([companyResearchScope], { ...options, redirectScopes: [companyResearchScope] });
 }
 
 // ------------------------------
@@ -254,49 +315,54 @@ async function getLLMAccessToken(opts) {
  * otherwise defaults to 'me'.
  */
 async function sendMail(subject, htmlBody, toEmail) {
-  const token = await getAccessToken({ autoRedirectOnce: true, reason: "send_mail" });
+    const token = await getAccessToken({ autoRedirectOnce: true, reason: "sendMail" });
 
-  if (!token) {
-    throw new Error("Not authenticated; please sign in before sending email.");
-  }
+    if (!token) {
+        throw new Error("Not authenticated; please sign in and try again.");
+    }
 
-  const mailData = {
-    message: {
-      subject: subject,
-      body: {
-        contentType: "HTML",
-        content: htmlBody,
-      },
-      toRecipients: [
-        {
-          emailAddress: {
-            address: toEmail,
-          },
+    const mailData = {
+        message: {
+            subject: subject,
+            body: {
+                contentType: "HTML",
+                content: htmlBody
+            },
+            toRecipients: [
+                {
+                    emailAddress: {
+                        address: toEmail
+                    }
+                }
+            ]
         },
-      ],
-    },
-    saveToSentItems: true,
-  };
+        saveToSentItems: true
+    };
 
-  // Try sending from shared mailbox first
-  let endpoint = `https://graph.microsoft.com/v1.0/users/${SHARED_MAILBOX_ADDRESS}/sendMail`;
+    // Try sending from shared mailbox first
+    let endpoint = `https://graph.microsoft.com/v1.0/users/${SHARED_MAILBOX_ADDRESS}/sendMail`;
 
-  // Fallback logic for development environments where the constant might not be set
-  if (!SHARED_MAILBOX_ADDRESS.includes("brandywinematerials.com")) {
-    endpoint = `https://graph.microsoft.com/v1.0/me/sendMail`;
-  }
+    // Fallback logic for development environments where the constant might not be set
+    if (!SHARED_MAILBOX_ADDRESS.includes("brandywinematerials.com")) {
+        endpoint = `https://graph.microsoft.com/v1.0/me/sendMail`;
+    }
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(mailData),
-  });
+    try {
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(mailData)
+        });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Email Send Failed: ${errorText}`);
-  }
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Email Send Failed: ${errorText}`);
+        }
+    } catch (error) {
+        console.error("Error sending email:", error);
+        throw error;
+    }
 }
