@@ -70,12 +70,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         console.error("[Startup] Cache load error:", err);
     }
 
-    // ------------------------------
-    // OPTIONAL: Try background refresh
-    //  - If a token is available, refresh quietly.
-    //  - If not, we allow ONE auto-login redirect (guarded in auth.js).
-    //    This prevents "stuck" states after refresh-token expiry.
-    // ------------------------------
     try {
         const token = await getAccessToken({
             autoRedirectOnce: true,
