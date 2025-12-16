@@ -18,7 +18,7 @@ const CRMService = {
 
     // --- Helpers ---
     async _graphRequest(url, method = "GET", body = null, extraHeaders = null) {
-        const token = await this.getAccessToken(); // whatever you already do
+        const token = await getAccessToken(); 
         const headers = {
             "Authorization": `Bearer ${token}`,
             "Accept": "application/json",
