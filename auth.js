@@ -31,9 +31,10 @@ const companyResearchScope = `api://${msalConfig.auth.clientId}/Company.Research
 const graphScopes = [
     "User.Read",
     "Files.ReadWrite.All",
-    "Sites.Read.All",
+    "Sites.ReadWrite.All",
     "OrgContact.Read.All",
-    "Mail.Send.Shared"
+    "Mail.Send.Shared",
+    "Mail.Read"
 ];
 
 let msalInstance = null;

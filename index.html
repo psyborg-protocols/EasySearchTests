@@ -695,6 +695,9 @@
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="order-sample-tab" data-bs-toggle="tab" data-bs-target="#orderSampleView" type="button" role="tab" aria-controls="orderSampleView" aria-selected="false">Recent Activity</button>
       </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="crm-tab" data-bs-toggle="tab" data-bs-target="#crmView" type="button" role="tab">Leads (CRM)</button>
+      </li>      
     </ul>
 
     <div class="card bg-white p-4 rounded shadow">
@@ -1055,6 +1058,60 @@
           </div>
 
         </div>
+
+        <!-- CRM (Leads) View -->
+        <div class="tab-pane fade" id="crmView" role="tabpanel" aria-labelledby="crm-tab">
+          <div class="row g-0" style="height: calc(100vh - 160px); min-height: 600px;">
+            <!-- Left: Lead List -->
+            <div class="col-md-3 border-end bg-white d-flex flex-column h-100">
+              <div class="p-3 border-bottom bg-light">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">My Leads</h5>
+                    <div class="small text-muted"><i class="fas fa-sync-alt" style="cursor:pointer;" onclick="CRMView.refreshList()"></i></div>
+                </div>
+                <!-- Owner Filter -->
+                <select id="crmOwnerFilter" class="form-select form-select-sm mb-2">
+                    <option value="me">My Leads</option>
+                    <option value="all">All Leads</option>
+                </select>
+                <!-- Search -->
+                <input type="text" id="crmSearch" class="form-control form-control-sm" placeholder="Filter leads...">
+              </div>
+              
+              <!-- Scrollable Lead List -->
+              <div id="crmLeadList" class="flex-grow-1 overflow-auto p-2">
+                  <div class="text-center mt-5 text-muted"><div class="spinner-border text-primary"></div></div>
+              </div>
+            </div>
+
+            <!-- Right: Timeline / Details -->
+            <div class="col-md-9 bg-light h-100 d-flex flex-column position-relative">
+              
+              <!-- Timeline Header -->
+              <div id="crmDetailHeader" class="p-3 bg-white border-bottom shadow-sm d-flex justify-content-between align-items-center" style="display:none !important;">
+                  <div>
+                    <h4 class="mb-0" id="crmDetailTitle">Select a Lead</h4>
+                    <div class="small text-muted" id="crmDetailCompany"></div>
+                  </div>
+                  <div class="d-flex gap-2">
+                      <span id="crmDetailStatus" class="badge bg-secondary align-self-center"></span>
+                      <button class="btn btn-outline-primary btn-sm" onclick="CRMView.openAddNoteModal()">
+                          <i class="fas fa-sticky-note me-1"></i> Add Note
+                      </button>
+                  </div>
+              </div>
+
+              <!-- Timeline Content -->
+              <div id="crmTimeline" class="flex-grow-1 overflow-auto p-4" style="background: #f8f9fa;">
+                  <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted opacity-50">
+                    <i class="fas fa-hand-pointer fa-3x mb-3"></i>
+                    <h5>Select a lead to view timeline</h5>
+                  </div>
+              </div>
+
+            </div>
+          </div>
+        </div>     
         
       </div>
     </div>
@@ -1252,6 +1309,8 @@
   <script src="providers/perigreeProvider.js"></script>
   <script src="providers/ellsworthProvider.js"></script>
   <script src="uiRenderer.js"></script>
+  <script src="crmService.js"></script>
+  <script src="crmView.js"></script>
   <script src="app.js"></script>
   <script>document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
     new bootstrap.Tooltip(el);
