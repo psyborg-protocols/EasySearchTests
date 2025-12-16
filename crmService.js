@@ -64,7 +64,7 @@ const CRMService = {
         });
     },
 
-    // --- Timeline Data (The "Secret Sauce") ---
+    // --- Timeline Data ---
     async getFullTimeline(lead) {
         this.currentLead = lead;
         const leadId = lead.LeadId;
@@ -90,20 +90,17 @@ const CRMService = {
         }));
         
         // 4. Fetch Emails (Only if user owns the lead, per privacy/access logic)
+
         if (anchorsData.value.length > 0) {
-        // ---- helpers ----
         const safeArr = (v) => Array.isArray(v) ? v : [];
-
         const toLower = (s) => (s || "").toLowerCase();
-
         const addrList = (recips) =>
             safeArr(recips)
             .map(r => toLower(r?.emailAddress?.address))
             .filter(Boolean);
 
-        // Optional: pull all pages, capped to keep it safe.
-        // If you don't want paging, replace with a single request and remove @odata.nextLink loop.
-        const fetchAllPages = async (firstUrl, extraHeaders, maxPages = 6) => {
+        // Optional paging helper (keeps concurrency; avoids missing results if >$top)
+        const fetchAllPages = async (firstUrl, extraHeaders = null, maxPages = 4) => {
             const out = [];
             let url = firstUrl;
             for (let page = 0; url && page < maxPages; page++) {
@@ -114,16 +111,6 @@ const CRMService = {
             return out;
         };
 
-        // Fetch "my" email once (concurrent across anchors)
-        const myEmailPromise = this._graphRequest(
-            "https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName"
-        )
-            .then(me => toLower(me?.mail || me?.userPrincipalName))
-            .catch(e => {
-            console.warn("[CRM] Error fetching /me for mailbox address", e);
-            return ""; // fall back: we can still do inbox-from-third-party + sentitems-recipient match
-            });
-
         const emailPromises = anchorsData.value.map(async (anchor) => {
             const a = anchor.fields;
             const fetchPromises = [];
@@ -133,12 +120,12 @@ const CRMService = {
             const filter = `conversationId eq '${a.ConversationId}'`;
             const url =
                 `https://graph.microsoft.com/v1.0/me/messages` +
-                `?$select=id,subject,receivedDateTime,bodyPreview,from,isRead` +
+                `?$select=id,subject,receivedDateTime,bodyPreview,from,isRead,conversationId` +
                 `&$top=25&$filter=${encodeURIComponent(filter)}`;
 
             fetchPromises.push(
                 this._graphRequest(url)
-                .then(data => data.value || [])
+                .then(d => d.value || [])
                 .catch(e => {
                     console.warn(`[CRM] Error fetching emails by ConversationId`, e);
                     return [];
@@ -146,33 +133,22 @@ const CRMService = {
             );
             }
 
-            // B) Fetch by Email + Date Window (server-side filter + client-side recipient match)
+            // B) Fetch by 3rd-party Email + Date Window (no $search; $filter + client-side recipient match)
             if (a.Email) {
             const thirdParty = toLower(a.Email);
 
-            // Compute start date (default last 30 days)
             let startDate = a.StartTrackingFrom ? new Date(a.StartTrackingFrom) : null;
             if (!startDate || isNaN(startDate.getTime())) {
                 startDate = new Date();
                 startDate.setDate(startDate.getDate() - 30);
             }
-
-            // Use ISO for Graph date compare
             const sinceIso = startDate.toISOString();
 
-            // Inbox: server-side filter only on from + date (recipients not filterable)
-            // We'll fetch: messages received >= sinceIso AND (from == thirdParty OR from == me)
-            const inboxPromise = (async () => {
-                const myEmail = await myEmailPromise; // resolves once globally
-                const fromParts = [
-                `from/emailAddress/address eq '${thirdParty}'`,
-                ...(myEmail ? [`from/emailAddress/address eq '${myEmail}'`] : [])
-                ];
-
+            // B1) Inbox: server-side filter on FROM + date
+            {
                 const filter =
-                `receivedDateTime ge ${sinceIso} and (` +
-                fromParts.join(" or ") +
-                `)`;
+                `receivedDateTime ge ${sinceIso} and ` +
+                `from/emailAddress/address eq '${thirdParty}'`;
 
                 const url =
                 `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages` +
@@ -180,51 +156,48 @@ const CRMService = {
                 `&$orderby=receivedDateTime desc` +
                 `&$top=50&$filter=${encodeURIComponent(filter)}`;
 
-                try {
-                // if you don’t want paging, replace with: (await this._graphRequest(url)).value || []
-                return await fetchAllPages(url, null, 4);
-                } catch (e) {
-                console.warn(`[CRM] Error fetching inbox emails by from/date filter`, e);
-                return [];
-                }
-            })();
+                fetchPromises.push(
+                fetchAllPages(url, null, 4).catch(e => {
+                    console.warn(`[CRM] Error fetching inbox emails by from/date filter`, e);
+                    return [];
+                })
+                );
+            }
 
-            fetchPromises.push(inboxPromise);
-
-            // Sent Items: server-side filter by date only; client-side filter by to/cc == thirdParty
-            const sentPromise = (async () => {
+            // B2) Sent Items: server-side date only; client-side filter on TO/CC contains 3rd-party
+            {
                 const filter = `receivedDateTime ge ${sinceIso}`;
+
                 const url =
                 `https://graph.microsoft.com/v1.0/me/mailFolders/sentitems/messages` +
                 `?$select=id,subject,receivedDateTime,bodyPreview,from,toRecipients,ccRecipients,isRead,conversationId` +
                 `&$orderby=receivedDateTime desc` +
                 `&$top=50&$filter=${encodeURIComponent(filter)}`;
 
-                try {
-                const sentAll = await fetchAllPages(url, null, 4);
-                return sentAll.filter(m => {
-                    const to = addrList(m.toRecipients);
-                    const cc = addrList(m.ccRecipients);
-                    return to.includes(thirdParty) || cc.includes(thirdParty);
-                });
-                } catch (e) {
-                console.warn(`[CRM] Error fetching sent emails by date (client-side recipient filter)`, e);
-                return [];
-                }
-            })();
-
-            fetchPromises.push(sentPromise);
+                fetchPromises.push(
+                fetchAllPages(url, null, 4)
+                    .then(sentAll =>
+                    sentAll.filter(m => {
+                        const to = addrList(m.toRecipients);
+                        const cc = addrList(m.ccRecipients);
+                        return to.includes(thirdParty) || cc.includes(thirdParty);
+                    })
+                    )
+                    .catch(e => {
+                    console.warn(`[CRM] Error fetching sent emails by date (client-side recipient filter)`, e);
+                    return [];
+                    })
+                );
+            }
             }
 
-            // Await all parallel requests for this anchor
+            // Wait for all parallel requests for this anchor
             const results = await Promise.all(fetchPromises);
             const rawMessages = results.flat();
 
-            // De-dupe by message id (ConversationId fetch can overlap with inbox/sent)
+            // De-dupe (ConversationId fetch can overlap with inbox/sent)
             const byId = new Map();
-            for (const m of rawMessages) {
-            if (m?.id) byId.set(m.id, m);
-            }
+            for (const m of rawMessages) if (m?.id) byId.set(m.id, m);
             const deduped = [...byId.values()];
 
             // Normalize
@@ -243,6 +216,7 @@ const CRMService = {
         const emailResults = await Promise.all(emailPromises);
         emailResults.forEach(arr => timeline.push(...arr));
         }
+
 
         // 5. Sort DESC (Newest first)
         // Deduplication could be added here if multiple anchors catch the same email
