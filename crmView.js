@@ -1,10 +1,14 @@
 // ---------------------------------------------
 // crmView.js
 // Handles UI rendering for the CRM module
+// with enhanced Timeline UI and Animations
 // ---------------------------------------------
 
 const CRMView = {
     init() {
+        // Inject custom styles for the timeline once
+        this.injectStyles();
+
         // Listeners
         const crmTab = document.getElementById('crm-tab');
         if (crmTab) {
@@ -20,6 +24,39 @@ const CRMView = {
         if (searchInput) {
             searchInput.addEventListener('input', () => this.renderList());
         }
+    },
+
+    injectStyles() {
+        if (document.getElementById('crm-custom-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'crm-custom-styles';
+        style.innerHTML = `
+            /* Timeline Vertical Line */
+            .crm-timeline-container { position: relative; padding-left: 20px; }
+            .crm-timeline-container::before {
+                content: ''; position: absolute; top: 0; bottom: 0; left: 35px;
+                width: 2px; background: #e9ecef; z-index: 0;
+            }
+            /* Timeline Icon Wrapper */
+            .timeline-icon-wrapper {
+                position: relative; z-index: 1; width: 32px; height: 32px;
+                border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                background: #fff; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            /* Card Hover Effects */
+            .crm-lead-card:hover { transform: translateY(-2px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.08)!important; }
+            .timeline-card { transition: all 0.2s ease; cursor: pointer; }
+            .timeline-card:hover { border-color: #cbd5e1 !important; }
+            
+            /* Avatar Circle */
+            .avatar-circle {
+                width: 36px; height: 36px; border-radius: 50%; 
+                background: #3b82f6; color: white; display: flex; 
+                align-items: center; justify-content: center; 
+                font-weight: bold; font-size: 0.85rem; text-transform: uppercase;
+            }
+        `;
+        document.head.appendChild(style);
     },
 
     async refreshList() {
@@ -38,10 +75,8 @@ const CRMView = {
         } catch (e) {
             console.error(e);
             container.innerHTML = `
-                <div class="alert alert-danger m-3">
-                    <i class="fas fa-exclamation-circle me-2"></i>
-                    Error loading leads. <br>
-                    <small>${e.message}</small>
+                <div class="alert alert-danger m-3 small">
+                    <i class="fas fa-exclamation-circle me-1"></i> ${e.message}
                 </div>`;
         }
     },
@@ -55,9 +90,6 @@ const CRMView = {
 
         // 1. Filter
         if (filterOwner === 'me' && userAccount) {
-            // Loose comparison to catch "User Name" vs "user@domain.com" variations if needed,
-            // though standard Graph/SP usually returns display names. 
-            // We assume Owner field in SP is text matching display name or email.
             leads = leads.filter(l => 
                 (l.Owner || "").toLowerCase().includes(userAccount.username.toLowerCase()) || 
                 (l.Owner || "").toLowerCase().includes((userAccount.name || "").toLowerCase())
@@ -71,15 +103,15 @@ const CRMView = {
             );
         }
 
-        // 2. Sort (Last Activity DESC - newest on top)
+        // 2. Sort (Last Activity DESC)
         leads.sort((a, b) => new Date(b.LastActivityAt) - new Date(a.LastActivityAt));
 
         // 3. Render
         if (leads.length === 0) {
             container.innerHTML = `
-                <div class="text-center text-muted mt-5">
-                    <i class="fas fa-filter fa-2x mb-3 opacity-25"></i>
-                    <p>No leads found matching criteria.</p>
+                <div class="text-center text-muted mt-5 opacity-50">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <p class="small">No leads found.</p>
                 </div>`;
             return;
         }
@@ -89,36 +121,34 @@ const CRMView = {
             const daysSince = (Date.now() - lastActive) / (1000 * 60 * 60 * 24);
             const isStale = daysSince > 14;
             
-            // Stale Styling
-            // If stale: Red border left, red "Stale" badge.
-            // If fresh: Blue border left.
-            const borderClass = isStale ? 'border-danger' : 'border-primary';
-            const staleBadge = isStale ? '<span class="badge bg-danger ms-auto" style="font-size:0.65rem">Stale</span>' : '';
-            
-            // Status Badge Color
-            let statusColor = 'bg-secondary';
-            if (l.Status === 'In Progress') statusColor = 'bg-info text-dark';
-            if (l.Status === 'Quoted') statusColor = 'bg-warning text-dark';
-            if (l.Status === 'Closed') statusColor = 'bg-success';
+            // Generate initials for avatar
+            const initials = l.Title.substring(0, 2).toUpperCase();
+            const avatarBg = isStale ? '#ef4444' : '#3b82f6'; // Red if stale, Blue if active
+
+            // Status Badge
+            let statusBadge = `<span class="badge bg-secondary fw-normal text-white" style="font-size:0.65rem">${l.Status}</span>`;
+            if (l.Status === 'In Progress') statusBadge = `<span class="badge bg-info text-dark fw-normal" style="font-size:0.65rem">In Progress</span>`;
+            if (l.Status === 'Quoted') statusBadge = `<span class="badge bg-warning text-dark fw-normal" style="font-size:0.65rem">Quoted</span>`;
+            if (l.Status === 'Closed') statusBadge = `<span class="badge bg-success fw-normal" style="font-size:0.65rem">Closed</span>`;
 
             return `
-            <div class="card mb-2 shadow-sm crm-lead-card border-start border-4 ${borderClass}" 
-                 style="cursor:pointer; transition: transform 0.1s;" 
+            <div class="card mb-2 border-0 shadow-sm crm-lead-card" 
                  onclick="CRMView.loadLead('${l.LeadId}')"
-                 onmouseover="this.style.transform='translateX(3px)'"
-                 onmouseout="this.style.transform='translateX(0)'">
+                 style="border-left: 4px solid ${isStale ? '#dc3545' : '#0d6efd'} !important;">
                 <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-1">
-                        <h6 class="card-title mb-0 text-truncate fw-bold text-dark" style="max-width: 160px;">${l.Title}</h6>
-                        ${staleBadge}
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="avatar-circle me-2 shadow-sm" style="background-color: ${avatarBg}; font-size: 0.75rem;">${initials}</div>
+                        <div style="min-width: 0;">
+                            <h6 class="card-title mb-0 text-truncate fw-bold text-dark" style="font-size: 0.95rem;">${l.Title}</h6>
+                            <div class="small text-muted text-truncate">${l.Company || 'No Company'}</div>
+                        </div>
                     </div>
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                         <span class="badge ${statusColor} fw-normal" style="font-size:0.7rem">${l.Status}</span>
-                         <span class="small text-muted text-truncate" style="max-width: 100px;">${l.Company || ''}</span>
-                    </div>
-                    <div class="d-flex justify-content-between small text-muted" style="font-size:0.75rem">
-                         <span><i class="far fa-clock me-1"></i> ${lastActive.toLocaleDateString()}</span>
-                         <span>${l.Owner ? l.Owner.split(' ')[0] : ''}</span>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                         ${statusBadge}
+                         <span class="small text-muted" style="font-size:0.7rem">
+                            ${this.getRelativeTime(lastActive)}
+                         </span>
                     </div>
                 </div>
             </div>`;
@@ -129,27 +159,27 @@ const CRMView = {
         // 1. Setup UI for Loading
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         
-        // Show Header
+        // Populate Header
         const header = document.getElementById('crmDetailHeader');
         header.style.setProperty('display', 'flex', 'important');
         
         document.getElementById('crmDetailTitle').textContent = lead.Title;
-        document.getElementById('crmDetailCompany').textContent = lead.Company || "No Company Listed";
+        document.getElementById('crmDetailCompany').innerHTML = `<i class="far fa-building me-1"></i> ${lead.Company || "No Company"}`;
         
         const statusBadge = document.getElementById('crmDetailStatus');
         statusBadge.textContent = lead.Status;
-        // Simple color mapping for badge
-        statusBadge.className = 'badge align-self-center ' + 
+        statusBadge.className = 'badge align-self-center px-3 py-2 rounded-pill ' + 
             (lead.Status === 'Quoted' ? 'bg-warning text-dark' : 
-             lead.Status === 'Closed' ? 'bg-success' : 'bg-secondary');
+             lead.Status === 'Closed' ? 'bg-success' : 
+             lead.Status === 'In Progress' ? 'bg-info text-dark' : 'bg-secondary');
 
-        // Show Spinner in Timeline
+        // Show Loading State in Timeline
         const timelineContainer = document.getElementById('crmTimeline');
         timelineContainer.innerHTML = `
             <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
-                <div class="spinner-border text-secondary mb-3" role="status"></div>
-                <div>Compiling timeline...</div>
-                <div class="small text-muted fst-italic mt-1">Fetching events & searching emails</div>
+                <div class="spinner-border text-primary mb-3" role="status"></div>
+                <div class="fw-bold">Loading Timeline</div>
+                <div class="small text-muted opacity-75">Fetching events & emails...</div>
             </div>`;
 
         // 2. Fetch Data
@@ -159,9 +189,9 @@ const CRMView = {
         } catch (e) {
             console.error(e);
             timelineContainer.innerHTML = `
-                <div class="alert alert-danger m-4">
-                    <strong>Error loading timeline</strong><br>
-                    ${e.message}
+                <div class="alert alert-danger m-4 shadow-sm border-0">
+                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Error</h5>
+                    <p class="mb-0">${e.message}</p>
                 </div>`;
         }
     },
@@ -171,96 +201,127 @@ const CRMView = {
         if (items.length === 0) {
             container.innerHTML = `
                 <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted opacity-50">
-                    <i class="far fa-folder-open fa-4x mb-3"></i>
-                    <h4>No Activity Yet</h4>
-                    <p>Add a note to start the timeline.</p>
+                    <div class="bg-light rounded-circle p-4 mb-3">
+                        <i class="fas fa-feather-alt fa-3x"></i>
+                    </div>
+                    <h5>Start the conversation</h5>
+                    <p class="small">Add a note or link an email to begin.</p>
                 </div>`;
             return;
         }
 
-        // Timeline HTML construction
-        // We use a vertical line approach
-        const html = items.map(item => {
+        // Build HTML
+        const timelineHtml = items.map((item, index) => {
             const dateObj = item.date;
-            const dateStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
             const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
+            const relativeTime = this.getRelativeTime(dateObj);
             
             if (item.type === 'email') {
+                const uniqueId = `email-collapse-${index}`;
                 return `
                 <div class="d-flex mb-4 fade-in-up">
                     <div class="d-flex flex-column align-items-center me-3" style="min-width: 50px;">
-                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; z-index:1;">
-                            <i class="fas fa-envelope" style="font-size: 0.8rem;"></i>
+                        <div class="timeline-icon-wrapper bg-white text-primary border-primary-subtle">
+                            <i class="fas fa-envelope" style="font-size: 0.85rem;"></i>
                         </div>
-                        <div class="h-100 bg-light border-start border-2 mt-1" style="width: 0px;"></div>
                     </div>
-                    <div class="card border-0 shadow-sm flex-grow-1" style="background-color: #f0f7ff;">
-                        <div class="card-body p-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="badge bg-primary bg-opacity-10 text-primary">Email</span>
-                                <small class="text-muted">${dateStr} &bull; ${timeStr}</small>
+                    <div class="flex-grow-1">
+                        <div class="card timeline-card border-0 shadow-sm" onclick="CRMView.toggleCollapse('${uniqueId}')">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-primary bg-opacity-10 text-primary fw-bold" style="font-size:0.7rem">EMAIL</span>
+                                        <span class="text-dark fw-bold small">${item.from}</span>
+                                    </div>
+                                    <small class="text-muted" title="${dateObj.toLocaleString()}">${relativeTime}</small>
+                                </div>
+                                <h6 class="card-title text-dark fw-bold mb-1" style="font-size: 0.95rem;">${item.subject}</h6>
+                                
+                                <!-- Collapsible Body -->
+                                <div id="${uniqueId}" class="collapse mt-2">
+                                    <div class="p-2 bg-light rounded text-secondary small border-start border-2 border-primary" 
+                                         style="white-space: pre-wrap; font-family: sans-serif;">${item.preview || "No preview available."}</div>
+                                </div>
+                                <div class="text-center mt-1">
+                                    <i class="fas fa-chevron-down text-muted opacity-25" style="font-size: 0.7rem;"></i>
+                                </div>
                             </div>
-                            <h6 class="card-title text-dark fw-bold mb-1">${item.subject}</h6>
-                            <div class="d-flex align-items-center mb-2 text-muted small">
-                                <i class="far fa-user-circle me-1"></i> ${item.from}
-                            </div>
-                            <p class="card-text text-secondary small mb-0 text-truncate">${item.preview}</p>
                         </div>
                     </div>
                 </div>`;
             } else {
                 // Event / Note
                 const isSystem = item.eventType === 'System';
-                const icon = isSystem ? 'fa-cog' : 'fa-comment-alt';
-                const colorClass = isSystem ? 'secondary' : 'warning'; // Bootstrap colors
-                const bgColor = isSystem ? '#f8f9fa' : '#fff9e6';
-                
+                const icon = isSystem ? 'fa-cog' : 'fa-sticky-note';
+                const iconColor = isSystem ? 'text-secondary' : 'text-warning';
+                // Use a soft yellow/post-it look for notes, clean gray for system
+                const cardBg = isSystem ? '#f8f9fa' : '#fffbeb'; 
+                const cardBorder = isSystem ? 'border-light' : 'border-warning-subtle';
+
                 return `
                 <div class="d-flex mb-4 fade-in-up">
                     <div class="d-flex flex-column align-items-center me-3" style="min-width: 50px;">
-                        <div class="bg-${colorClass} text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px; z-index:1;">
-                            <i class="fas ${icon}" style="font-size: 0.8rem;"></i>
+                        <div class="timeline-icon-wrapper bg-white ${iconColor}">
+                            <i class="fas ${icon}" style="font-size: 0.85rem;"></i>
                         </div>
-                        <div class="h-100 bg-light border-start border-2 mt-1" style="width: 0px;"></div>
                     </div>
-                    <div class="card border-0 shadow-sm flex-grow-1" style="background-color: ${bgColor};">
-                        <div class="card-body p-3">
-                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="badge bg-${colorClass} bg-opacity-25 text-dark border border-${colorClass} border-opacity-25">${item.eventType}</span>
-                                <small class="text-muted">${dateStr} &bull; ${timeStr}</small>
+                    <div class="flex-grow-1">
+                        <div class="card border-0 shadow-sm ${cardBorder}" style="background-color: ${cardBg};">
+                            <div class="card-body p-3">
+                                 <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-uppercase fw-bold text-muted" style="font-size:0.7rem; letter-spacing:0.5px;">${item.eventType}</span>
+                                    <small class="text-muted" title="${dateObj.toLocaleString()}">${relativeTime}</small>
+                                </div>
+                                <div class="fw-semibold text-dark mb-1">${item.summary}</div>
+                                ${item.details ? `<div class="small text-dark opacity-75" style="white-space: pre-wrap;">${item.details}</div>` : ''}
                             </div>
-                            <div class="fw-bold text-dark">${item.summary}</div>
-                            ${item.details ? `<div class="small mt-2 text-dark" style="white-space: pre-wrap;">${item.details}</div>` : ''}
                         </div>
                     </div>
                 </div>`;
             }
         }).join('');
 
-        container.innerHTML = `<div class="pt-2 pb-5">${html}</div>`;
+        // Wrap in the container that adds the vertical line via CSS
+        container.innerHTML = `<div class="crm-timeline-container pt-2 pb-5">${timelineHtml}</div>`;
     },
     
-    // Simple Prompt for Note
+    // Toggle helper for the email cards
+    toggleCollapse(id) {
+        const el = document.getElementById(id);
+        if (el) {
+            // Using Bootstrap 5 collapse API if available, else simple class toggle
+            if (window.bootstrap && window.bootstrap.Collapse) {
+                // Check if instance exists
+                let bsCollapse = bootstrap.Collapse.getInstance(el);
+                if (!bsCollapse) bsCollapse = new bootstrap.Collapse(el, { toggle: false });
+                bsCollapse.toggle();
+            } else {
+                el.classList.toggle('show');
+            }
+        }
+    },
+
+    getRelativeTime(date) {
+        const now = new Date();
+        const diff = Math.floor((now - date) / 1000); // seconds
+        
+        if (diff < 60) return 'Just now';
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        if (diff < 172800) return 'Yesterday';
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    },
+
     async openAddNoteModal() {
         if(!CRMService.currentLead) return;
-        
-        // We can do a sleek prompt or use a hidden modal in HTML. 
-        // For simplicity and speed, a JS prompt acts as a functional v1.
-        // A better UX would be to inject a textarea into the timeline top.
-        
-        // Let's create a dynamic modal on the fly to avoid cluttering index.html too much
-        const note = prompt("Add a note to this timeline:");
-        
+        const note = prompt("Add a note:");
         if(note && note.trim().length > 0) {
-             // Show optimistic UI update or spinner?
-             // We'll just reload the lead which triggers the spinner.
-             
              try {
+                // Optimistic UI update could go here, but for safety we reload
                 await CRMService.addEvent(CRMService.currentLead.LeadId, "Note", "User Note", note);
-                // Refresh
                 this.loadLead(CRMService.currentLead.LeadId);
              } catch(e) {
-                 alert("Failed to save note: " + e.message);
+                 alert("Failed: " + e.message);
              }
         }
     }
