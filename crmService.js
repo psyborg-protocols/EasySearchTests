@@ -84,45 +84,64 @@ const CRMService = {
         }));
 
         // 4. Fetch Emails (Only if user owns the lead, per privacy/access logic)
-        // Note: Graph won't let us search other users' mailboxes easily without Application permissions.
-        // We assume the logged-in user wants to see emails in THEIR mailbox related to this lead.
         
         if (anchorsData.value.length > 0) {
             const emailPromises = anchorsData.value.map(async (anchor) => {
                 const a = anchor.fields;
-                // Construct Graph Filter
-                // Logic: (From address matches) OR (ConversationId matches)
-                // AND ReceivedTime >= StartTrackingFrom
-                
-                let filter = `receivedDateTime ge ${a.StartTrackingFrom}`;
-                
-                // We construct the query carefully. 
-                // Note: Complex OR clauses with dates can sometimes be tricky in Graph. 
-                // We prioritze ConversationID if available.
-                
+                const fetchPromises = [];
+
+                // A. Fetch by ConversationId (if present)
                 if (a.ConversationId) {
-                    filter += ` and conversationId eq '${a.ConversationId}'`;
-                } else if (a.Email) {
-                    // Search for emails FROM them or TO them involving the user
-                    filter += ` and (from/emailAddress/address eq '${a.Email}' or toRecipients/any(t:t/emailAddress/address eq '${a.Email}'))`;
+                    const filter = `conversationId eq '${a.ConversationId}'`;
+                    const url = `https://graph.microsoft.com/v1.0/me/messages?$select=subject,receivedDateTime,bodyPreview,from,isRead&$top=25&$filter=${filter}`;
+                    
+                    // Push promise to array (run in parallel)
+                    fetchPromises.push(
+                        this._graphRequest(url)
+                            .then(data => data.value || [])
+                            .catch(e => {
+                                console.warn(`[CRM] Error fetching emails by ConversationId`, e);
+                                return [];
+                            })
+                    );
                 }
-                
-                const url = `https://graph.microsoft.com/v1.0/me/messages?$select=subject,receivedDateTime,bodyPreview,from,isRead&$top=25&$filter=${filter}`;
-                try {
-                    const mailData = await this._graphRequest(url);
-                    return mailData.value.map(m => ({
-                        type: 'email',
-                        date: new Date(m.receivedDateTime),
-                        subject: m.subject,
-                        preview: m.bodyPreview,
-                        from: m.from.emailAddress.name || m.from.emailAddress.address,
-                        isRead: m.isRead,
-                        id: m.id
-                    }));
-                } catch (e) {
-                    console.warn("Error fetching emails for anchor", e);
-                    return [];
+
+                // B. Fetch by Email + Date Window (if present)
+                if (a.Email) {
+                    let dateStr = a.StartTrackingFrom;
+                    if (!dateStr) {
+                        const d = new Date(); d.setDate(d.getDate() - 30);
+                        dateStr = d.toISOString();
+                    }
+                    
+                    const filter = `receivedDateTime ge ${dateStr} and (from/emailAddress/address eq '${a.Email}' or toRecipients/any(t:t/emailAddress/address eq '${a.Email}'))`;
+                    const url = `https://graph.microsoft.com/v1.0/me/messages?$select=subject,receivedDateTime,bodyPreview,from,isRead&$top=25&$filter=${filter}`;
+                    
+                    // Push promise to array (run in parallel)
+                    fetchPromises.push(
+                        this._graphRequest(url)
+                            .then(data => data.value || [])
+                            .catch(e => {
+                                console.warn(`[CRM] Error fetching emails by Contact`, e);
+                                return [];
+                            })
+                    );
                 }
+
+                // Wait for both parallel requests to finish
+                const results = await Promise.all(fetchPromises);
+                const rawMessages = results.flat();
+
+                // Normalize and return
+                return rawMessages.map(m => ({
+                    type: 'email',
+                    date: new Date(m.receivedDateTime),
+                    subject: m.subject,
+                    preview: m.bodyPreview,
+                    from: m.from?.emailAddress?.name || m.from?.emailAddress?.address || "Unknown",
+                    isRead: m.isRead,
+                    id: m.id
+                }));
             });
 
             const emailResults = await Promise.all(emailPromises);
