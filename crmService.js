@@ -17,21 +17,27 @@ const CRMService = {
     currentLead: null,
 
     // --- Helpers ---
-    async _graphRequest(url, method = "GET", body = null) {
-        const token = await getAccessToken({ reason: "crm_data" }); 
-        const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-        if(method === "GET") headers['Prefer'] = 'HonorNonIndexedQueriesWarningMayFailRandomly'; // Helps with SP lists
-        
-        const opts = { method, headers };
-        if (body) opts.body = JSON.stringify(body);
-        
-        const resp = await fetch(url, opts);
-        if (!resp.ok) {
-            const errorText = await resp.text();
-            console.error(`CRM Graph Error (${method} ${url}):`, errorText);
-            throw new Error(errorText);
+    async _graphRequest(url, method = "GET", body = null, extraHeaders = null) {
+        const token = await this.getAccessToken(); // whatever you already do
+        const headers = {
+            "Authorization": `Bearer ${token}`,
+            "Accept": "application/json",
+        };
+
+        if (body != null) headers["Content-Type"] = "application/json";
+        if (extraHeaders) Object.assign(headers, extraHeaders);
+
+        const res = await fetch(url, {
+            method,
+            headers,
+            body: body != null ? JSON.stringify(body) : undefined
+        });
+
+        if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            throw new Error(`[Graph] ${res.status} ${res.statusText} :: ${text}`);
         }
-        return resp.json();
+        return await res.json();
     },
 
     // --- Leads Operations ---
@@ -109,35 +115,29 @@ const CRMService = {
 
                 // B. Fetch by Email + Date Window (if present) - rewritten to $search
                 if (a.Email) {
-                    // Determine the start date. Default: last 30 days.
                     let startDate = a.StartTrackingFrom ? new Date(a.StartTrackingFrom) : null;
                     if (!startDate || isNaN(startDate.getTime())) {
                         startDate = new Date();
                         startDate.setDate(startDate.getDate() - 30);
                     }
 
-                    // Outlook search date syntax is typically MM/DD/YYYY
                     const mm = String(startDate.getMonth() + 1).padStart(2, '0');
                     const dd = String(startDate.getDate()).padStart(2, '0');
                     const yyyy = String(startDate.getFullYear());
                     const startMDY = `${mm}/${dd}/${yyyy}`;
 
-                    // AQS-style search: from/to + received date constraint
                     const search = `(from:${a.Email} OR to:${a.Email}) AND received:>=${startMDY}`;
+                    const searchQuery = `"${search}"`; // include quotes as required by Graph $search
 
-                    // Use Inbox scope to reduce volume
                     const url =
                         `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages` +
-                        `?$search="${encodeURIComponent(search)}"` +
+                        `?$search=${encodeURIComponent(searchQuery)}` +
                         `&$select=subject,receivedDateTime,bodyPreview,from,isRead` +
                         `&$top=25`;
 
                     fetchPromises.push(
-                        this._graphRequest(url, {
-                            headers: {
-                                // Required for $search on messages in many tenants
-                                "ConsistencyLevel": "eventual"
-                            }
+                        this._graphRequest(url, "GET", null, {
+                            "ConsistencyLevel": "eventual"
                         })
                             .then(data => data.value || [])
                             .catch(e => {
