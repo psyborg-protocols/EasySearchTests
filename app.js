@@ -5,8 +5,28 @@
 const APP_VERSION = "1.1.0";
 
 document.addEventListener("DOMContentLoaded", async function () {
+    
     // ------------------------------
-    // VERSION CHECK
+    // 0. HELPER: LINK RENDERER
+    // ------------------------------
+    // Defined early so we can call it immediately after cache load AND after network refresh
+    const exposeFileLinks = () => {
+        const { fileLinks = {} } = window.dataStore || {};
+        const setLink = (id, url) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.href = url || "#";
+            // Show link only if URL exists
+            el.classList.toggle("d-none", !url);
+        };
+        setLink("salesFileLink", fileLinks.Sales);
+        setLink("dbFileLink", fileLinks.DB);
+        setLink("pricingFileLink", fileLinks.Pricing);
+        console.log("[App] Links exposed:", fileLinks);
+    };
+
+    // ------------------------------
+    // 1. VERSION CHECK
     // ------------------------------
     const currentVersion = localStorage.getItem("APP_VERSION");
     if (currentVersion !== APP_VERSION) {
@@ -19,13 +39,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     // ------------------------------
-    // AUTH INITIALIZATION
+    // 2. AUTH INITIALIZATION
     // ------------------------------
     // Process MSAL redirect result and restore any existing session
     await initializeAuth();
 
     // ------------------------------
-    // LOAD CACHE FIRST (instant UI)
+    // 3. LOAD CACHE FIRST (Instant UI)
     // ------------------------------
     let isCacheLoaded = false;
 
@@ -41,6 +61,10 @@ document.addEventListener("DOMContentLoaded", async function () {
         const cachedOrgContacts = await idbUtil.getDataset("OrgContactsData");
         const cachedOrders = await idbUtil.getDataset("OrdersData");
         const cachedSamples = await idbUtil.getDataset("SamplesData");
+
+        // Ensure dataStore is initialized
+        window.dataStore = window.dataStore || {};
+        window.dataStore.fileLinks = window.dataStore.fileLinks || {};
 
         if (cachedDB && cachedSales && cachedPricing) {
             window.dataStore["DB"] = cachedDB;
@@ -58,8 +82,16 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (cachedOrders) window.dataStore["Orders"] = cachedOrders;
             if (cachedSamples) window.dataStore["Samples"] = cachedSamples;
 
+            // --- OPTIMIZATION: EXTRACT LINKS FROM CACHE ---
+            // We pull the URLs from the cached metadata so links appear instantly
+            if (cachedDB.metadata?.webUrl) window.dataStore.fileLinks["DB"] = cachedDB.metadata.webUrl;
+            if (cachedSales.metadata?.webUrl) window.dataStore.fileLinks["Sales"] = cachedSales.metadata.webUrl;
+            if (cachedPricing.metadata?.webUrl) window.dataStore.fileLinks["Pricing"] = cachedPricing.metadata.webUrl;
+
+            // Render UI & Links immediately
             console.log("[Startup] Cache loaded. UI active.");
             isCacheLoaded = true;
+            exposeFileLinks(); // <--- RENDER LINKS NOW
 
             window.reportsReady = true;
             document.dispatchEvent(new Event("reports-ready"));
@@ -70,6 +102,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         console.error("[Startup] Cache load error:", err);
     }
 
+    // ------------------------------
+    // 4. BACKGROUND REFRESH (Fresh Data)
+    // ------------------------------
     try {
         const token = await getAccessToken({
             autoRedirectOnce: true,
@@ -78,7 +113,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         if (token) {
             console.log("[Startup] Refreshing data in background...");
+            
+            // This function downloads new files and updates window.dataStore.fileLinks
             await dataLoader.processFiles();
+
+            // Render links AGAIN to ensure they are up-to-date with fresh metadata
+            exposeFileLinks(); 
 
             if (!isCacheLoaded) {
                 window.reportsReady = true;
@@ -100,7 +140,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     // ------------------------------
-    // BUTTONS
+    // 5. BUTTON LISTENERS
     // ------------------------------
     const signInButton = document.getElementById("signInButton");
     if (signInButton) {
@@ -116,22 +156,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
     }
 
-    // ------------------------------
-    // FILE LINK POPULATION
-    // ------------------------------
-    const exposeFileLinks = () => {
-        const { fileLinks = {} } = window.dataStore || {};
-        const setLink = (id, url) => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.href = url || "#";
-            el.classList.toggle("d-none", !url);
-        };
-        setLink("salesFileLink", fileLinks.Sales);
-        setLink("dbFileLink", fileLinks.DB);
-        setLink("pricingFileLink", fileLinks.Pricing);
-    };
-
+    // Ensure links are checked one last time if 'reports-ready' fires late
     document.addEventListener("reports-ready", exposeFileLinks);
-    exposeFileLinks();
 });
