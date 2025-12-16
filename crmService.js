@@ -90,12 +90,13 @@ const CRMService = {
                 const a = anchor.fields;
                 const fetchPromises = [];
 
-                // A. Fetch by ConversationId (if present)
+                // A. Fetch by ConversationId (if present) - keep as-is
                 if (a.ConversationId) {
                     const filter = `conversationId eq '${a.ConversationId}'`;
-                    const url = `https://graph.microsoft.com/v1.0/me/messages?$select=subject,receivedDateTime,bodyPreview,from,isRead&$top=25&$filter=${filter}`;
-                    
-                    // Push promise to array (run in parallel)
+                    const url =
+                        `https://graph.microsoft.com/v1.0/me/messages` +
+                        `?$select=subject,receivedDateTime,bodyPreview,from,isRead&$top=25&$filter=${encodeURIComponent(filter)}`;
+
                     fetchPromises.push(
                         this._graphRequest(url)
                             .then(data => data.value || [])
@@ -106,23 +107,41 @@ const CRMService = {
                     );
                 }
 
-                // B. Fetch by Email + Date Window (if present)
+                // B. Fetch by Email + Date Window (if present) - rewritten to $search
                 if (a.Email) {
-                    let dateStr = a.StartTrackingFrom;
-                    if (!dateStr) {
-                        const d = new Date(); d.setDate(d.getDate() - 30);
-                        dateStr = d.toISOString();
+                    // Determine the start date. Default: last 30 days.
+                    let startDate = a.StartTrackingFrom ? new Date(a.StartTrackingFrom) : null;
+                    if (!startDate || isNaN(startDate.getTime())) {
+                        startDate = new Date();
+                        startDate.setDate(startDate.getDate() - 30);
                     }
-                    
-                    const filter = `receivedDateTime ge ${dateStr} and (from/emailAddress/address eq '${a.Email}' or toRecipients/any(t:t/emailAddress/address eq '${a.Email}'))`;
-                    const url = `https://graph.microsoft.com/v1.0/me/messages?$select=subject,receivedDateTime,bodyPreview,from,isRead&$top=25&$filter=${filter}`;
-                    
-                    // Push promise to array (run in parallel)
+
+                    // Outlook search date syntax is typically MM/DD/YYYY
+                    const mm = String(startDate.getMonth() + 1).padStart(2, '0');
+                    const dd = String(startDate.getDate()).padStart(2, '0');
+                    const yyyy = String(startDate.getFullYear());
+                    const startMDY = `${mm}/${dd}/${yyyy}`;
+
+                    // AQS-style search: from/to + received date constraint
+                    const search = `(from:${a.Email} OR to:${a.Email}) AND received:>=${startMDY}`;
+
+                    // Use Inbox scope to reduce volume
+                    const url =
+                        `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages` +
+                        `?$search="${encodeURIComponent(search)}"` +
+                        `&$select=subject,receivedDateTime,bodyPreview,from,isRead` +
+                        `&$top=25`;
+
                     fetchPromises.push(
-                        this._graphRequest(url)
+                        this._graphRequest(url, {
+                            headers: {
+                                // Required for $search on messages in many tenants
+                                "ConsistencyLevel": "eventual"
+                            }
+                        })
                             .then(data => data.value || [])
                             .catch(e => {
-                                console.warn(`[CRM] Error fetching emails by Contact`, e);
+                                console.warn(`[CRM] Error fetching emails by Contact ($search)`, e);
                                 return [];
                             })
                     );
@@ -145,7 +164,6 @@ const CRMService = {
             });
 
             const emailResults = await Promise.all(emailPromises);
-            // Flatten array of arrays
             emailResults.forEach(arr => timeline.push(...arr));
         }
 
