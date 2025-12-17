@@ -429,7 +429,13 @@ async function processFiles() {
           continue;
         }
         
-        const cleaned = key === "Sales" ? filterOutValues(fillDownColumn(frame, "Customer"), "Product_Service", DISALLOWED_PRODUCTS) : frame;
+        // Clean Sales and Purchases using the same logic (fill down entity, filter bad products)
+        let cleaned = frame;
+        if (key === "Sales") {
+            cleaned = filterOutValues(fillDownColumn(frame, "Customer"), "Product_Service", DISALLOWED_PRODUCTS);
+        } else if (key === "Purchases") {
+            cleaned = filterOutValues(fillDownColumn(frame, "Vendor"), "Product_Service", DISALLOWED_PRODUCTS);
+        }
         const stored = { dataframe: cleaned, metadata: md };
         ds[key] = stored;
         await idbUtil.setDataset(storageKey, stored);

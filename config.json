@@ -14,6 +14,13 @@
     "dataKey": "Sales"
   },
   {
+    "directory": "Brandywine Collaborate Team Site Folder/PO history to our vendors",
+    "filenamePrefix": "Brandywine Materials",
+    "columns": ["Vendor", "Date", "Transaction Type", "Num", "Product_Service", "Memo_Description", "Quantity", "Cost", "Total_Amount"],
+    "skipRows": 5,
+    "dataKey": "Purchases"
+  },
+  {
     "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
     "filenamePrefix": "Quote Maker and Calculator",
     "columns": ["BT Part #", "2024 LTB Cost",	"2024 FB Cost",	"2024 Pallet  Cost",	"Box Qty",	"Pallet Qty",	"MOQ",	"Comments",	"BM Part #", "BM Price Made Yet?",	"Product Type",	"BM Old Part #",	"TAH Part #", "Nordson EFD Part #", "Medmix Sulzer Part #"],
