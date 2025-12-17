@@ -10,12 +10,72 @@
 
     async findBySku(sku, { signal } = {}) {
       const url = 'https://wpe-chemicalconc-m2uq1jgb.us-east-2.wpe.clients.hosted-elasticpress.io/wpe-chemicalconc-m2uq1jgb--chemicalconceptscom-post-1/autosuggest';
+      
+      // 1. Prepare normalized search term for client-side filtering
       const normSearch = utils.normalizeSku(sku);
 
-      // ... [Payload logic remains exactly the same] ...
-      const payload = { /* ... keep your existing payload ... */ 
-        "from": 0, "size": 12, 
-        /* ... */ 
+      const payload = {
+        "from": 0,
+        "size": 20, // Increased fetch size slightly to allow for client-side filtering
+        "post_filter": {
+          "bool": {
+            "must": [
+              { "terms": { "post_type.raw": ["ipf_join_team", "ipf_literature", "ipf_resource", "ipf_sds-tds", "ipf_team", "ipf_testimonials", "ipf_videos", "page", "post", "product"] } },
+              { "terms": { "post_status": ["acf-disabled", "publish"] } },
+              { "bool": { "must_not": [{ "terms": { "meta.ep_exclude_from_search.raw": ["1"] } }] } },
+              { "terms": { "post_type.raw": ["product"] } }
+            ]
+          }
+        },
+        "query": {
+          "bool": {
+            "should": [
+              {
+                "bool": {
+                  "must": [{
+                    "bool": {
+                      "should": [
+                        { "multi_match": { "query": sku, "type": "phrase", "fields": ["post_title^1", "post_content^1"], "boost": 4 } },
+                        { "multi_match": { "query": sku, "fields": ["post_title^1", "post_content^1"], "boost": 2, "fuzziness": 0, "operator": "and" } },
+                        { "multi_match": { "fields": ["post_title^1", "post_content^1", "post_title.suggest^1"], "query": sku, "fuzziness": "auto" } }
+                      ]
+                    }
+                  }],
+                  "filter": [{ "match": { "post_type.raw": "page" } }]
+                }
+              },
+              {
+                "bool": {
+                  "must": [{
+                    "bool": {
+                      "should": [
+                        { "multi_match": { "query": sku, "type": "phrase", "fields": ["post_title^1", "post_content^1", "terms.category.name^1"], "boost": 4 } },
+                        { "multi_match": { "query": sku, "fields": ["post_title^1", "post_content^1", "terms.category.name^1"], "boost": 2, "fuzziness": 0, "operator": "and" } },
+                        { "multi_match": { "fields": ["post_title^1", "post_content^1", "terms.category.name^1", "post_title.suggest^1", "term_suggest^1"], "query": sku, "fuzziness": "auto" } }
+                      ]
+                    }
+                  }],
+                  "filter": [{ "match": { "post_type.raw": "post" } }]
+                }
+              },
+              {
+                "bool": {
+                  "must": [{
+                    "bool": {
+                      "should": [
+                        { "multi_match": { "query": sku, "type": "phrase", "fields": ["post_title^80", "post_content^1", "meta._sku.value^40", "meta._variations_skus.value^1", "terms.product_brand.name^15"], "boost": 4 } },
+                        { "multi_match": { "query": sku, "fields": ["post_title^80", "post_content^1", "meta._sku.value^40", "meta._variations_skus.value^1", "terms.product_brand.name^15"], "boost": 2, "fuzziness": 0, "operator": "and" } },
+                        { "multi_match": { "fields": ["post_title^80", "post_content^1", "meta._sku.value^40", "meta._variations_skus.value^1", "terms.product_brand.name^15", "post_title.suggest^1", "term_suggest^14"], "query": sku, "fuzziness": "auto" } }
+                      ]
+                    }
+                  }],
+                  "filter": [{ "match": { "post_type.raw": "product" } }]
+                }
+              }
+            ]
+          }
+        },
+        "sort": [{ "_score": { "order": "desc" } }]
       };
 
       const response = await fetch(url, {
@@ -26,76 +86,47 @@
       });
 
       if (!response.ok) throw new Error(`ChemicalConcepts error: ${response.status}`);
+      
       const json = await response.json();
       const hits = json?.hits?.hits || [];
-      
-      // 1. First pass: Filter irrelevant hits to avoid wasting fetches
-      const candidates = hits.map(hit => {
-        const src = hit._source || {};
+      const results = [];
+
+      for (const hit of hits) {
+        const src = hit._source;
+        if (!src) continue;
+
         const meta = src.meta || {};
         const rawSku = meta._sku?.[0]?.value || '';
-        const normResult = utils.normalizeSku(rawSku);
         
-        // Strict filtering: if it doesn't match, return null
-        if (!normResult.includes(normSearch)) return null;
-
-        return { hit, src, meta, rawSku };
-      }).filter(c => c !== null);
-
-      // 2. Second pass: Fetch details for candidates in parallel
-      const results = await Promise.all(candidates.map(async (c) => {
-        const { hit, src, meta, rawSku } = c;
-        const permalink = src.permalink;
-
-        let qty = 1;
-
-        // --- THE NEW COMPLEXITY ---
-        if (permalink) {
-          try {
-            // Fetch the HTML page
-            const pageRes = await fetch(permalink, { signal });
-            const pageText = await pageRes.text();
-
-            // Parse HTML to find <span class="quantity-note__num">
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(pageText, 'text/html');
-            const qtyNode = doc.querySelector('.quantity-note__num');
-            
-            if (qtyNode) {
-              const qVal = parseInt(qtyNode.textContent.trim(), 10);
-              if (!isNaN(qVal) && qVal > 0) {
-                qty = qVal;
-              }
-            }
-          } catch (err) {
-            console.warn(`Failed to fetch/parse details for ${rawSku}`, err);
-            // Fallback: keep qty = 1
-          }
+        // 2. Client-side filtering: Remove irrelevant garbage
+        // We ensure the Result SKU contains the Search SKU (normalized).
+        // e.g. Search "MS 10-24T" -> "MS1024T"
+        //      Result "CON-MS-10-24T" -> "CONMS1024T" -> Match (Contains)
+        //      Result "MS 10-24 Mixer" -> "MS1024MIXER" -> No Match
+        const normResult = utils.normalizeSku(rawSku);
+        if (!normResult.includes(normSearch)) {
+            continue; 
         }
-        // --------------------------
 
         const title = src.post_title || '';
+        const permalink = src.permalink || '';
         let priceStr = meta._price?.[0]?.value || meta._regular_price?.[0]?.value;
-        const eachPrice = utils.toNumOrUndef(priceStr); // The site lists per-unit price
-        
-        // Calculate total price based on the scraped quantity
-        const price = (eachPrice && qty) ? (eachPrice * qty) : undefined;
-
+        const eachPrice = utils.toNumOrUndef(priceStr);
         const stockStatus = meta._stock_status?.[0]?.value; 
         const inStock = (stockStatus === 'instock');
 
-        return {
+        results.push({
           retailer: this.id,
-          sku: rawSku,
+          sku: rawSku, 
           title: title.trim(),
+          eachPrice,
           price: 'See Link',
-          eachPrice,  // Unit Price (From API)
-          qty: 'See Link',
+          qty: 'See Link', 
           url: permalink,
           inStock,
           raw: hit
-        };
-      }));
+        });
+      }
 
       return results;
     }
