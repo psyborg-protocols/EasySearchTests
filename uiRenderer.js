@@ -891,6 +891,93 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   }
 
+  // --- NEW: Toggle Logic for Product History ---
+
+  // Listen for toggle changes globally (delegated)
+  document.addEventListener('change', (e) => {
+      if (e.target && e.target.id === 'historyToggle') {
+          renderProductHistory();
+      }
+  });
+
+  function renderProductHistory() {
+      const modalEl = document.getElementById('productInfoModal');
+      const toggle = document.getElementById("historyToggle");
+      const tbody = document.getElementById("productHistoryTableBody");
+      const entityHeader = document.getElementById("histColEntity");
+      
+      if (!modalEl || !toggle || !tbody) return;
+
+      const showSales = toggle.checked;
+      const data = showSales ? (modalEl.productSales || []) : (modalEl.productPurchases || []);
+      
+      // Update Header
+      if (entityHeader) entityHeader.textContent = showSales ? "Customer" : "Vendor";
+
+      // Sort by Date Descending
+      const sortedData = [...data].sort((a, b) => new Date(b.Date) - new Date(a.Date));
+
+      if (sortedData.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" class="text-muted text-center small fst-italic py-3">No ${showSales ? 'sales' : 'purchase'} history found.</td></tr>`;
+          return;
+      }
+
+      tbody.innerHTML = sortedData.map((row, index) => {
+          // Determine fields based on type
+          let dateStr = "N/A";
+          if (row.Date) {
+             const d = new Date(row.Date);
+             if (!isNaN(d)) dateStr = d.toLocaleDateString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit' });
+          }
+
+          const entity = (showSales ? row.Customer : row.Vendor) || "N/A";
+          const product = row.Product_Service || "N/A";
+          
+          const qty = toNumber(row.Quantity);
+          const total = toNumber(row.Total_Amount);
+          
+          // Try to get price directly, else calculate
+          let price = 0;
+          if (showSales) {
+              price = toNumber(row.Sales_Price);
+          } else {
+              // For purchases, look for cost/rate or calc
+              if (row.Cost) price = toNumber(row.Cost);
+              else if (row.UnitCost) price = toNumber(row.UnitCost);
+              else if (row.Rate) price = toNumber(row.Rate); 
+              else if (qty !== 0) price = total / qty;
+          }
+
+          const desc = row.Memo_Description || row.Description || row.Memo || "N/A";
+          
+          return `
+            <tr class="history-row" onclick="UIrenderer.toggleHistoryRow(this)" style="cursor:pointer;">
+                <td>${dateStr}</td>
+                <td class="text-truncate" style="max-width: 100px;" title="${entity}">${entity}</td>
+                <td class="text-truncate" style="max-width: 80px;" title="${product}">${product}</td>
+                <td class="text-end">${moneyFmt.format(price)}</td>
+            </tr>
+            <tr class="d-none bg-light history-detail-row">
+                <td colspan="4">
+                    <div class="p-2 small border-start border-4 border-primary">
+                        <div class="mb-1"><strong>Description:</strong> ${desc}</div>
+                        <div class="d-flex justify-content-between">
+                             <span><strong>Qty:</strong> ${qty}</span>
+                             <span><strong>Total:</strong> ${moneyFmt.format(total)}</span>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+          `;
+      }).join("");
+  }
+
+  function toggleHistoryRow(row) {
+      const nextRow = row.nextElementSibling;
+      if (nextRow && nextRow.classList.contains('history-detail-row')) {
+          nextRow.classList.toggle('d-none');
+      }
+  }
 
   /**
    * Finds all data for a given product and displays it in the new dashboard modal.
@@ -1017,12 +1104,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // --- 5. Prepare data for chart and Show Modal ---
       
-      // MODIFIED: Attach data to modal el for the 'shown.bs.modal' event
       const modalEl = document.getElementById('productInfoModal');
-      modalEl.productSalesData = productSales;
-
-      // MODIFIED: REMOVED direct call to drawProductSalesChart(productSales);
       
+      // Attach Data for Chart (Existing)
+      modalEl.productSalesData = productSales; 
+
+      // --- NEW: Attach Data for History Toggle ---
+      modalEl.productSales = productSales; 
+      
+      const purchasesData = window.dataStore["Purchases"]?.dataframe || [];
+      const productPurchases = purchasesData.filter(p => String(p["Product_Service"]).trim() === partNumber);
+      modalEl.productPurchases = productPurchases;
+
+      // Reset Toggle to 'Purchases' (unchecked) and render
+      const histToggle = document.getElementById("historyToggle");
+      if(histToggle) {
+          histToggle.checked = false; // Default to Purchases
+          renderProductHistory();
+      }
+
       // FIXED: Was incorrectly calling productSalesChartInstance.show()
       productInfoModalInstance.show();
   }
@@ -1644,5 +1744,6 @@ document.addEventListener('DOMContentLoaded', () => {
     handleContactMerge, // Expose the new merge handler
     confirmAndSaveChanges, // Expose the new save handler
     showProductInfoModal,
-    showCompetitorPricingModal
+    showCompetitorPricingModal,
+    toggleHistoryRow
   };
