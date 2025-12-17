@@ -918,7 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const sortedData = [...data].sort((a, b) => new Date(b.Date) - new Date(a.Date));
 
       if (sortedData.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="4" class="text-muted text-center small fst-italic py-3">No ${showSales ? 'sales' : 'purchase'} history found.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="3" class="text-muted text-center small fst-italic py-3">No ${showSales ? 'sales' : 'purchase'} history found.</td></tr>`;
           return;
       }
 
@@ -931,7 +931,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           const entity = (showSales ? row.Customer : row.Vendor) || "N/A";
-          const product = row.Product_Service || "N/A";
+          // Product column removed from display, but data still available for expansion details
           
           const qty = toNumber(row.Quantity);
           const total = toNumber(row.Total_Amount);
@@ -953,12 +953,11 @@ document.addEventListener('DOMContentLoaded', () => {
           return `
             <tr class="history-row" onclick="UIrenderer.toggleHistoryRow(this)" style="cursor:pointer;">
                 <td>${dateStr}</td>
-                <td class="text-truncate" style="max-width: 100px;" title="${entity}">${entity}</td>
-                <td class="text-truncate" style="max-width: 80px;" title="${product}">${product}</td>
+                <td class="text-truncate" style="max-width: 140px;" title="${entity}">${entity}</td>
                 <td class="text-end">${moneyFmt.format(price)}</td>
             </tr>
             <tr class="d-none bg-light history-detail-row">
-                <td colspan="4">
+                <td colspan="3">
                     <div class="p-2 small border-start border-4 border-primary">
                         <div class="mb-1"><strong>Description:</strong> ${desc}</div>
                         <div class="d-flex justify-content-between">

@@ -653,16 +653,21 @@
     
     /* Toggle Switch Customization for History Card */
     .history-toggle-label {
-        width: 150px !important; /* Wider to fit text */
+        width: 130px !important; /* Reduced width to remove extra space */
         flex: none !important;
         justify-content: space-between !important;
-        padding: 0 8px !important;
+        padding: 0 4px !important;
     }
-    /* Move the switch further when checked because the label is wider */
-    /* Original logic: left: 37px (container ~74px). Switch width 35px. gap ~2px. */
-    /* New width: 150px. Switch 35px. Left = 150 - 35 - 2 = 113px */
+    
+    /* Make the slider wider to fit the word "Purchases" */
+    .history-toggle-label .toggle-switch {
+        width: 68px !important; 
+    }
+
+    /* Move the switch when checked (Sales) */
+    /* Container 130px - Switch 68px - LeftOffset 2px approx = ~60px */
     #historyToggle:checked + .history-toggle-label .toggle-switch {
-        left: 113px !important; 
+        left: 58px !important; 
     }
     
     /* Font size adjustment for the toggle text */
@@ -1222,10 +1227,10 @@
                   <table class="table table-sm table-hover mb-0" style="border-collapse: separate; border-spacing: 0;">
                     <thead class="table-light sticky-top">
                       <tr>
-                        <th style="width: 25%;">Date</th>
-                        <th id="histColEntity" style="width: 35%;">Vendor</th>
-                        <th style="width: 20%;">Product</th>
-                        <th class="text-end" style="width: 20%;">Price</th>
+                        <th style="width: 30%;">Date</th>
+                        <th id="histColEntity" style="width: 45%;">Vendor</th>
+                        <!-- Product column removed -->
+                        <th class="text-end" style="width: 25%;">Price</th>
                       </tr>
                     </thead>
                     <tbody id="productHistoryTableBody">
