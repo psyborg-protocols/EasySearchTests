@@ -50,7 +50,6 @@ const CRMView = {
                 transform: translateY(-1px); 
                 box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important;
             }
-            .crm-lead-card.active-lead { border-left-width: 5px !important; background-color: #f8fafc; }
 
             .timeline-icon-wrapper {
                 position: relative; z-index: 1; width: 34px; height: 34px;
@@ -67,8 +66,9 @@ const CRMView = {
             .crm-badge-closed { background-color: #f3f4f6 !important; color: #374151 !important; }
 
             .status-dropdown-toggle {
-                border: none;
+                border: none; 
                 transition: filter 0.2s;
+                min-width: 135px; /* Set minimum width */
             }
             .status-dropdown-toggle:hover { filter: brightness(0.95); }
 
@@ -89,6 +89,7 @@ const CRMView = {
                 display: flex; align-items: center; justify-content: center;
                 transition: all 0.2s;
             }
+            .btn-action-icon:hover { background: rgba(0,0,0,0.05); transform: scale(1.05); }
 
             @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
             .fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
