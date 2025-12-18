@@ -68,34 +68,55 @@ const CRMView = {
             .status-dropdown-toggle {
                 border: none; 
                 transition: filter 0.2s;
-                min-width: 135px; /* Set minimum width as requested */
+                /* min-width removed from badge itself */
             }
             .status-dropdown-toggle:hover { filter: brightness(0.95); }
 
-            /* Note Button - No background or border, iconic amber look */
+            .crm-status-menu {
+                min-width: 160px; /* Min-width moved to the dropdown menu */
+            }
+
+            /* Note Button - Bright yellow/amber with + overlay */
             .btn-note-icon {
                 background: none !important; border: none !important; padding: 0;
-                width: 42px; height: 42px;
-                color: #f59e0b; 
+                width: 36px; height: 36px;
+                color: #fcd34d; /* Bright Yellow/Amber 300 */
                 display: flex; align-items: center; justify-content: center;
                 transition: all 0.2s;
                 cursor: pointer;
                 box-shadow: none !important;
+                position: relative;
             }
-            .btn-note-icon:hover { transform: scale(1.15); color: #d97706; }
+            .btn-note-icon:hover { transform: scale(1.1); color: #fbbf24; }
+            .btn-note-icon .note-plus {
+                position: absolute;
+                top: 5px;
+                right: 4px;
+                font-size: 0.65rem;
+                background: white;
+                border-radius: 50%;
+                width: 14px;
+                height: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid #fbbf24;
+                color: #b45309;
+                font-weight: bold;
+            }
 
             /* Custom Lead/Quote Action Icon */
             .btn-action-icon-plain {
                 background: none !important; border: none !important; padding: 0;
-                width: 42px; height: 42px;
+                width: 36px; height: 36px;
                 display: flex; align-items: center; justify-content: center;
                 transition: all 0.2s;
                 cursor: pointer;
                 box-shadow: none !important;
             }
-            .btn-action-icon-plain:hover { transform: scale(1.15); }
+            .btn-action-icon-plain:hover { transform: scale(1.1); }
             .btn-action-icon-plain img {
-                width: 32px; height: 32px;
+                width: 26px; height: 26px; /* Reduced size */
                 object-fit: contain;
             }
 
@@ -205,6 +226,8 @@ const CRMView = {
 
     renderHeaderActions(lead) {
         const actionContainer = document.querySelector('#crmDetailHeader .d-flex.gap-2');
+        // Reduce gap between items locally
+        actionContainer.classList.remove('gap-2');
         
         let badgeClass = 'crm-badge-new';
         if (lead.Status === 'Waiting On Contact') badgeClass = 'crm-badge-waiting';
@@ -212,15 +235,14 @@ const CRMView = {
         else if (lead.Status === 'Sent To Quotes') badgeClass = 'crm-badge-quotes';
         else if (lead.Status === 'Closed') badgeClass = 'crm-badge-closed';
 
-        // Order: Status (Left) -> Note -> Leads Icon
         actionContainer.innerHTML = `
             <!-- 1. Status Dropdown (Leftmost) -->
-            <div class="dropdown">
+            <div class="dropdown me-2">
                 <button class="badge ${badgeClass} dropdown-toggle status-dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" 
                         type="button" data-bs-toggle="dropdown">
                     ${lead.Status}
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2">
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2 crm-status-menu">
                     <li><h6 class="dropdown-header small text-muted">Update Status</h6></li>
                     <li><a class="dropdown-item rounded mb-1 crm-badge-new" href="#" onclick="CRMView.updateStatus('${lead.LeadId}', 'New Lead')">New Lead</a></li>
                     <li><a class="dropdown-item rounded mb-1 crm-badge-waiting" href="#" onclick="CRMView.updateStatus('${lead.LeadId}', 'Waiting On Contact')">Waiting On Contact</a></li>
@@ -233,9 +255,10 @@ const CRMView = {
             <!-- 2. Note Button -->
             <button class="btn-note-icon" title="Add Note" onclick="CRMView.openAddNoteModal()">
                 <i class="fas fa-sticky-note fa-2x"></i>
+                <div class="note-plus">+</div>
             </button>
 
-            <!-- 3. Send To Quotes Button (Custom Icon) -->
+            <!-- 3. Send To Quotes Button -->
             <button class="btn-action-icon-plain" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')">
                 <img src="/EasySearchTests/static/leads-icon.png" alt="Send to Quotes">
             </button>
