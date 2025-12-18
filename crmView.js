@@ -26,35 +26,76 @@ const CRMView = {
         }
     },
 
-    injectStyles() {
+injectStyles() {
         if (document.getElementById('crm-custom-styles')) return;
         const style = document.createElement('style');
         style.id = 'crm-custom-styles';
         style.innerHTML = `
-            /* Timeline Vertical Line */
+            /* Timeline Vertical Line - "Breadcrumb" style */
             .crm-timeline-container { position: relative; padding-left: 20px; }
             .crm-timeline-container::before {
-                content: ''; position: absolute; top: 0; bottom: 0; left: 35px;
-                width: 2px; background: #e9ecef; z-index: 0;
+                content: ''; position: absolute; top: 0; bottom: 0; 
+                left: 45px; /* (50px icon col / 2) + 20px padding */
+                width: 0;
+                border-left: 2px dashed #cbd5e1;
+                z-index: 0;
             }
-            /* Timeline Icon Wrapper */
-            .timeline-icon-wrapper {
-                position: relative; z-index: 1; width: 32px; height: 32px;
-                border-radius: 50%; display: flex; align-items: center; justify-content: center;
-                background: #fff; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-            /* Card Hover Effects */
-            .crm-lead-card:hover { transform: translateY(-2px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.08)!important; }
-            .timeline-card { transition: all 0.2s ease; cursor: pointer; }
-            .timeline-card:hover { border-color: #cbd5e1 !important; }
-            
-            /* Avatar Circle */
+
+            /* Prevent Avatar Squishing */
             .avatar-circle {
-                width: 36px; height: 36px; border-radius: 50%; 
+                flex: 0 0 36px; /* Do not grow, do not shrink, fixed 36px */
+                height: 36px; border-radius: 50%; 
                 background: #3b82f6; color: white; display: flex; 
                 align-items: center; justify-content: center; 
-                font-weight: bold; font-size: 0.85rem; text-transform: uppercase;
+                font-weight: 600; font-size: 0.8rem; text-transform: uppercase;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             }
+
+            /* Sleek Lead Cards */
+            .crm-lead-card { 
+                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
+                cursor: pointer;
+                border: 1px solid #f1f5f9 !important;
+            }
+            .crm-lead-card:hover { 
+                transform: translateY(-2px) scale(1.01); 
+                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1) !important;
+                border-color: #e2e8f0 !important;
+            }
+            .crm-lead-card.active-lead {
+                background-color: #f8fafc;
+                border-left-width: 5px !important;
+            }
+
+            /* Timeline Icon Refinement */
+            .timeline-icon-wrapper {
+                position: relative; z-index: 1; width: 34px; height: 34px;
+                border-radius: 10px; /* Squircle look */
+                display: flex; align-items: center; justify-content: center;
+                background: #fff; border: 1px solid #e2e8f0;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+
+            /* Soft Badge Styling */
+            .crm-badge {
+                padding: 0.35em 0.8em;
+                font-weight: 600;
+                border-radius: 6px;
+                font-size: 0.65rem;
+                text-transform: uppercase;
+                letter-spacing: 0.025em;
+            }
+            .badge-in-progress { background: #e0f2fe; color: #0369a1; }
+            .badge-quoted { background: #fef3c7; color: #92400e; }
+            .badge-closed { background: #dcfce7; color: #166534; }
+            .badge-default { background: #f1f5f9; color: #475569; }
+
+            /* Animations */
+            @keyframes fadeInUp {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
         `;
         document.head.appendChild(style);
     },
@@ -118,36 +159,34 @@ const CRMView = {
 
         container.innerHTML = leads.map(l => {
             const lastActive = new Date(l.LastActivityAt);
-            const daysSince = (Date.now() - lastActive) / (1000 * 60 * 60 * 24);
-            const isStale = daysSince > 14;
-            
-            // Generate initials for avatar
+            const isStale = (Date.now() - lastActive) / (1000 * 60 * 60 * 24) > 14;
             const initials = l.Title.substring(0, 2).toUpperCase();
-            const avatarBg = isStale ? '#ef4444' : '#3b82f6'; // Red if stale, Blue if active
-
-            // Status Badge
-            let statusBadge = `<span class="badge bg-secondary fw-normal text-white" style="font-size:0.65rem">${l.Status}</span>`;
-            if (l.Status === 'In Progress') statusBadge = `<span class="badge bg-info text-dark fw-normal" style="font-size:0.65rem">In Progress</span>`;
-            if (l.Status === 'Quoted') statusBadge = `<span class="badge bg-warning text-dark fw-normal" style="font-size:0.65rem">Quoted</span>`;
-            if (l.Status === 'Closed') statusBadge = `<span class="badge bg-success fw-normal" style="font-size:0.65rem">Closed</span>`;
+            
+            // Modern Badge Logic
+            let statusClass = 'badge-default';
+            if (l.Status === 'In Progress') statusClass = 'badge-in-progress';
+            else if (l.Status === 'Quoted') statusClass = 'badge-quoted';
+            else if (l.Status === 'Closed') statusClass = 'badge-closed';
 
             return `
             <div class="card mb-2 border-0 shadow-sm crm-lead-card" 
                  onclick="CRMView.loadLead('${l.LeadId}')"
-                 style="border-left: 4px solid ${isStale ? '#dc3545' : '#0d6efd'} !important;">
+                 style="border-left: 4px solid ${isStale ? '#ef4444' : '#3b82f6'} !important;">
                 <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="avatar-circle me-2 shadow-sm" style="background-color: ${avatarBg}; font-size: 0.75rem;">${initials}</div>
-                        <div style="min-width: 0;">
-                            <h6 class="card-title mb-0 text-truncate fw-bold text-dark" style="font-size: 0.95rem;">${l.Title}</h6>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="avatar-circle shadow-sm" style="background-color: ${isStale ? '#fee2e2' : '#dbeafe'}; color: ${isStale ? '#b91c1c' : '#1d4ed8'};">
+                            ${initials}
+                        </div>
+                        <div class="flex-grow-1" style="min-width: 0;">
+                            <h6 class="mb-0 text-truncate fw-bold text-dark" style="font-size: 0.9rem;">${l.Title}</h6>
                             <div class="small text-muted text-truncate">${l.Company || 'No Company'}</div>
                         </div>
                     </div>
                     
-                    <div class="d-flex justify-content-between align-items-center mt-2">
-                         ${statusBadge}
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                         <span class="crm-badge ${statusClass}">${l.Status}</span>
                          <span class="small text-muted" style="font-size:0.7rem">
-                            ${this.getRelativeTime(lastActive)}
+                            <i class="far fa-clock me-1"></i>${this.getRelativeTime(lastActive)}
                          </span>
                     </div>
                 </div>
