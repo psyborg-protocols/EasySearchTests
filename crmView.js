@@ -72,24 +72,30 @@ const CRMView = {
             }
             .status-dropdown-toggle:hover { filter: brightness(0.95); }
 
-            .btn-note-sticky {
+            /* Updated Note Button - Clean iconic look */
+            .btn-note-icon {
+                background: none; border: none; padding: 0;
                 width: 42px; height: 42px;
-                background: #fef3c7; border: 1px solid #fde68a;
-                color: #92400e; border-radius: 8px;
-                display: flex; align-items: center; justify-content: center;
-                position: relative; transition: all 0.2s;
-            }
-            .btn-note-sticky:hover { background: #fde68a; transform: scale(1.05); }
-            .btn-note-sticky .fa-plus {
-                position: absolute; font-size: 0.6rem; top: 10px; right: 8px;
-            }
-
-            .btn-action-icon {
-                width: 42px; height: 42px; border-radius: 8px;
+                color: #f59e0b; /* Amber/Sticky note color */
                 display: flex; align-items: center; justify-content: center;
                 transition: all 0.2s;
+                cursor: pointer;
             }
-            .btn-action-icon:hover { background: rgba(0,0,0,0.05); transform: scale(1.05); }
+            .btn-note-icon:hover { transform: scale(1.15); color: #d97706; }
+
+            /* Updated Custom Lead/Quote Action Icon - Using Image */
+            .btn-action-icon-plain {
+                background: none; border: none; padding: 0;
+                width: 42px; height: 42px;
+                display: flex; align-items: center; justify-content: center;
+                transition: all 0.2s;
+                cursor: pointer;
+            }
+            .btn-action-icon-plain:hover { transform: scale(1.15); }
+            .btn-action-icon-plain img {
+                width: 32px; height: 32px;
+                object-fit: contain;
+            }
 
             @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
             .fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
@@ -182,7 +188,6 @@ const CRMView = {
         document.getElementById('crmDetailTitle').textContent = lead.Title;
         document.getElementById('crmDetailCompany').innerHTML = `<i class="far fa-building me-1"></i> ${lead.Company || "No Company"}`;
         
-        // Render Header Actions (Dropdown + Buttons)
         this.renderHeaderActions(lead);
 
         const timelineContainer = document.getElementById('crmTimeline');
@@ -206,10 +211,20 @@ const CRMView = {
         else if (lead.Status === 'Closed') badgeClass = 'crm-badge-closed';
 
         actionContainer.innerHTML = `
-            <!-- Status Dropdown -->
+            <!-- 1. Note Button (First) -->
+            <button class="btn-note-icon" title="Add Note" onclick="CRMView.openAddNoteModal()">
+                <i class="fas fa-sticky-note fa-2x"></i>
+            </button>
+
+            <!-- 2. Send To Quotes Button (Second) - Updated to use custom icon in /static -->
+            <button class="btn-action-icon-plain" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')">
+                <img src="/static/leads-icon.png" alt="Send to Quotes">
+            </button>
+
+            <!-- 3. Status Dropdown -->
             <div class="dropdown">
                 <button class="badge ${badgeClass} dropdown-toggle status-dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" 
-                        type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        type="button" data-bs-toggle="dropdown">
                     ${lead.Status}
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2">
@@ -221,25 +236,14 @@ const CRMView = {
                     <li><a class="dropdown-item rounded text-danger" href="#" onclick="CRMView.closeLeadConfirm('${lead.LeadId}')"><i class="fas fa-times-circle me-2"></i>Close this lead</a></li>
                 </ul>
             </div>
-
-            <!-- Send To Quotes Icon Button -->
-            <button class="btn btn-outline-info btn-action-icon border-0" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')">
-                <i class="fas fa-file-invoice-dollar" style="font-size: 1.2rem;"></i>
-            </button>
-
-            <!-- Sticky Note Add Icon -->
-            <button class="btn-note-sticky" title="Add Note" onclick="CRMView.openAddNoteModal()">
-                <i class="fas fa-sticky-note fa-lg"></i>
-                <i class="fas fa-plus"></i>
-            </button>
         `;
     },
 
     async updateStatus(leadId, newStatus) {
         try {
             await CRMService.updateStatus(leadId, newStatus);
-            this.loadLead(leadId); // Refresh details
-            this.renderList(); // Refresh list
+            this.loadLead(leadId); 
+            this.renderList(); 
         } catch (e) {
             console.error(e);
         }
