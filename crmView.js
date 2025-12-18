@@ -218,7 +218,7 @@ const CRMView = {
 
             <!-- 2. Send To Quotes Button (Second) - Updated to use custom icon in /static -->
             <button class="btn-action-icon-plain" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')">
-                <img src="/static/leads-icon.png" alt="Send to Quotes">
+                <img src="/EasySearchTests/static/leads-icon.png" alt="Send to Quotes">
             </button>
 
             <!-- 3. Status Dropdown -->
