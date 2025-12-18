@@ -68,28 +68,30 @@ const CRMView = {
             .status-dropdown-toggle {
                 border: none; 
                 transition: filter 0.2s;
-                min-width: 135px; /* Set minimum width */
+                min-width: 135px; /* Set minimum width as requested */
             }
             .status-dropdown-toggle:hover { filter: brightness(0.95); }
 
-            /* Updated Note Button - Clean iconic look */
+            /* Note Button - No background or border, iconic amber look */
             .btn-note-icon {
-                background: none; border: none; padding: 0;
+                background: none !important; border: none !important; padding: 0;
                 width: 42px; height: 42px;
-                color: #f59e0b; /* Amber/Sticky note color */
+                color: #f59e0b; 
                 display: flex; align-items: center; justify-content: center;
                 transition: all 0.2s;
                 cursor: pointer;
+                box-shadow: none !important;
             }
             .btn-note-icon:hover { transform: scale(1.15); color: #d97706; }
 
-            /* Updated Custom Lead/Quote Action Icon - Using Image */
+            /* Custom Lead/Quote Action Icon */
             .btn-action-icon-plain {
-                background: none; border: none; padding: 0;
+                background: none !important; border: none !important; padding: 0;
                 width: 42px; height: 42px;
                 display: flex; align-items: center; justify-content: center;
                 transition: all 0.2s;
                 cursor: pointer;
+                box-shadow: none !important;
             }
             .btn-action-icon-plain:hover { transform: scale(1.15); }
             .btn-action-icon-plain img {
@@ -210,18 +212,9 @@ const CRMView = {
         else if (lead.Status === 'Sent To Quotes') badgeClass = 'crm-badge-quotes';
         else if (lead.Status === 'Closed') badgeClass = 'crm-badge-closed';
 
+        // Order: Status (Left) -> Note -> Leads Icon
         actionContainer.innerHTML = `
-            <!-- 1. Note Button (First) -->
-            <button class="btn-note-icon" title="Add Note" onclick="CRMView.openAddNoteModal()">
-                <i class="fas fa-sticky-note fa-2x"></i>
-            </button>
-
-            <!-- 2. Send To Quotes Button (Second) - Updated to use custom icon in /static -->
-            <button class="btn-action-icon-plain" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')">
-                <img src="/EasySearchTests/static/leads-icon.png" alt="Send to Quotes">
-            </button>
-
-            <!-- 3. Status Dropdown -->
+            <!-- 1. Status Dropdown (Leftmost) -->
             <div class="dropdown">
                 <button class="badge ${badgeClass} dropdown-toggle status-dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" 
                         type="button" data-bs-toggle="dropdown">
@@ -236,6 +229,16 @@ const CRMView = {
                     <li><a class="dropdown-item rounded text-danger" href="#" onclick="CRMView.closeLeadConfirm('${lead.LeadId}')"><i class="fas fa-times-circle me-2"></i>Close this lead</a></li>
                 </ul>
             </div>
+
+            <!-- 2. Note Button -->
+            <button class="btn-note-icon" title="Add Note" onclick="CRMView.openAddNoteModal()">
+                <i class="fas fa-sticky-note fa-2x"></i>
+            </button>
+
+            <!-- 3. Send To Quotes Button (Custom Icon) -->
+            <button class="btn-action-icon-plain" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')">
+                <img src="/EasySearchTests/static/leads-icon.png" alt="Send to Quotes">
+            </button>
         `;
     },
 
