@@ -1,15 +1,12 @@
 // ---------------------------------------------
 // crmView.js
 // Handles UI rendering for the CRM module
-// with enhanced Timeline UI and Animations
 // ---------------------------------------------
 
 const CRMView = {
     init() {
-        // Inject custom styles for the timeline once
         this.injectStyles();
 
-        // Listeners
         const crmTab = document.getElementById('crm-tab');
         if (crmTab) {
             crmTab.addEventListener('shown.bs.tab', () => this.refreshList());
@@ -26,75 +23,74 @@ const CRMView = {
         }
     },
 
-injectStyles() {
+    injectStyles() {
         if (document.getElementById('crm-custom-styles')) return;
         const style = document.createElement('style');
         style.id = 'crm-custom-styles';
         style.innerHTML = `
-            /* Timeline Vertical Line - "Breadcrumb" style */
             .crm-timeline-container { position: relative; padding-left: 20px; }
             .crm-timeline-container::before {
                 content: ''; position: absolute; top: 0; bottom: 0; 
-                left: 45px; /* (50px icon col / 2) + 20px padding */
-                width: 0;
-                border-left: 2px dashed #cbd5e1;
-                z-index: 0;
+                left: 45px; width: 0; border-left: 2px dashed #cbd5e1; z-index: 0;
             }
 
-            /* Prevent Avatar Squishing */
             .avatar-circle {
-                flex: 0 0 36px; /* Do not grow, do not shrink, fixed 36px */
-                height: 36px; border-radius: 50%; 
+                flex: 0 0 36px; height: 36px; border-radius: 50%; 
                 background: #3b82f6; color: white; display: flex; 
                 align-items: center; justify-content: center; 
                 font-weight: 600; font-size: 0.8rem; text-transform: uppercase;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             }
 
-            /* Sleek Lead Cards */
             .crm-lead-card { 
-                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
-                cursor: pointer;
+                transition: all 0.2s ease; cursor: pointer;
                 border: 1px solid #f1f5f9 !important;
             }
             .crm-lead-card:hover { 
-                transform: translateY(-2px) scale(1.01); 
-                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1) !important;
-                border-color: #e2e8f0 !important;
+                transform: translateY(-1px); 
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important;
             }
-            .crm-lead-card.active-lead {
-                background-color: #f8fafc;
-                border-left-width: 5px !important;
-            }
+            .crm-lead-card.active-lead { border-left-width: 5px !important; background-color: #f8fafc; }
 
-            /* Timeline Icon Refinement */
             .timeline-icon-wrapper {
                 position: relative; z-index: 1; width: 34px; height: 34px;
-                border-radius: 10px; /* Squircle look */
-                display: flex; align-items: center; justify-content: center;
+                border-radius: 10px; display: flex; align-items: center; justify-content: center;
                 background: #fff; border: 1px solid #e2e8f0;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             }
 
-            /* Soft Badge Styling */
-            .crm-badge {
-                padding: 0.35em 0.8em;
-                font-weight: 600;
-                border-radius: 6px;
-                font-size: 0.65rem;
-                text-transform: uppercase;
-                letter-spacing: 0.025em;
-            }
-            .badge-in-progress { background: #e0f2fe; color: #0369a1; }
-            .badge-quoted { background: #fef3c7; color: #92400e; }
-            .badge-closed { background: #dcfce7; color: #166534; }
-            .badge-default { background: #f1f5f9; color: #475569; }
+            /* Precise Status Colors */
+            .crm-badge-new { background-color: #dcfce7 !important; color: #166534 !important; }
+            .crm-badge-waiting { background-color: #ecfdf5 !important; color: #065f46 !important; }
+            .crm-badge-action { background-color: #ffedd5 !important; color: #9a3412 !important; }
+            .crm-badge-quotes { background-color: #e0f2fe !important; color: #0369a1 !important; }
+            .crm-badge-closed { background-color: #f3f4f6 !important; color: #374151 !important; }
 
-            /* Animations */
-            @keyframes fadeInUp {
-                from { opacity: 0; transform: translateY(10px); }
-                to { opacity: 1; transform: translateY(0); }
+            .status-dropdown-toggle {
+                border: none;
+                transition: filter 0.2s;
             }
+            .status-dropdown-toggle:hover { filter: brightness(0.95); }
+
+            .btn-note-sticky {
+                width: 42px; height: 42px;
+                background: #fef3c7; border: 1px solid #fde68a;
+                color: #92400e; border-radius: 8px;
+                display: flex; align-items: center; justify-content: center;
+                position: relative; transition: all 0.2s;
+            }
+            .btn-note-sticky:hover { background: #fde68a; transform: scale(1.05); }
+            .btn-note-sticky .fa-plus {
+                position: absolute; font-size: 0.6rem; top: 10px; right: 8px;
+            }
+
+            .btn-action-icon {
+                width: 42px; height: 42px; border-radius: 8px;
+                display: flex; align-items: center; justify-content: center;
+                transition: all 0.2s;
+            }
+
+            @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
             .fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
         `;
         document.head.appendChild(style);
@@ -114,11 +110,7 @@ injectStyles() {
             await CRMService.getLeads();
             this.renderList();
         } catch (e) {
-            console.error(e);
-            container.innerHTML = `
-                <div class="alert alert-danger m-3 small">
-                    <i class="fas fa-exclamation-circle me-1"></i> ${e.message}
-                </div>`;
+            container.innerHTML = `<div class="alert alert-danger m-3 small">${e.message}</div>`;
         }
     },
 
@@ -129,7 +121,6 @@ injectStyles() {
         
         let leads = CRMService.leadsCache;
 
-        // 1. Filter
         if (filterOwner === 'me' && userAccount) {
             leads = leads.filter(l => 
                 (l.Owner || "").toLowerCase().includes(userAccount.username.toLowerCase()) || 
@@ -144,50 +135,36 @@ injectStyles() {
             );
         }
 
-        // 2. Sort (Last Activity DESC)
         leads.sort((a, b) => new Date(b.LastActivityAt) - new Date(a.LastActivityAt));
 
-        // 3. Render
         if (leads.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-muted mt-5 opacity-50">
-                    <i class="fas fa-inbox fa-3x mb-3"></i>
-                    <p class="small">No leads found.</p>
-                </div>`;
+            container.innerHTML = `<div class="text-center text-muted mt-5 opacity-50"><p class="small">No leads found.</p></div>`;
             return;
         }
 
         container.innerHTML = leads.map(l => {
             const lastActive = new Date(l.LastActivityAt);
-            const isStale = (Date.now() - lastActive) / (1000 * 60 * 60 * 24) > 14;
             const initials = l.Title.substring(0, 2).toUpperCase();
             
-            // Modern Badge Logic
-            let statusClass = 'badge-default';
-            if (l.Status === 'In Progress') statusClass = 'badge-in-progress';
-            else if (l.Status === 'Quoted') statusClass = 'badge-quoted';
-            else if (l.Status === 'Closed') statusClass = 'badge-closed';
+            let badgeClass = 'crm-badge-new';
+            if (l.Status === 'Waiting On Contact') badgeClass = 'crm-badge-waiting';
+            else if (l.Status === 'Action Required') badgeClass = 'crm-badge-action';
+            else if (l.Status === 'Sent To Quotes') badgeClass = 'crm-badge-quotes';
+            else if (l.Status === 'Closed') badgeClass = 'crm-badge-closed';
 
             return `
-            <div class="card mb-2 border-0 shadow-sm crm-lead-card" 
-                 onclick="CRMView.loadLead('${l.LeadId}')"
-                 style="border-left: 4px solid ${isStale ? '#ef4444' : '#3b82f6'} !important;">
+            <div class="card mb-2 border-0 shadow-sm crm-lead-card" onclick="CRMView.loadLead('${l.LeadId}')">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="avatar-circle shadow-sm" style="background-color: ${isStale ? '#fee2e2' : '#dbeafe'}; color: ${isStale ? '#b91c1c' : '#1d4ed8'};">
-                            ${initials}
-                        </div>
+                        <div class="avatar-circle shadow-sm">${initials}</div>
                         <div class="flex-grow-1" style="min-width: 0;">
                             <h6 class="mb-0 text-truncate fw-bold text-dark" style="font-size: 0.9rem;">${l.Title}</h6>
                             <div class="small text-muted text-truncate">${l.Company || 'No Company'}</div>
                         </div>
                     </div>
-                    
                     <div class="d-flex justify-content-between align-items-center mt-3">
-                         <span class="crm-badge ${statusClass}">${l.Status}</span>
-                         <span class="small text-muted" style="font-size:0.7rem">
-                            <i class="far fa-clock me-1"></i>${this.getRelativeTime(lastActive)}
-                         </span>
+                         <span class="badge ${badgeClass} text-uppercase px-2" style="font-size:0.6rem">${l.Status}</span>
+                         <span class="small text-muted" style="font-size:0.7rem">${this.getRelativeTime(lastActive)}</span>
                     </div>
                 </div>
             </div>`;
@@ -195,64 +172,93 @@ injectStyles() {
     },
 
     async loadLead(leadId) {
-        // 1. Setup UI for Loading
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
-        
-        // Populate Header
+        if(!lead) return;
+
         const header = document.getElementById('crmDetailHeader');
         header.style.setProperty('display', 'flex', 'important');
         
         document.getElementById('crmDetailTitle').textContent = lead.Title;
         document.getElementById('crmDetailCompany').innerHTML = `<i class="far fa-building me-1"></i> ${lead.Company || "No Company"}`;
         
-        const statusBadge = document.getElementById('crmDetailStatus');
-        statusBadge.textContent = lead.Status;
-        statusBadge.className = 'badge align-self-center px-3 py-2 rounded-pill ' + 
-            (lead.Status === 'Quoted' ? 'bg-warning text-dark' : 
-             lead.Status === 'Closed' ? 'bg-success' : 
-             lead.Status === 'In Progress' ? 'bg-info text-dark' : 'bg-secondary');
+        // Render Header Actions (Dropdown + Buttons)
+        this.renderHeaderActions(lead);
 
-        // Show Loading State in Timeline
         const timelineContainer = document.getElementById('crmTimeline');
-        timelineContainer.innerHTML = `
-            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
-                <div class="spinner-border text-primary mb-3" role="status"></div>
-                <div class="fw-bold">Loading Timeline</div>
-                <div class="small text-muted opacity-75">Fetching events & emails...</div>
-            </div>`;
+        timelineContainer.innerHTML = `<div class="text-center p-5"><div class="spinner-border text-primary"></div></div>`;
 
-        // 2. Fetch Data
         try {
             const items = await CRMService.getFullTimeline(lead);
             this.renderTimeline(items);
         } catch (e) {
+            timelineContainer.innerHTML = `<div class="alert alert-danger m-4">${e.message}</div>`;
+        }
+    },
+
+    renderHeaderActions(lead) {
+        const actionContainer = document.querySelector('#crmDetailHeader .d-flex.gap-2');
+        
+        let badgeClass = 'crm-badge-new';
+        if (lead.Status === 'Waiting On Contact') badgeClass = 'crm-badge-waiting';
+        else if (lead.Status === 'Action Required') badgeClass = 'crm-badge-action';
+        else if (lead.Status === 'Sent To Quotes') badgeClass = 'crm-badge-quotes';
+        else if (lead.Status === 'Closed') badgeClass = 'crm-badge-closed';
+
+        actionContainer.innerHTML = `
+            <!-- Status Dropdown -->
+            <div class="dropdown">
+                <button class="badge ${badgeClass} dropdown-toggle status-dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" 
+                        type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    ${lead.Status}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2">
+                    <li><h6 class="dropdown-header small text-muted">Update Status</h6></li>
+                    <li><a class="dropdown-item rounded mb-1 crm-badge-new" href="#" onclick="CRMView.updateStatus('${lead.LeadId}', 'New Lead')">New Lead</a></li>
+                    <li><a class="dropdown-item rounded mb-1 crm-badge-waiting" href="#" onclick="CRMView.updateStatus('${lead.LeadId}', 'Waiting On Contact')">Waiting On Contact</a></li>
+                    <li><a class="dropdown-item rounded mb-1 crm-badge-action" href="#" onclick="CRMView.updateStatus('${lead.LeadId}', 'Action Required')">Action Required</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item rounded text-danger" href="#" onclick="CRMView.closeLeadConfirm('${lead.LeadId}')"><i class="fas fa-times-circle me-2"></i>Close this lead</a></li>
+                </ul>
+            </div>
+
+            <!-- Send To Quotes Icon Button -->
+            <button class="btn btn-outline-info btn-action-icon border-0" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')">
+                <i class="fas fa-file-invoice-dollar" style="font-size: 1.2rem;"></i>
+            </button>
+
+            <!-- Sticky Note Add Icon -->
+            <button class="btn-note-sticky" title="Add Note" onclick="CRMView.openAddNoteModal()">
+                <i class="fas fa-sticky-note fa-lg"></i>
+                <i class="fas fa-plus"></i>
+            </button>
+        `;
+    },
+
+    async updateStatus(leadId, newStatus) {
+        try {
+            await CRMService.updateStatus(leadId, newStatus);
+            this.loadLead(leadId); // Refresh details
+            this.renderList(); // Refresh list
+        } catch (e) {
             console.error(e);
-            timelineContainer.innerHTML = `
-                <div class="alert alert-danger m-4 shadow-sm border-0">
-                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Error</h5>
-                    <p class="mb-0">${e.message}</p>
-                </div>`;
+        }
+    },
+
+    async closeLeadConfirm(leadId) {
+        if (confirm("Are you sure you want to close this lead?")) {
+            await this.updateStatus(leadId, 'Closed');
         }
     },
 
     renderTimeline(items) {
         const container = document.getElementById('crmTimeline');
         if (items.length === 0) {
-            container.innerHTML = `
-                <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted opacity-50">
-                    <div class="bg-light rounded-circle p-4 mb-3">
-                        <i class="fas fa-feather-alt fa-3x"></i>
-                    </div>
-                    <h5>Start the conversation</h5>
-                    <p class="small">Add a note or link an email to begin.</p>
-                </div>`;
+            container.innerHTML = `<div class="text-center mt-5 opacity-50"><h5>Start the conversation</h5></div>`;
             return;
         }
 
-        // Build HTML
         const timelineHtml = items.map((item, index) => {
             const dateObj = item.date;
-            const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
             const relativeTime = this.getRelativeTime(dateObj);
             
             if (item.type === 'email') {
@@ -272,30 +278,22 @@ injectStyles() {
                                         <span class="badge bg-primary bg-opacity-10 text-primary fw-bold" style="font-size:0.7rem">EMAIL</span>
                                         <span class="text-dark fw-bold small">${item.from}</span>
                                     </div>
-                                    <small class="text-muted" title="${dateObj.toLocaleString()}">${relativeTime}</small>
+                                    <small class="text-muted">${relativeTime}</small>
                                 </div>
                                 <h6 class="card-title text-dark fw-bold mb-1" style="font-size: 0.95rem;">${item.subject}</h6>
-                                
-                                <!-- Collapsible Body -->
                                 <div id="${uniqueId}" class="collapse mt-2">
                                     <div class="p-2 bg-light rounded text-secondary small border-start border-2 border-primary" 
-                                         style="white-space: pre-wrap; font-family: sans-serif;">${item.preview || "No preview available."}</div>
-                                </div>
-                                <div class="text-center mt-1">
-                                    <i class="fas fa-chevron-down text-muted opacity-25" style="font-size: 0.7rem;"></i>
+                                         style="white-space: pre-wrap;">${item.preview || "No preview available."}</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>`;
             } else {
-                // Event / Note
                 const isSystem = item.eventType === 'System';
                 const icon = isSystem ? 'fa-cog' : 'fa-sticky-note';
                 const iconColor = isSystem ? 'text-secondary' : 'text-warning';
-                // Use a soft yellow/post-it look for notes, clean gray for system
                 const cardBg = isSystem ? '#f8f9fa' : '#fffbeb'; 
-                const cardBorder = isSystem ? 'border-light' : 'border-warning-subtle';
 
                 return `
                 <div class="d-flex mb-4 fade-in-up">
@@ -305,11 +303,11 @@ injectStyles() {
                         </div>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="card border-0 shadow-sm ${cardBorder}" style="background-color: ${cardBg};">
+                        <div class="card border-0 shadow-sm" style="background-color: ${cardBg};">
                             <div class="card-body p-3">
                                  <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="text-uppercase fw-bold text-muted" style="font-size:0.7rem; letter-spacing:0.5px;">${item.eventType}</span>
-                                    <small class="text-muted" title="${dateObj.toLocaleString()}">${relativeTime}</small>
+                                    <span class="text-uppercase fw-bold text-muted" style="font-size:0.7rem;">${item.eventType}</span>
+                                    <small class="text-muted">${relativeTime}</small>
                                 </div>
                                 <div class="fw-semibold text-dark mb-1">${item.summary}</div>
                                 ${item.details ? `<div class="small text-dark opacity-75" style="white-space: pre-wrap;">${item.details}</div>` : ''}
@@ -320,17 +318,13 @@ injectStyles() {
             }
         }).join('');
 
-        // Wrap in the container that adds the vertical line via CSS
         container.innerHTML = `<div class="crm-timeline-container pt-2 pb-5">${timelineHtml}</div>`;
     },
     
-    // Toggle helper for the email cards
     toggleCollapse(id) {
         const el = document.getElementById(id);
         if (el) {
-            // Using Bootstrap 5 collapse API if available, else simple class toggle
             if (window.bootstrap && window.bootstrap.Collapse) {
-                // Check if instance exists
                 let bsCollapse = bootstrap.Collapse.getInstance(el);
                 if (!bsCollapse) bsCollapse = new bootstrap.Collapse(el, { toggle: false });
                 bsCollapse.toggle();
@@ -342,8 +336,7 @@ injectStyles() {
 
     getRelativeTime(date) {
         const now = new Date();
-        const diff = Math.floor((now - date) / 1000); // seconds
-        
+        const diff = Math.floor((now - date) / 1000);
         if (diff < 60) return 'Just now';
         if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
         if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -356,7 +349,6 @@ injectStyles() {
         const note = prompt("Add a note:");
         if(note && note.trim().length > 0) {
              try {
-                // Optimistic UI update could go here, but for safety we reload
                 await CRMService.addEvent(CRMService.currentLead.LeadId, "Note", "User Note", note);
                 this.loadLead(CRMService.currentLead.LeadId);
              } catch(e) {
@@ -366,5 +358,4 @@ injectStyles() {
     }
 };
 
-// Start
 document.addEventListener('DOMContentLoaded', () => CRMView.init());
