@@ -5,6 +5,7 @@
 
 const CRMView = {
     sortBy: 'recent', // 'recent' or 'value'
+    editingField: null, // Tracks which field is being edited: 'PartNumber' or 'Quantity'
 
     init() {
         this.injectStyles();
@@ -37,6 +38,14 @@ const CRMView = {
                 this.renderList();
             });
         }
+
+        // Global click listener to close dropdowns
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.crm-edit-dropdown') && !e.target.closest('#crmEditPartInput')) {
+                const dd = document.getElementById('crmEditPartDropdown');
+                if (dd) dd.classList.remove('show');
+            }
+        });
     },
 
     injectStyles() {
@@ -79,6 +88,32 @@ const CRMView = {
             .crm-badge-action { background-color: #fee2e2 !important; color: #991b1b !important; }
             .crm-badge-quotes { background-color: #e0f2fe !important; color: #0369a1 !important; }
             .crm-badge-closed { background-color: #f3f4f6 !important; color: #374151 !important; }
+
+            .btn-edit-lead {
+                background: none; border: none; padding: 2px 5px; color: #94a3b8;
+                cursor: pointer; transition: color 0.2s; visibility: hidden;
+            }
+            .lead-summary-field:hover .btn-edit-lead { visibility: visible; }
+            .btn-edit-lead:hover { color: #3b82f6; }
+
+            .crm-edit-input {
+                font-size: 0.85rem; padding: 4px 8px; border-radius: 6px;
+                border: 1px solid #3b82f6; width: 100%; outline: none;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+
+            .crm-edit-dropdown {
+                position: absolute; width: 100%; max-height: 200px; overflow-y: auto;
+                background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 1000;
+                display: none; margin-top: 4px;
+            }
+            .crm-edit-dropdown.show { display: block; }
+            .crm-edit-dropdown .dropdown-item {
+                padding: 8px 12px; font-size: 0.8rem; border-bottom: 1px solid #f1f5f9;
+                cursor: pointer;
+            }
+            .crm-edit-dropdown .dropdown-item:hover { background-color: #f8fafc; }
 
             .btn-note-icon {
                 background: none !important; border: none !important; padding: 0;
@@ -126,7 +161,6 @@ const CRMView = {
         
         let leads = CRMService.leadsCache;
 
-        // Requirement: Only show leads tied to user
         if (userAccount) {
             const userName = (userAccount.name || "").toLowerCase();
             const userEmail = (userAccount.username || "").toLowerCase();
@@ -136,7 +170,6 @@ const CRMView = {
             });
         }
         
-        // Search filter
         if (search) {
             leads = leads.filter(l => 
                 (l.Title || "").toLowerCase().includes(search) || 
@@ -145,12 +178,10 @@ const CRMView = {
             );
         }
 
-        // Calculate values for sorting and display
         leads.forEach(l => {
             l._calculatedValue = CRMService.calculateLeadValue(l.PartNumber, l.Quantity);
         });
 
-        // Sorting logic
         if (this.sortBy === 'value') {
             leads.sort((a, b) => (b._calculatedValue || 0) - (a._calculatedValue || 0));
         } else {
@@ -206,11 +237,7 @@ const CRMView = {
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         if(!lead) return;
 
-        // Highlight active card
         document.querySelectorAll('.crm-lead-card').forEach(c => c.classList.remove('active-lead'));
-        // Find the card by searching the DOM for an element that calls loadLead with this ID
-        // Simplified: renderList handles this via active-lead class if we re-render, 
-        // but for immediate feedback we can find it:
         const cards = document.querySelectorAll('.crm-lead-card');
         cards.forEach(c => {
             if (c.getAttribute('onclick')?.includes(leadId)) c.classList.add('active-lead');
@@ -265,14 +292,20 @@ const CRMView = {
                 <h6 class="text-uppercase fw-bold text-muted mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px;">Lead Information</h6>
                 
                 <div class="row g-2 mb-3">
-                    <div class="col-7">
-                        <label class="small text-muted mb-1 d-block">Requested Part #</label>
+                    <div class="col-7 lead-summary-field" id="summaryFieldPartNumber">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="small text-muted mb-0">Requested Part #</label>
+                            <button class="btn-edit-lead" onclick="CRMView.enterEditMode('${lead.LeadId}', 'PartNumber')"><i class="fas fa-pen"></i></button>
+                        </div>
                         <div class="fw-bold text-dark border rounded p-2 bg-light text-truncate" style="font-size: 0.85rem;" title="${partNumber || 'N/A'}">
                             ${partNumber || 'N/A'}
                         </div>
                     </div>
-                    <div class="col-5">
-                        <label class="small text-muted mb-1 d-block">Quantity</label>
+                    <div class="col-5 lead-summary-field" id="summaryFieldQuantity">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="small text-muted mb-0">Quantity</label>
+                            <button class="btn-edit-lead" onclick="CRMView.enterEditMode('${lead.LeadId}', 'Quantity')"><i class="fas fa-pen"></i></button>
+                        </div>
                         <div class="fw-bold text-dark border rounded p-2 bg-light text-center" style="font-size: 0.85rem;">
                             ${lead.Quantity || '0'}
                         </div>
@@ -302,6 +335,122 @@ const CRMView = {
                 </div>
             </div>
         `;
+    },
+
+    enterEditMode(leadId, field) {
+        const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+        if (!lead) return;
+
+        const containerId = field === 'PartNumber' ? 'summaryFieldPartNumber' : 'summaryFieldQuantity';
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const currentValue = lead[field] || '';
+        
+        if (field === 'PartNumber') {
+            container.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="small text-muted mb-0">Requested Part #</label>
+                    <div class="d-flex gap-1">
+                        <button class="btn-edit-lead text-success" onclick="CRMView.saveEdit('${leadId}', 'PartNumber')"><i class="fas fa-check"></i></button>
+                        <button class="btn-edit-lead text-danger" onclick="CRMView.loadLead('${leadId}')"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+                <div class="position-relative">
+                    <input type="text" id="crmEditPartInput" class="crm-edit-input" value="${currentValue}" placeholder="Enter SKU..." autocomplete="off">
+                    <div id="crmEditPartDropdown" class="crm-edit-dropdown"></div>
+                </div>
+            `;
+            
+            const input = document.getElementById('crmEditPartInput');
+            const dropdown = document.getElementById('crmEditPartDropdown');
+            input.focus();
+            input.select();
+
+            input.addEventListener('input', (e) => {
+                const query = e.target.value.trim().toLowerCase();
+                if (query.length < 1) {
+                    dropdown.classList.remove('show');
+                    return;
+                }
+                const db = window.dataStore?.DB?.dataframe || [];
+                const matches = db.filter(p => 
+                    String(p.PartNumber).toLowerCase().includes(query) || 
+                    String(p.Description).toLowerCase().includes(query)
+                ).slice(0, 10);
+
+                if (matches.length > 0) {
+                    dropdown.innerHTML = matches.map(p => `
+                        <div class="dropdown-item" onclick="document.getElementById('crmEditPartInput').value = '${p.PartNumber}'; document.getElementById('crmEditPartDropdown').classList.remove('show');">
+                            <strong>${p.PartNumber}</strong><br>
+                            <small class="text-muted">${p.Description}</small>
+                        </div>
+                    `).join('');
+                    dropdown.classList.add('show');
+                } else {
+                    dropdown.classList.remove('show');
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') this.saveEdit(leadId, 'PartNumber');
+                if (e.key === 'Escape') this.loadLead(leadId);
+            });
+
+        } else if (field === 'Quantity') {
+            container.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="small text-muted mb-0">Quantity</label>
+                    <div class="d-flex gap-1">
+                        <button class="btn-edit-lead text-success" onclick="CRMView.saveEdit('${leadId}', 'Quantity')"><i class="fas fa-check"></i></button>
+                        <button class="btn-edit-lead text-danger" onclick="CRMView.loadLead('${leadId}')"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+                <input type="number" id="crmEditQtyInput" class="crm-edit-input text-center" value="${currentValue}">
+            `;
+            const input = document.getElementById('crmEditQtyInput');
+            input.focus();
+            input.select();
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') this.saveEdit(leadId, 'Quantity');
+                if (e.key === 'Escape') this.loadLead(leadId);
+            });
+        }
+    },
+
+    async saveEdit(leadId, field) {
+        const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+        if (!lead) return;
+
+        let newValue;
+        if (field === 'PartNumber') {
+            newValue = document.getElementById('crmEditPartInput').value.trim();
+        } else {
+            newValue = document.getElementById('crmEditQtyInput').value.trim();
+        }
+
+        if (newValue === String(lead[field])) {
+            this.loadLead(leadId);
+            return;
+        }
+
+        try {
+            const updates = {};
+            updates[field] = newValue;
+            
+            // Show loading state in the field
+            const containerId = field === 'PartNumber' ? 'summaryFieldPartNumber' : 'summaryFieldQuantity';
+            document.getElementById(containerId).innerHTML = `<div class="p-2 text-center"><div class="spinner-border spinner-border-sm text-primary"></div></div>`;
+
+            await CRMService.updateLeadFields(leadId, updates);
+            
+            // Reload the detail view and list
+            this.loadLead(leadId);
+            this.renderList();
+        } catch (e) {
+            alert("Failed to save: " + e.message);
+            this.loadLead(leadId);
+        }
     },
 
     renderHeaderActions(lead) {

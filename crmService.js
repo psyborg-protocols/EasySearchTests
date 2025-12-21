@@ -97,6 +97,33 @@ const CRMService = {
         });
     },
 
+    /**
+     * Updates multiple fields on a lead item.
+     * @param {string} leadId 
+     * @param {object} updatedFields - Key-value pairs of fields to update
+     */
+    async updateLeadFields(leadId, updatedFields) {
+        const lead = this.leadsCache.find(l => l.LeadId === leadId);
+        if (!lead) return;
+
+        const url = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`;
+        const timestamp = new Date().toISOString();
+        
+        const fieldsToUpdate = { 
+            ...updatedFields,
+            LastActivityAt: timestamp
+        };
+
+        await this._graphRequest(url, "PATCH", { fields: fieldsToUpdate });
+
+        // Log the change in the events list
+        const summary = Object.keys(updatedFields).map(k => `${k}: ${updatedFields[k]}`).join(", ");
+        await this.addEvent(leadId, "System", "Lead Updated", `Updated fields: ${summary}`);
+
+        // Update local cache
+        Object.assign(lead, fieldsToUpdate);
+    },
+
     async updateStatus(leadId, newStatus) {
         const lead = this.leadsCache.find(l => l.LeadId === leadId);
         if (!lead) return;
