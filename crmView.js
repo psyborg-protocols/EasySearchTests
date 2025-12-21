@@ -4,6 +4,8 @@
 // ---------------------------------------------
 
 const CRMView = {
+    sortBy: 'recent', // 'recent' or 'value'
+
     init() {
         this.injectStyles();
 
@@ -12,14 +14,28 @@ const CRMView = {
             crmTab.addEventListener('shown.bs.tab', () => this.refreshList());
         }
         
-        const ownerFilter = document.getElementById('crmOwnerFilter');
-        if (ownerFilter) {
-            ownerFilter.addEventListener('change', () => this.renderList());
-        }
-        
         const searchInput = document.getElementById('crmSearch');
         if (searchInput) {
             searchInput.addEventListener('input', () => this.renderList());
+        }
+
+        // Sort Listeners
+        const btnRecent = document.getElementById('crmSortRecent');
+        const btnValue = document.getElementById('crmSortValue');
+
+        if (btnRecent && btnValue) {
+            btnRecent.addEventListener('click', () => {
+                this.sortBy = 'recent';
+                btnRecent.classList.add('active');
+                btnValue.classList.remove('active');
+                this.renderList();
+            });
+            btnValue.addEventListener('click', () => {
+                this.sortBy = 'value';
+                btnValue.classList.add('active');
+                btnRecent.classList.remove('active');
+                this.renderList();
+            });
         }
     },
 
@@ -35,44 +51,34 @@ const CRMView = {
             }
 
             .avatar-circle {
-                flex: 0 0 36px; height: 36px; border-radius: 50%; 
-                background: #3b82f6; color: white; display: flex; 
+                flex: 0 0 32px; height: 32px; border-radius: 8px; 
+                background: #f1f5f9; color: #475569; display: flex; 
                 align-items: center; justify-content: center; 
-                font-weight: 600; font-size: 0.8rem; text-transform: uppercase;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                font-weight: 700; font-size: 0.75rem; text-transform: uppercase;
+                border: 1px solid #e2e8f0;
             }
 
             .crm-lead-card { 
                 transition: all 0.2s ease; cursor: pointer;
-                border: 1px solid #f1f5f9 !important;
+                border: 1px solid #e2e8f0 !important;
+                border-radius: 10px !important;
+                overflow: hidden;
             }
             .crm-lead-card:hover { 
-                transform: translateY(-1px); 
-                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important;
+                border-color: #3b82f6 !important;
+                background-color: #f8fafc !important;
+                box-shadow: 0 4px 12px -2px rgba(0,0,0,0.08) !important;
             }
-
-            .timeline-icon-wrapper {
-                position: relative; z-index: 1; width: 34px; height: 34px;
-                border-radius: 10px; display: flex; align-items: center; justify-content: center;
-                background: #fff; border: 1px solid #e2e8f0;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            .crm-lead-card.active-lead {
+                border-left: 4px solid #3b82f6 !important;
+                background-color: #eff6ff !important;
             }
 
             .crm-badge-new { background-color: #dcfce7 !important; color: #166534 !important; }
-            .crm-badge-waiting { background-color: #ecfdf5 !important; color: #065f46 !important; }
-            .crm-badge-action { background-color: #ffedd5 !important; color: #9a3412 !important; }
+            .crm-badge-waiting { background-color: #fef9c3 !important; color: #854d0e !important; }
+            .crm-badge-action { background-color: #fee2e2 !important; color: #991b1b !important; }
             .crm-badge-quotes { background-color: #e0f2fe !important; color: #0369a1 !important; }
             .crm-badge-closed { background-color: #f3f4f6 !important; color: #374151 !important; }
-
-            .status-dropdown-toggle {
-                border: none; 
-                transition: filter 0.2s;
-            }
-            .status-dropdown-toggle:hover { filter: brightness(0.95); }
-
-            .crm-status-menu {
-                min-width: 160px;
-            }
 
             .btn-note-icon {
                 background: none !important; border: none !important; padding: 0;
@@ -85,44 +91,9 @@ const CRMView = {
                 position: relative;
             }
             .btn-note-icon:hover { transform: scale(1.1); color: #fbbf24; }
-            .btn-note-icon .note-plus {
-                position: absolute;
-                top: 5px;
-                right: 4px;
-                font-size: 0.65rem;
-                background: white;
-                border-radius: 50%;
-                width: 14px;
-                height: 14px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border: 1px solid #fbbf24;
-                color: #b45309;
-                font-weight: bold;
-            }
-
-            .btn-action-icon-plain {
-                background: none !important; border: none !important; padding: 0;
-                width: 36px; height: 36px;
-                display: flex; align-items: center; justify-content: center;
-                transition: all 0.2s;
-                cursor: pointer;
-                box-shadow: none !important;
-            }
-            .btn-action-icon-plain:hover { transform: scale(1.1); }
-            .btn-action-icon-plain img {
-                width: 26px; height: 26px;
-                object-fit: contain;
-            }
-
-            .lead-summary-pane {
-                border-left: 1px solid #e2e8f0;
-                background-color: #fff;
-                width: 280px;
-                display: none;
-                flex-shrink: 0;
-            }
+            
+            #crmSortRecent.active { background-color: #0d6efd; color: white; border-color: #0d6efd; }
+            #crmSortValue.active { background-color: #198754; color: white; border-color: #198754; }
 
             @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
             .fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
@@ -136,8 +107,8 @@ const CRMView = {
 
         container.innerHTML = `
             <div class="d-flex flex-column align-items-center justify-content-center mt-5 text-muted">
-                <div class="spinner-border text-primary mb-2" role="status"></div>
-                <small>Syncing leads...</small>
+                <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                <small>Syncing My Leads...</small>
             </div>`;
             
         try {
@@ -149,36 +120,53 @@ const CRMView = {
     },
 
     renderList() {
-        const filterOwner = document.getElementById('crmOwnerFilter').value;
         const search = document.getElementById('crmSearch').value.toLowerCase();
         const container = document.getElementById('crmLeadList');
+        const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
         
         let leads = CRMService.leadsCache;
 
-        if (filterOwner === 'me' && userAccount) {
-            leads = leads.filter(l => 
-                (l.Owner || "").toLowerCase().includes(userAccount.username.toLowerCase()) || 
-                (l.Owner || "").toLowerCase().includes((userAccount.name || "").toLowerCase())
-            );
+        // Requirement: Only show leads tied to user
+        if (userAccount) {
+            const userName = (userAccount.name || "").toLowerCase();
+            const userEmail = (userAccount.username || "").toLowerCase();
+            leads = leads.filter(l => {
+                const owner = (l.Owner || "").toLowerCase();
+                return owner.includes(userEmail) || owner.includes(userName);
+            });
         }
         
+        // Search filter
         if (search) {
             leads = leads.filter(l => 
                 (l.Title || "").toLowerCase().includes(search) || 
-                (l.Company || "").toLowerCase().includes(search)
+                (l.Company || "").toLowerCase().includes(search) ||
+                (l.PartNumber || "").toLowerCase().includes(search)
             );
         }
 
-        leads.sort((a, b) => new Date(b.LastActivityAt) - new Date(a.LastActivityAt));
+        // Calculate values for sorting and display
+        leads.forEach(l => {
+            l._calculatedValue = CRMService.calculateLeadValue(l.PartNumber, l.Quantity);
+        });
+
+        // Sorting logic
+        if (this.sortBy === 'value') {
+            leads.sort((a, b) => (b._calculatedValue || 0) - (a._calculatedValue || 0));
+        } else {
+            leads.sort((a, b) => new Date(b.LastActivityAt) - new Date(a.LastActivityAt));
+        }
 
         if (leads.length === 0) {
-            container.innerHTML = `<div class="text-center text-muted mt-5 opacity-50"><p class="small">No leads found.</p></div>`;
+            container.innerHTML = `<div class="text-center text-muted mt-5 opacity-50"><p class="small">No active leads found.</p></div>`;
             return;
         }
 
         container.innerHTML = leads.map(l => {
             const lastActive = new Date(l.LastActivityAt);
-            const initials = l.Title.substring(0, 2).toUpperCase();
+            const initials = l.Title.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            const valueStr = l._calculatedValue > 0 ? fmt.format(l._calculatedValue) : "TBD";
+            const isActive = CRMService.currentLead?.LeadId === l.LeadId ? 'active-lead' : '';
             
             let badgeClass = 'crm-badge-new';
             if (l.Status === 'Waiting On Contact') badgeClass = 'crm-badge-waiting';
@@ -187,22 +175,27 @@ const CRMView = {
             else if (l.Status === 'Closed') badgeClass = 'crm-badge-closed';
 
             return `
-            <div class="card mb-2 border-0 shadow-sm crm-lead-card" onclick="CRMView.loadLead('${l.LeadId}')">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="avatar-circle shadow-sm">${initials}</div>
-                        <div class="flex-grow-1" style="min-width: 0;">
-                            <h6 class="mb-0 text-truncate fw-bold text-dark" style="font-size: 0.9rem;">${l.Title}</h6>
-                            <div class="small text-muted text-truncate">${l.Company || 'No Company'}</div>
-                            <div class="mt-1 d-flex align-items-center gap-2">
-                                <span class="badge bg-light text-dark border fw-normal" style="font-size: 0.65rem;">${l.PartNumber || 'No SKU'}</span>
-                                <span class="text-muted" style="font-size: 0.65rem;">Qty: ${l.Quantity || '0'}</span>
+            <div class="card mb-2 shadow-sm crm-lead-card ${isActive}" onclick="CRMView.loadLead('${l.LeadId}')">
+                <div class="card-body p-2 px-3">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <div class="d-flex align-items-center gap-2 overflow-hidden">
+                            <div class="avatar-circle">${initials}</div>
+                            <div class="text-truncate">
+                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem; line-height: 1.2;">${l.Title}</div>
+                                <div class="text-muted text-truncate" style="font-size: 0.7rem;">${l.Company || 'Private Lead'}</div>
                             </div>
                         </div>
+                        <div class="text-end ps-2">
+                            <div class="fw-bold text-success" style="font-size: 0.9rem;">${valueStr}</div>
+                        </div>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center mt-2">
-                         <span class="badge ${badgeClass} text-uppercase px-2" style="font-size:0.55rem">${l.Status}</span>
-                         <span class="small text-muted" style="font-size:0.65rem">${this.getRelativeTime(lastActive)}</span>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light">
+                        <div class="d-flex gap-2">
+                            <span class="badge ${badgeClass} text-uppercase" style="font-size: 0.55rem; padding: 0.35em 0.65em;">${l.Status}</span>
+                            <span class="text-muted" style="font-size: 0.65rem;">${l.PartNumber ? l.PartNumber : ''}</span>
+                        </div>
+                        <span class="text-muted" style="font-size: 0.65rem;">${this.getRelativeTime(lastActive)}</span>
                     </div>
                 </div>
             </div>`;
@@ -213,10 +206,19 @@ const CRMView = {
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         if(!lead) return;
 
+        // Highlight active card
+        document.querySelectorAll('.crm-lead-card').forEach(c => c.classList.remove('active-lead'));
+        // Find the card by searching the DOM for an element that calls loadLead with this ID
+        // Simplified: renderList handles this via active-lead class if we re-render, 
+        // but for immediate feedback we can find it:
+        const cards = document.querySelectorAll('.crm-lead-card');
+        cards.forEach(c => {
+            if (c.getAttribute('onclick')?.includes(leadId)) c.classList.add('active-lead');
+        });
+
         const header = document.getElementById('crmDetailHeader');
         header.style.setProperty('display', 'flex', 'important');
         
-        // Show the summary pane
         const summaryPane = document.getElementById('crmLeadSummary');
         if (summaryPane) {
             summaryPane.style.display = 'block';
@@ -245,16 +247,10 @@ const CRMView = {
         if (!container) return;
 
         const partNumber = (lead.PartNumber || "").trim();
-        const quantity = parseFloat(lead.Quantity) || 0;
-
-        // --- Use Service for Calculation ---
         const estimatedValue = CRMService.calculateLeadValue(partNumber, lead.Quantity);
         const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
         const estimatedValueFormatted = estimatedValue > 0 ? fmt.format(estimatedValue) : "TBD";
 
-        // Logic to find the body message: 
-        // 1. Most recent note event
-        // 2. Initial creation message (if not default)
         let bodyMessage = "No specific notes found.";
         const latestNote = timelineItems.find(item => item.type === 'event' && item.eventType === 'Note');
         
@@ -310,6 +306,8 @@ const CRMView = {
 
     renderHeaderActions(lead) {
         const actionContainer = document.querySelector('#crmDetailHeader .d-flex.gap-2');
+        if (!actionContainer) return;
+
         actionContainer.classList.remove('gap-2');
         
         let badgeClass = 'crm-badge-new';
@@ -336,11 +334,11 @@ const CRMView = {
 
             <button class="btn-note-icon" title="Add Note" onclick="CRMView.openAddNoteModal()">
                 <i class="fas fa-sticky-note fa-2x"></i>
-                <div class="note-plus">+</div>
+                <div class="note-plus" style="position: absolute; top: 5px; right: 4px; font-size: 0.65rem; background: white; border-radius: 50%; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; border: 1px solid #fbbf24; color: #b45309; font-weight: bold;">+</div>
             </button>
 
-            <button class="btn-action-icon-plain" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')">
-                <img src="/EasySearchTests/static/leads-icon.png" alt="Send to Quotes">
+            <button class="btn-action-icon-plain" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')" style="background: none !important; border: none !important; padding: 0; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; cursor: pointer; box-shadow: none !important;">
+                <img src="/EasySearchTests/static/leads-icon.png" alt="Send to Quotes" style="width: 26px; height: 26px; object-fit: contain;">
             </button>
         `;
     },
@@ -377,12 +375,12 @@ const CRMView = {
                 return `
                 <div class="d-flex mb-4 fade-in-up">
                     <div class="d-flex flex-column align-items-center me-3" style="min-width: 50px;">
-                        <div class="timeline-icon-wrapper bg-white text-primary border-primary-subtle">
+                        <div class="timeline-icon-wrapper bg-white text-primary border-primary-subtle" style="position: relative; z-index: 1; width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                             <i class="fas fa-envelope" style="font-size: 0.85rem;"></i>
                         </div>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="card timeline-card border-0 shadow-sm" onclick="CRMView.toggleCollapse('${uniqueId}')">
+                        <div class="card timeline-card border-0 shadow-sm" onclick="CRMView.toggleCollapse('${uniqueId}')" style="cursor: pointer;">
                             <div class="card-body p-3">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <div class="d-flex align-items-center gap-2">
@@ -409,7 +407,7 @@ const CRMView = {
                 return `
                 <div class="d-flex mb-4 fade-in-up">
                     <div class="d-flex flex-column align-items-center me-3" style="min-width: 50px;">
-                        <div class="timeline-icon-wrapper bg-white ${iconColor}">
+                        <div class="timeline-icon-wrapper bg-white ${iconColor}" style="position: relative; z-index: 1; width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                             <i class="fas ${icon}" style="font-size: 0.85rem;"></i>
                         </div>
                     </div>
