@@ -244,11 +244,18 @@ const CRMView = {
         const container = document.getElementById('crmLeadSummary');
         if (!container) return;
 
-        // Logic to find the body: 
+        const partNumber = (lead.PartNumber || "").trim();
+        const quantity = parseFloat(lead.Quantity) || 0;
+
+        // --- Use Service for Calculation ---
+        const estimatedValue = CRMService.calculateLeadValue(partNumber, lead.Quantity);
+        const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+        const estimatedValueFormatted = estimatedValue > 0 ? fmt.format(estimatedValue) : "TBD";
+
+        // Logic to find the body message: 
         // 1. Most recent note event
         // 2. Initial creation message (if not default)
         let bodyMessage = "No specific notes found.";
-        
         const latestNote = timelineItems.find(item => item.type === 'event' && item.eventType === 'Note');
         
         if (latestNote && latestNote.details) {
@@ -261,17 +268,25 @@ const CRMView = {
             <div class="p-3">
                 <h6 class="text-uppercase fw-bold text-muted mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px;">Lead Information</h6>
                 
-                <div class="mb-4">
-                    <label class="small text-muted mb-1 d-block">Interested SKU</label>
-                    <div class="fw-bold text-dark border rounded p-2 bg-light" style="font-size: 0.9rem;">
-                        ${lead.PartNumber || 'N/A'}
+                <div class="row g-2 mb-3">
+                    <div class="col-7">
+                        <label class="small text-muted mb-1 d-block">Requested Part #</label>
+                        <div class="fw-bold text-dark border rounded p-2 bg-light text-truncate" style="font-size: 0.85rem;" title="${partNumber || 'N/A'}">
+                            ${partNumber || 'N/A'}
+                        </div>
+                    </div>
+                    <div class="col-5">
+                        <label class="small text-muted mb-1 d-block">Quantity</label>
+                        <div class="fw-bold text-dark border rounded p-2 bg-light text-center" style="font-size: 0.85rem;">
+                            ${lead.Quantity || '0'}
+                        </div>
                     </div>
                 </div>
 
                 <div class="mb-4">
-                    <label class="small text-muted mb-1 d-block">Requested Quantity</label>
-                    <div class="fw-bold text-dark border rounded p-2 bg-light" style="font-size: 0.9rem;">
-                        ${lead.Quantity || '0'}
+                    <label class="small text-muted mb-1 d-block">Estimated Value</label>
+                    <div class="fw-bold text-success border rounded p-2 bg-light shadow-sm" style="font-size: 1.1rem; border-left: 4px solid #198754 !important;">
+                        ${estimatedValueFormatted}
                     </div>
                 </div>
 
@@ -435,7 +450,7 @@ const CRMView = {
         const diff = Math.floor((now - date) / 1000);
         if (diff < 60) return 'Just now';
         if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        if (diff < 84400) return `${Math.floor(diff / 3600)}h ago`;
         if (diff < 172800) return 'Yesterday';
         return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     },

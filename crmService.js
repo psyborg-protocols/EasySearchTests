@@ -40,6 +40,41 @@ const CRMService = {
         return await res.json();
     },
 
+    // --- Business Logic / Calculations ---
+    
+    /**
+     * Calculates the estimated value of a lead based on SKU and Quantity.
+     * Logic: 
+     * 1. Try Pricing file for 'USER FB' price.
+     * 2. Fallback to DB UnitCost x 1.2.
+     */
+    calculateLeadValue(partNumber, quantity) {
+        const pn = (partNumber || "").trim();
+        const qty = parseFloat(quantity) || 0;
+        if (!pn || qty <= 0) return 0;
+
+        let unitPrice = 0;
+        const pricingData = window.dataStore?.["Pricing"]?.dataframe || [];
+        const dbData = window.dataStore?.["DB"]?.dataframe || [];
+
+        // 1. Check Pricing Data
+        const pricingEntry = pricingData.find(row => String(row["Product"]).trim() === pn);
+        if (pricingEntry) {
+            unitPrice = parseFloat(pricingEntry["USER FB"]) || parseFloat(pricingEntry["USER HB"]) || 0;
+        } 
+        
+        // 2. Fallback to DB UnitCost x 1.4 markup
+        if (unitPrice === 0) {
+            const dbEntry = dbData.find(row => String(row["PartNumber"]).trim() === pn);
+            if (dbEntry) {
+                const cost = parseFloat(dbEntry["UnitCost"]) || 0;
+                unitPrice = cost * 1.4;
+            }
+        }
+
+        return unitPrice * qty;
+    },
+
     // --- Leads Operations ---
     async getLeads() {
         const endpoint = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items?expand=fields`;
