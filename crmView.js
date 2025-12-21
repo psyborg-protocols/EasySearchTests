@@ -1,26 +1,27 @@
 // ---------------------------------------------
 // crmView.js
-// Handles UI rendering for the CRM module
+// Handles UI rendering for the CRM module with smooth inline editing
 // ---------------------------------------------
 
 const CRMView = {
-    sortBy: 'recent', // 'recent' or 'value'
-    editingField: null, // Tracks which field is being edited: 'PartNumber' or 'Quantity'
+    sortBy: 'recent', // Default sort state: 'recent' or 'value'
 
     init() {
         this.injectStyles();
 
+        // Listen for tab changes to refresh list
         const crmTab = document.getElementById('crm-tab');
         if (crmTab) {
             crmTab.addEventListener('shown.bs.tab', () => this.refreshList());
         }
         
+        // Search functionality
         const searchInput = document.getElementById('crmSearch');
         if (searchInput) {
             searchInput.addEventListener('input', () => this.renderList());
         }
 
-        // Sort Listeners
+        // Sorting Button Listeners
         const btnRecent = document.getElementById('crmSortRecent');
         const btnValue = document.getElementById('crmSortValue');
 
@@ -39,11 +40,11 @@ const CRMView = {
             });
         }
 
-        // Global click listener to close dropdowns
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.crm-edit-dropdown') && !e.target.closest('#crmEditPartInput')) {
-                const dd = document.getElementById('crmEditPartDropdown');
-                if (dd) dd.classList.remove('show');
+        // Global click listener to handle closing the floating SKU dropdown
+        document.addEventListener('mousedown', (e) => {
+            const dropdown = document.getElementById('crmEditPartDropdown');
+            if (dropdown && !e.target.closest('.crm-edit-dropdown') && !e.target.closest('#crmEditPartInput')) {
+                dropdown.classList.remove('show');
             }
         });
     },
@@ -53,6 +54,7 @@ const CRMView = {
         const style = document.createElement('style');
         style.id = 'crm-custom-styles';
         style.innerHTML = `
+            /* Timeline Styling */
             .crm-timeline-container { position: relative; padding-left: 20px; }
             .crm-timeline-container::before {
                 content: ''; position: absolute; top: 0; bottom: 0; margin-top: 10px;
@@ -67,11 +69,11 @@ const CRMView = {
                 border: 1px solid #e2e8f0;
             }
 
+            /* Lead List Cards */
             .crm-lead-card { 
                 transition: all 0.2s ease; cursor: pointer;
                 border: 1px solid #e2e8f0 !important;
                 border-radius: 10px !important;
-                overflow: hidden;
             }
             .crm-lead-card:hover { 
                 border-color: #3b82f6 !important;
@@ -83,50 +85,106 @@ const CRMView = {
                 background-color: #eff6ff !important;
             }
 
+            /* Interactive Summary Fields (Click to Edit) */
+            .lead-summary-field-box {
+                position: relative;
+                cursor: pointer;
+                transition: all 0.2s;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                background: #f8fafc;
+                min-height: 38px;
+                display: flex;
+                align-items: center;
+                padding: 0 12px;
+                font-weight: 600;
+                color: #1e293b;
+                font-size: 0.85rem;
+            }
+            .lead-summary-field-box:hover {
+                border-color: #cbd5e1;
+                background: #f1f5f9;
+            }
+            .lead-summary-field-box .edit-indicator {
+                position: absolute;
+                right: 10px;
+                color: #94a3b8;
+                font-size: 0.75rem;
+                opacity: 0;
+                transition: opacity 0.2s;
+            }
+            .lead-summary-field-box:hover .edit-indicator {
+                opacity: 1;
+            }
+
+            /* Inline Edit Overlay */
+            .crm-edit-container {
+                position: absolute;
+                top: 0; left: 0; right: 0; bottom: 0;
+                z-index: 10;
+                background: white;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                box-shadow: 0 0 0 2px #3b82f6, 0 4px 6px -1px rgba(0,0,0,0.1);
+            }
+            .crm-edit-input-field {
+                border: none;
+                background: transparent;
+                width: 100%;
+                height: 100%;
+                padding: 0 45px 0 12px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                outline: none;
+            }
+            .crm-edit-actions {
+                position: absolute;
+                right: 8px;
+                display: flex;
+                gap: 4px;
+            }
+            .btn-crm-save, .btn-crm-cancel {
+                border: none; background: none; padding: 2px; border-radius: 4px;
+                cursor: pointer; transition: background 0.2s;
+            }
+            .btn-crm-save { color: #10b981; }
+            .btn-crm-cancel { color: #ef4444; }
+            .btn-crm-save:hover { background: #ecfdf5; }
+            .btn-crm-cancel:hover { background: #fef2f2; }
+
+            /* Floating SKU Dropdown */
+            .crm-edit-dropdown {
+                position: absolute;
+                top: 100%; left: 0; right: 0;
+                background: white; border: 1px solid #e2e8f0;
+                border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+                z-index: 100; max-height: 220px; overflow-y: auto;
+                margin-top: 5px; display: none;
+            }
+            .crm-edit-dropdown.show { display: block; }
+            .crm-edit-dropdown .dropdown-item {
+                padding: 10px 12px; font-size: 0.75rem; border-bottom: 1px solid #f1f5f9;
+                cursor: pointer;
+            }
+            .crm-edit-dropdown .dropdown-item:hover { background: #f8fafc; }
+
+            /* Status Badges */
             .crm-badge-new { background-color: #dcfce7 !important; color: #166534 !important; }
             .crm-badge-waiting { background-color: #fef9c3 !important; color: #854d0e !important; }
             .crm-badge-action { background-color: #fee2e2 !important; color: #991b1b !important; }
             .crm-badge-quotes { background-color: #e0f2fe !important; color: #0369a1 !important; }
             .crm-badge-closed { background-color: #f3f4f6 !important; color: #374151 !important; }
 
-            .btn-edit-lead {
-                background: none; border: none; padding: 2px 5px; color: #94a3b8;
-                cursor: pointer; transition: color 0.2s; visibility: hidden;
-            }
-            .lead-summary-field:hover .btn-edit-lead { visibility: visible; }
-            .btn-edit-lead:hover { color: #3b82f6; }
-
-            .crm-edit-input {
-                font-size: 0.85rem; padding: 4px 8px; border-radius: 6px;
-                border: 1px solid #3b82f6; width: 100%; outline: none;
-                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-            }
-
-            .crm-edit-dropdown {
-                position: absolute; width: 100%; max-height: 200px; overflow-y: auto;
-                background: white; border: 1px solid #e2e8f0; border-radius: 8px;
-                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 1000;
-                display: none; margin-top: 4px;
-            }
-            .crm-edit-dropdown.show { display: block; }
-            .crm-edit-dropdown .dropdown-item {
-                padding: 8px 12px; font-size: 0.8rem; border-bottom: 1px solid #f1f5f9;
-                cursor: pointer;
-            }
-            .crm-edit-dropdown .dropdown-item:hover { background-color: #f8fafc; }
-
+            /* Action Buttons */
             .btn-note-icon {
                 background: none !important; border: none !important; padding: 0;
-                width: 36px; height: 36px;
-                color: #fcd34d;
+                width: 36px; height: 36px; color: #fcd34d;
                 display: flex; align-items: center; justify-content: center;
-                transition: all 0.2s;
-                cursor: pointer;
-                box-shadow: none !important;
-                position: relative;
+                transition: all 0.2s; cursor: pointer; position: relative;
             }
             .btn-note-icon:hover { transform: scale(1.1); color: #fbbf24; }
-            
+
             #crmSortRecent.active { background-color: #0d6efd; color: white; border-color: #0d6efd; }
             #crmSortValue.active { background-color: #198754; color: white; border-color: #198754; }
 
@@ -139,11 +197,11 @@ const CRMView = {
     async refreshList() {
         const container = document.getElementById('crmLeadList');
         if (!container) return;
-
+        
         container.innerHTML = `
-            <div class="d-flex flex-column align-items-center justify-content-center mt-5 text-muted">
-                <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
-                <small>Syncing My Leads...</small>
+            <div class="text-center mt-5 text-muted">
+                <div class="spinner-border spinner-border-sm text-primary mb-2"></div>
+                <br><small>Syncing My Leads...</small>
             </div>`;
             
         try {
@@ -161,6 +219,7 @@ const CRMView = {
         
         let leads = CRMService.leadsCache;
 
+        // Auto-filter to current user
         if (userAccount) {
             const userName = (userAccount.name || "").toLowerCase();
             const userEmail = (userAccount.username || "").toLowerCase();
@@ -170,18 +229,21 @@ const CRMView = {
             });
         }
         
+        // Search Filter
         if (search) {
             leads = leads.filter(l => 
                 (l.Title || "").toLowerCase().includes(search) || 
-                (l.Company || "").toLowerCase().includes(search) ||
+                (l.Company || "").toLowerCase().includes(search) || 
                 (l.PartNumber || "").toLowerCase().includes(search)
             );
         }
 
+        // Calculate values for sorting
         leads.forEach(l => {
             l._calculatedValue = CRMService.calculateLeadValue(l.PartNumber, l.Quantity);
         });
 
+        // Apply Sorting
         if (this.sortBy === 'value') {
             leads.sort((a, b) => (b._calculatedValue || 0) - (a._calculatedValue || 0));
         } else {
@@ -194,7 +256,6 @@ const CRMView = {
         }
 
         container.innerHTML = leads.map(l => {
-            const lastActive = new Date(l.LastActivityAt);
             const initials = l.Title.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
             const valueStr = l._calculatedValue > 0 ? fmt.format(l._calculatedValue) : "TBD";
             const isActive = CRMService.currentLead?.LeadId === l.LeadId ? 'active-lead' : '';
@@ -212,7 +273,7 @@ const CRMView = {
                         <div class="d-flex align-items-center gap-2 overflow-hidden">
                             <div class="avatar-circle">${initials}</div>
                             <div class="text-truncate">
-                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem; line-height: 1.2;">${l.Title}</div>
+                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem;">${l.Title}</div>
                                 <div class="text-muted text-truncate" style="font-size: 0.7rem;">${l.Company || 'Private Lead'}</div>
                             </div>
                         </div>
@@ -220,13 +281,12 @@ const CRMView = {
                             <div class="fw-bold text-success" style="font-size: 0.9rem;">${valueStr}</div>
                         </div>
                     </div>
-                    
                     <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light">
                         <div class="d-flex gap-2">
-                            <span class="badge ${badgeClass} text-uppercase" style="font-size: 0.55rem; padding: 0.35em 0.65em;">${l.Status}</span>
-                            <span class="text-muted" style="font-size: 0.65rem;">${l.PartNumber ? l.PartNumber : ''}</span>
+                            <span class="badge ${badgeClass} text-uppercase" style="font-size: 0.55rem;">${l.Status}</span>
+                            <span class="text-muted" style="font-size: 0.65rem;">${l.PartNumber || ''}</span>
                         </div>
-                        <span class="text-muted" style="font-size: 0.65rem;">${this.getRelativeTime(lastActive)}</span>
+                        <span class="text-muted" style="font-size: 0.65rem;">${this.getRelativeTime(new Date(l.LastActivityAt))}</span>
                     </div>
                 </div>
             </div>`;
@@ -237,35 +297,32 @@ const CRMView = {
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         if(!lead) return;
 
+        // Visual selection
         document.querySelectorAll('.crm-lead-card').forEach(c => c.classList.remove('active-lead'));
-        const cards = document.querySelectorAll('.crm-lead-card');
-        cards.forEach(c => {
+        document.querySelectorAll('.crm-lead-card').forEach(c => {
             if (c.getAttribute('onclick')?.includes(leadId)) c.classList.add('active-lead');
         });
 
-        const header = document.getElementById('crmDetailHeader');
-        header.style.setProperty('display', 'flex', 'important');
+        // Show header
+        document.getElementById('crmDetailHeader').style.setProperty('display', 'flex', 'important');
         
+        // Prepare summary pane
         const summaryPane = document.getElementById('crmLeadSummary');
-        if (summaryPane) {
-            summaryPane.style.display = 'block';
-            summaryPane.innerHTML = `<div class="p-3 text-center"><div class="spinner-border spinner-border-sm text-primary"></div></div>`;
-        }
+        summaryPane.style.display = 'block';
+        summaryPane.innerHTML = `<div class="p-3 text-center"><div class="spinner-border spinner-border-sm text-primary"></div></div>`;
 
+        // Update Title/Company
         document.getElementById('crmDetailTitle').textContent = lead.Title;
         document.getElementById('crmDetailCompany').innerHTML = `<i class="far fa-building me-1"></i> ${lead.Company || "No Company"}`;
         
         this.renderHeaderActions(lead);
-
-        const timelineContainer = document.getElementById('crmTimeline');
-        timelineContainer.innerHTML = `<div class="text-center p-5"><div class="spinner-border text-primary"></div></div>`;
 
         try {
             const items = await CRMService.getFullTimeline(lead);
             this.renderTimeline(items);
             this.renderLeadSummary(lead, items);
         } catch (e) {
-            timelineContainer.innerHTML = `<div class="alert alert-danger m-4">${e.message}</div>`;
+            document.getElementById('crmTimeline').innerHTML = `<div class="alert alert-danger m-4">${e.message}</div>`;
         }
     },
 
@@ -276,38 +333,29 @@ const CRMView = {
         const partNumber = (lead.PartNumber || "").trim();
         const estimatedValue = CRMService.calculateLeadValue(partNumber, lead.Quantity);
         const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-        const estimatedValueFormatted = estimatedValue > 0 ? fmt.format(estimatedValue) : "TBD";
-
+        
         let bodyMessage = "No specific notes found.";
         const latestNote = timelineItems.find(item => item.type === 'event' && item.eventType === 'Note');
-        
-        if (latestNote && latestNote.details) {
-            bodyMessage = latestNote.details;
-        } else if (lead.Description && !lead.Description.toLowerCase().includes('created by outlook add on')) {
-            bodyMessage = lead.Description;
-        }
+        if (latestNote) bodyMessage = latestNote.details;
+        else if (lead.Description && !lead.Description.toLowerCase().includes('created by outlook add on')) bodyMessage = lead.Description;
 
         container.innerHTML = `
             <div class="p-3">
                 <h6 class="text-uppercase fw-bold text-muted mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px;">Lead Information</h6>
                 
                 <div class="row g-2 mb-3">
-                    <div class="col-7 lead-summary-field" id="summaryFieldPartNumber">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <label class="small text-muted mb-0">Requested Part #</label>
-                            <button class="btn-edit-lead" onclick="CRMView.enterEditMode('${lead.LeadId}', 'PartNumber')"><i class="fas fa-pen"></i></button>
-                        </div>
-                        <div class="fw-bold text-dark border rounded p-2 bg-light text-truncate" style="font-size: 0.85rem;" title="${partNumber || 'N/A'}">
-                            ${partNumber || 'N/A'}
+                    <div class="col-7">
+                        <label class="small text-muted mb-1 d-block">Requested Part #</label>
+                        <div id="summaryFieldPartNumber" class="lead-summary-field-box" onclick="CRMView.enterEditMode('${lead.LeadId}', 'PartNumber')">
+                            <span class="text-truncate">${partNumber || 'N/A'}</span>
+                            <i class="fas fa-pen edit-indicator"></i>
                         </div>
                     </div>
-                    <div class="col-5 lead-summary-field" id="summaryFieldQuantity">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <label class="small text-muted mb-0">Quantity</label>
-                            <button class="btn-edit-lead" onclick="CRMView.enterEditMode('${lead.LeadId}', 'Quantity')"><i class="fas fa-pen"></i></button>
-                        </div>
-                        <div class="fw-bold text-dark border rounded p-2 bg-light text-center" style="font-size: 0.85rem;">
-                            ${lead.Quantity || '0'}
+                    <div class="col-5">
+                        <label class="small text-muted mb-1 d-block">Quantity</label>
+                        <div id="summaryFieldQuantity" class="lead-summary-field-box justify-content-center" onclick="CRMView.enterEditMode('${lead.LeadId}', 'Quantity')">
+                            <span>${lead.Quantity || '0'}</span>
+                            <i class="fas fa-pen edit-indicator"></i>
                         </div>
                     </div>
                 </div>
@@ -315,14 +363,13 @@ const CRMView = {
                 <div class="mb-4">
                     <label class="small text-muted mb-1 d-block">Estimated Value</label>
                     <div class="fw-bold text-success border rounded p-2 bg-light shadow-sm" style="font-size: 1.1rem; border-left: 4px solid #198754 !important;">
-                        ${estimatedValueFormatted}
+                        ${estimatedValue > 0 ? fmt.format(estimatedValue) : "TBD"}
                     </div>
                 </div>
 
                 <div class="mb-4">
                     <label class="small text-muted mb-1 d-block">Most Recent Update</label>
-                    <div class="p-3 rounded bg-white border-start border-4 border-warning shadow-sm" 
-                         style="font-size: 0.85rem; white-space: pre-wrap; line-height: 1.5; background: #fffbeb;">
+                    <div class="p-3 rounded bg-white border-start border-4 border-warning shadow-sm" style="font-size: 0.85rem; white-space: pre-wrap; background: #fffbeb;">
                         ${bodyMessage}
                     </div>
                 </div>
@@ -342,48 +389,60 @@ const CRMView = {
         if (!lead) return;
 
         const containerId = field === 'PartNumber' ? 'summaryFieldPartNumber' : 'summaryFieldQuantity';
-        const container = document.getElementById(containerId);
-        if (!container) return;
+        const box = document.getElementById(containerId);
+        if (!box) return;
 
         const currentValue = lead[field] || '';
         
+        // Build edit container overlay
+        const editContainer = document.createElement('div');
+        editContainer.className = 'crm-edit-container';
+        editContainer.onclick = (e) => e.stopPropagation(); 
+
+        const input = document.createElement('input');
+        input.type = field === 'Quantity' ? 'number' : 'text';
+        input.className = 'crm-edit-input-field';
+        if (field === 'Quantity') input.classList.add('text-center');
+        input.id = field === 'PartNumber' ? 'crmEditPartInput' : 'crmEditQtyInput';
+        input.value = currentValue;
+        input.autocomplete = "off";
+
+        const actions = document.createElement('div');
+        actions.className = 'crm-edit-actions';
+        actions.innerHTML = `
+            <button class="btn-crm-save" title="Save" onclick="CRMView.saveEdit('${leadId}', '${field}')">
+                <i class="fas fa-check"></i>
+            </button>
+            <button class="btn-crm-cancel" title="Cancel" onclick="CRMView.loadLead('${leadId}')">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+
+        editContainer.appendChild(input);
+        editContainer.appendChild(actions);
+
+        // Special handling for Part Number autocomplete
         if (field === 'PartNumber') {
-            container.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <label class="small text-muted mb-0">Requested Part #</label>
-                    <div class="d-flex gap-1">
-                        <button class="btn-edit-lead text-success" onclick="CRMView.saveEdit('${leadId}', 'PartNumber')"><i class="fas fa-check"></i></button>
-                        <button class="btn-edit-lead text-danger" onclick="CRMView.loadLead('${leadId}')"><i class="fas fa-times"></i></button>
-                    </div>
-                </div>
-                <div class="position-relative">
-                    <input type="text" id="crmEditPartInput" class="crm-edit-input" value="${currentValue}" placeholder="Enter SKU..." autocomplete="off">
-                    <div id="crmEditPartDropdown" class="crm-edit-dropdown"></div>
-                </div>
-            `;
-            
-            const input = document.getElementById('crmEditPartInput');
-            const dropdown = document.getElementById('crmEditPartDropdown');
-            input.focus();
-            input.select();
+            const dropdown = document.createElement('div');
+            dropdown.id = 'crmEditPartDropdown';
+            dropdown.className = 'crm-edit-dropdown';
+            editContainer.appendChild(dropdown);
 
             input.addEventListener('input', (e) => {
                 const query = e.target.value.trim().toLowerCase();
-                if (query.length < 1) {
-                    dropdown.classList.remove('show');
-                    return;
-                }
+                if (query.length < 1) { dropdown.classList.remove('show'); return; }
+                
                 const db = window.dataStore?.DB?.dataframe || [];
                 const matches = db.filter(p => 
                     String(p.PartNumber).toLowerCase().includes(query) || 
                     String(p.Description).toLowerCase().includes(query)
-                ).slice(0, 10);
+                ).slice(0, 8);
 
                 if (matches.length > 0) {
                     dropdown.innerHTML = matches.map(p => `
-                        <div class="dropdown-item" onclick="document.getElementById('crmEditPartInput').value = '${p.PartNumber}'; document.getElementById('crmEditPartDropdown').classList.remove('show');">
-                            <strong>${p.PartNumber}</strong><br>
-                            <small class="text-muted">${p.Description}</small>
+                        <div class="dropdown-item" onclick="document.getElementById('crmEditPartInput').value = '${p.PartNumber}'; CRMView.saveEdit('${leadId}', 'PartNumber');">
+                            <div class="fw-bold">${p.PartNumber}</div>
+                            <div class="text-muted" style="font-size: 0.65rem;">${p.Description}</div>
                         </div>
                     `).join('');
                     dropdown.classList.add('show');
@@ -391,64 +450,45 @@ const CRMView = {
                     dropdown.classList.remove('show');
                 }
             });
-
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') this.saveEdit(leadId, 'PartNumber');
-                if (e.key === 'Escape') this.loadLead(leadId);
-            });
-
-        } else if (field === 'Quantity') {
-            container.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <label class="small text-muted mb-0">Quantity</label>
-                    <div class="d-flex gap-1">
-                        <button class="btn-edit-lead text-success" onclick="CRMView.saveEdit('${leadId}', 'Quantity')"><i class="fas fa-check"></i></button>
-                        <button class="btn-edit-lead text-danger" onclick="CRMView.loadLead('${leadId}')"><i class="fas fa-times"></i></button>
-                    </div>
-                </div>
-                <input type="number" id="crmEditQtyInput" class="crm-edit-input text-center" value="${currentValue}">
-            `;
-            const input = document.getElementById('crmEditQtyInput');
-            input.focus();
-            input.select();
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') this.saveEdit(leadId, 'Quantity');
-                if (e.key === 'Escape') this.loadLead(leadId);
-            });
         }
+
+        // Keyboard support
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.saveEdit(leadId, field);
+            if (e.key === 'Escape') this.loadLead(leadId);
+        });
+
+        box.appendChild(editContainer);
+        input.focus();
+        input.select();
     },
 
     async saveEdit(leadId, field) {
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
-        if (!lead) return;
+        const inputId = field === 'PartNumber' ? 'crmEditPartInput' : 'crmEditQtyInput';
+        const input = document.getElementById(inputId);
+        if (!input) return;
 
-        let newValue;
-        if (field === 'PartNumber') {
-            newValue = document.getElementById('crmEditPartInput').value.trim();
-        } else {
-            newValue = document.getElementById('crmEditQtyInput').value.trim();
-        }
-
-        if (newValue === String(lead[field])) {
-            this.loadLead(leadId);
-            return;
+        const newValue = input.value.trim();
+        if (newValue === String(lead[field])) { 
+            this.loadLead(leadId); 
+            return; 
         }
 
         try {
-            const updates = {};
+            const updates = {}; 
             updates[field] = newValue;
             
-            // Show loading state in the field
             const containerId = field === 'PartNumber' ? 'summaryFieldPartNumber' : 'summaryFieldQuantity';
-            document.getElementById(containerId).innerHTML = `<div class="p-2 text-center"><div class="spinner-border spinner-border-sm text-primary"></div></div>`;
-
+            document.getElementById(containerId).innerHTML = `<div class="p-2 text-center w-100"><div class="spinner-border spinner-border-sm text-primary"></div></div>`;
+            
             await CRMService.updateLeadFields(leadId, updates);
             
-            // Reload the detail view and list
+            // Success: Update UI
             this.loadLead(leadId);
             this.renderList();
         } catch (e) {
-            alert("Failed to save: " + e.message);
+            alert("Save failed: " + e.message);
             this.loadLead(leadId);
         }
     },
@@ -456,8 +496,6 @@ const CRMView = {
     renderHeaderActions(lead) {
         const actionContainer = document.querySelector('#crmDetailHeader .d-flex.gap-2');
         if (!actionContainer) return;
-
-        actionContainer.classList.remove('gap-2');
         
         let badgeClass = 'crm-badge-new';
         if (lead.Status === 'Waiting On Contact') badgeClass = 'crm-badge-waiting';
@@ -467,81 +505,65 @@ const CRMView = {
 
         actionContainer.innerHTML = `
             <div class="dropdown me-2">
-                <button class="badge ${badgeClass} dropdown-toggle status-dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" 
-                        type="button" data-bs-toggle="dropdown">
+                <button class="badge ${badgeClass} dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" type="button" data-bs-toggle="dropdown">
                     ${lead.Status}
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2 crm-status-menu">
-                    <li><h6 class="dropdown-header small text-muted">Update Status</h6></li>
-                    <li><a class="dropdown-item rounded mb-1 crm-badge-new" href="#" onclick="CRMView.updateStatus('${lead.LeadId}', 'New Lead')">New Lead</a></li>
-                    <li><a class="dropdown-item rounded mb-1 crm-badge-waiting" href="#" onclick="CRMView.updateStatus('${lead.LeadId}', 'Waiting On Contact')">Waiting On Contact</a></li>
-                    <li><a class="dropdown-item rounded mb-1 crm-badge-action" href="#" onclick="CRMView.updateStatus('${lead.LeadId}', 'Action Required')">Action Required</a></li>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2">
+                    <li><a class="dropdown-item rounded mb-1 crm-badge-new" onclick="CRMView.updateStatus('${lead.LeadId}', 'New Lead')">New Lead</a></li>
+                    <li><a class="dropdown-item rounded mb-1 crm-badge-waiting" onclick="CRMView.updateStatus('${lead.LeadId}', 'Waiting On Contact')">Waiting On Contact</a></li>
+                    <li><a class="dropdown-item rounded mb-1 crm-badge-action" onclick="CRMView.updateStatus('${lead.LeadId}', 'Action Required')">Action Required</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item rounded text-danger" href="#" onclick="CRMView.closeLeadConfirm('${lead.LeadId}')"><i class="fas fa-times-circle me-2"></i>Close this lead</a></li>
+                    <li><a class="dropdown-item rounded text-danger" onclick="CRMView.closeLeadConfirm('${lead.LeadId}')">Close Lead</a></li>
                 </ul>
             </div>
-
             <button class="btn-note-icon" title="Add Note" onclick="CRMView.openAddNoteModal()">
                 <i class="fas fa-sticky-note fa-2x"></i>
                 <div class="note-plus" style="position: absolute; top: 5px; right: 4px; font-size: 0.65rem; background: white; border-radius: 50%; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; border: 1px solid #fbbf24; color: #b45309; font-weight: bold;">+</div>
             </button>
-
-            <button class="btn-action-icon-plain" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')" style="background: none !important; border: none !important; padding: 0; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; cursor: pointer; box-shadow: none !important;">
-                <img src="/EasySearchTests/static/leads-icon.png" alt="Send to Quotes" style="width: 26px; height: 26px; object-fit: contain;">
+            <button class="btn-action-icon-plain" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')" style="background:none; border:none; padding:0; cursor:pointer;">
+                <img src="/EasySearchTests/static/leads-icon.png" style="width:26px; height:26px;">
             </button>
         `;
     },
 
-    async updateStatus(leadId, newStatus) {
-        try {
-            await CRMService.updateStatus(leadId, newStatus);
-            this.loadLead(leadId); 
-            this.renderList(); 
-        } catch (e) {
-            console.error(e);
-        }
+    async updateStatus(leadId, status) { 
+        await CRMService.updateStatus(leadId, status); 
+        this.loadLead(leadId); 
+        this.renderList(); 
     },
 
-    async closeLeadConfirm(leadId) {
-        if (confirm("Are you sure you want to close this lead?")) {
-            await this.updateStatus(leadId, 'Closed');
-        }
+    async closeLeadConfirm(leadId) { 
+        if (confirm("Are you sure you want to close this lead?")) this.updateStatus(leadId, 'Closed'); 
     },
 
     renderTimeline(items) {
         const container = document.getElementById('crmTimeline');
-        if (items.length === 0) {
-            container.innerHTML = `<div class="text-center mt-5 opacity-50"><h5>Start the conversation</h5></div>`;
-            return;
+        if (items.length === 0) { 
+            container.innerHTML = `<div class="text-center mt-5 opacity-50"><h5>Start the conversation</h5></div>`; 
+            return; 
         }
 
-        const timelineHtml = items.map((item, index) => {
-            const dateObj = item.date;
-            const relativeTime = this.getRelativeTime(dateObj);
-            
+        const html = items.map((item, idx) => {
+            const relTime = this.getRelativeTime(item.date);
             if (item.type === 'email') {
-                const uniqueId = `email-collapse-${index}`;
+                const collapseId = `email-${idx}`;
                 return `
                 <div class="d-flex mb-4 fade-in-up">
-                    <div class="d-flex flex-column align-items-center me-3" style="min-width: 50px;">
-                        <div class="timeline-icon-wrapper bg-white text-primary border-primary-subtle" style="position: relative; z-index: 1; width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                            <i class="fas fa-envelope" style="font-size: 0.85rem;"></i>
+                    <div class="me-3">
+                        <div class="bg-white text-primary border rounded-circle p-2 shadow-sm">
+                            <i class="fas fa-envelope"></i>
                         </div>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="card timeline-card border-0 shadow-sm" onclick="CRMView.toggleCollapse('${uniqueId}')" style="cursor: pointer;">
+                        <div class="card border-0 shadow-sm" onclick="CRMView.toggleCollapse('${collapseId}')" style="cursor:pointer;">
                             <div class="card-body p-3">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="badge bg-primary bg-opacity-10 text-primary fw-bold" style="font-size:0.7rem">EMAIL</span>
-                                        <span class="text-dark fw-bold small">${item.from}</span>
-                                    </div>
-                                    <small class="text-muted">${relativeTime}</small>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="small fw-bold text-primary">${item.from}</span>
+                                    <small class="text-muted">${relTime}</small>
                                 </div>
-                                <h6 class="card-title text-dark fw-bold mb-1" style="font-size: 0.95rem;">${item.subject}</h6>
-                                <div id="${uniqueId}" class="collapse mt-2">
-                                    <div class="p-2 bg-light rounded text-secondary small border-start border-2 border-primary" 
-                                         style="white-space: pre-wrap;">${item.preview || "No preview available."}</div>
+                                <h6 class="mb-0 small fw-bold">${item.subject}</h6>
+                                <div id="${collapseId}" class="collapse mt-2">
+                                    <div class="p-2 bg-light small border-start border-4 border-primary rounded">${item.preview || ""}</div>
                                 </div>
                             </div>
                         </div>
@@ -550,68 +572,54 @@ const CRMView = {
             } else {
                 const isSystem = item.eventType === 'System';
                 const icon = isSystem ? 'fa-cog' : 'fa-sticky-note';
-                const iconColor = isSystem ? 'text-secondary' : 'text-warning';
-                const cardBg = isSystem ? '#f8f9fa' : '#fffbeb'; 
+                const color = isSystem ? 'text-secondary' : 'text-warning';
+                const bg = isSystem ? 'bg-light' : '';
+                const inlineStyle = isSystem ? '' : 'background: #fffbeb;';
 
                 return `
                 <div class="d-flex mb-4 fade-in-up">
-                    <div class="d-flex flex-column align-items-center me-3" style="min-width: 50px;">
-                        <div class="timeline-icon-wrapper bg-white ${iconColor}" style="position: relative; z-index: 1; width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                            <i class="fas ${icon}" style="font-size: 0.85rem;"></i>
+                    <div class="me-3">
+                        <div class="bg-white border rounded-circle p-2 shadow-sm ${color}">
+                            <i class="fas ${icon}"></i>
                         </div>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="card border-0 shadow-sm" style="background-color: ${cardBg};">
+                        <div class="card border-0 shadow-sm ${bg}" style="${inlineStyle}">
                             <div class="card-body p-3">
-                                 <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="d-flex justify-content-between mb-2">
                                     <span class="text-uppercase fw-bold text-muted" style="font-size:0.7rem;">${item.eventType}</span>
-                                    <small class="text-muted">${relativeTime}</small>
+                                    <small class="text-muted">${relTime}</small>
                                 </div>
-                                <div class="fw-semibold text-dark mb-1">${item.summary}</div>
-                                ${item.details ? `<div class="small text-dark opacity-75" style="white-space: pre-wrap;">${item.details}</div>` : ''}
+                                <div class="fw-semibold small">${item.summary}</div>
+                                ${item.details ? `<div class="small opacity-75 mt-1" style="white-space: pre-wrap;">${item.details}</div>` : ''}
                             </div>
                         </div>
                     </div>
                 </div>`;
             }
         }).join('');
-
-        container.innerHTML = `<div class="crm-timeline-container pt-2 pb-5">${timelineHtml}</div>`;
+        
+        container.innerHTML = `<div class="crm-timeline-container pt-2 pb-5">${html}</div>`;
     },
     
-    toggleCollapse(id) {
-        const el = document.getElementById(id);
-        if (el) {
-            if (window.bootstrap && window.bootstrap.Collapse) {
-                let bsCollapse = bootstrap.Collapse.getInstance(el);
-                if (!bsCollapse) bsCollapse = new bootstrap.Collapse(el, { toggle: false });
-                bsCollapse.toggle();
-            } else {
-                el.classList.toggle('show');
-            }
-        }
+    toggleCollapse(id) { 
+        const el = document.getElementById(id); 
+        if (el) el.classList.toggle('show'); 
     },
 
     getRelativeTime(date) {
-        const now = new Date();
-        const diff = Math.floor((now - date) / 1000);
+        const diff = Math.floor((new Date() - date) / 1000);
         if (diff < 60) return 'Just now';
         if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
         if (diff < 84400) return `${Math.floor(diff / 3600)}h ago`;
-        if (diff < 172800) return 'Yesterday';
         return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     },
 
     async openAddNoteModal() {
-        if(!CRMService.currentLead) return;
-        const note = prompt("Add a note:");
-        if(note && note.trim().length > 0) {
-             try {
-                await CRMService.addEvent(CRMService.currentLead.LeadId, "Note", "User Note", note);
-                this.loadLead(CRMService.currentLead.LeadId);
-             } catch(e) {
-                 alert("Failed: " + e.message);
-             }
+        const note = prompt("Add a note to this lead:");
+        if(note && note.trim()) { 
+            await CRMService.addEvent(CRMService.currentLead.LeadId, "Note", "User Note", note); 
+            this.loadLead(CRMService.currentLead.LeadId); 
         }
     }
 };
