@@ -430,19 +430,27 @@
               </div>
               <div id="crmLeadList" class="flex-grow-1 overflow-auto p-2"></div>
             </div>
+            <!-- CRM Header, Timeline and Summary -->
             <div class="col-md-9 bg-light h-100 d-flex flex-column position-relative">
-              <!-- CRM Header (Modified for Status Dropdown and Action Buttons) -->
               <div id="crmDetailHeader" class="p-3 bg-white border-bottom shadow-sm d-flex justify-content-between align-items-center" style="display:none !important;">
                   <div>
                     <h4 class="mb-0" id="crmDetailTitle">Select a Lead</h4>
                     <div class="small text-muted" id="crmDetailCompany"></div>
                   </div>
                   <div class="d-flex gap-2 align-items-center">
-                      <!-- Content injected by crmView.js -->
-                  </div>
+                      </div>
               </div>
-              <div id="crmTimeline" class="flex-grow-1 overflow-auto p-4" style="background: #f8f9fa;">
-                  <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted opacity-50"><i class="fas fa-hand-pointer fa-3x mb-3"></i><h5>Select a lead</h5></div>
+
+              <div class="d-flex flex-grow-1 overflow-hidden">
+                  <div id="crmTimeline" class="flex-grow-1 overflow-auto p-4" style="background: #f8f9fa;">
+                      <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted opacity-50">
+                        <i class="fas fa-hand-pointer fa-3x mb-3"></i>
+                        <h5>Select a lead</h5>
+                      </div>
+                  </div>
+                  
+                  <div id="crmLeadSummary" class="border-start bg-white overflow-auto p-3 shadow-sm" style="width: 320px; display: none;">
+                      </div>
               </div>
             </div>
           </div>

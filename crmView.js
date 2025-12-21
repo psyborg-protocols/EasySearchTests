@@ -58,7 +58,6 @@ const CRMView = {
                 box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             }
 
-            /* Precise Status Colors */
             .crm-badge-new { background-color: #dcfce7 !important; color: #166534 !important; }
             .crm-badge-waiting { background-color: #ecfdf5 !important; color: #065f46 !important; }
             .crm-badge-action { background-color: #ffedd5 !important; color: #9a3412 !important; }
@@ -68,19 +67,17 @@ const CRMView = {
             .status-dropdown-toggle {
                 border: none; 
                 transition: filter 0.2s;
-                /* min-width removed from badge itself */
             }
             .status-dropdown-toggle:hover { filter: brightness(0.95); }
 
             .crm-status-menu {
-                min-width: 160px; /* Min-width moved to the dropdown menu */
+                min-width: 160px;
             }
 
-            /* Note Button - Bright yellow/amber with + overlay */
             .btn-note-icon {
                 background: none !important; border: none !important; padding: 0;
                 width: 36px; height: 36px;
-                color: #fcd34d; /* Bright Yellow/Amber 300 */
+                color: #fcd34d;
                 display: flex; align-items: center; justify-content: center;
                 transition: all 0.2s;
                 cursor: pointer;
@@ -105,7 +102,6 @@ const CRMView = {
                 font-weight: bold;
             }
 
-            /* Custom Lead/Quote Action Icon */
             .btn-action-icon-plain {
                 background: none !important; border: none !important; padding: 0;
                 width: 36px; height: 36px;
@@ -116,8 +112,16 @@ const CRMView = {
             }
             .btn-action-icon-plain:hover { transform: scale(1.1); }
             .btn-action-icon-plain img {
-                width: 26px; height: 26px; /* Reduced size */
+                width: 26px; height: 26px;
                 object-fit: contain;
+            }
+
+            .lead-summary-pane {
+                border-left: 1px solid #e2e8f0;
+                background-color: #fff;
+                width: 320px;
+                display: none;
+                flex-shrink: 0;
             }
 
             @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -190,11 +194,15 @@ const CRMView = {
                         <div class="flex-grow-1" style="min-width: 0;">
                             <h6 class="mb-0 text-truncate fw-bold text-dark" style="font-size: 0.9rem;">${l.Title}</h6>
                             <div class="small text-muted text-truncate">${l.Company || 'No Company'}</div>
+                            <div class="mt-1 d-flex align-items-center gap-2">
+                                <span class="badge bg-light text-dark border fw-normal" style="font-size: 0.65rem;">${l.PartNumber || 'No SKU'}</span>
+                                <span class="text-muted" style="font-size: 0.65rem;">Qty: ${l.Quantity || '0'}</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center mt-3">
-                         <span class="badge ${badgeClass} text-uppercase px-2" style="font-size:0.6rem">${l.Status}</span>
-                         <span class="small text-muted" style="font-size:0.7rem">${this.getRelativeTime(lastActive)}</span>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                         <span class="badge ${badgeClass} text-uppercase px-2" style="font-size:0.55rem">${l.Status}</span>
+                         <span class="small text-muted" style="font-size:0.65rem">${this.getRelativeTime(lastActive)}</span>
                     </div>
                 </div>
             </div>`;
@@ -208,6 +216,13 @@ const CRMView = {
         const header = document.getElementById('crmDetailHeader');
         header.style.setProperty('display', 'flex', 'important');
         
+        // Show the summary pane
+        const summaryPane = document.getElementById('crmLeadSummary');
+        if (summaryPane) {
+            summaryPane.style.display = 'block';
+            summaryPane.innerHTML = `<div class="p-3 text-center"><div class="spinner-border spinner-border-sm text-primary"></div></div>`;
+        }
+
         document.getElementById('crmDetailTitle').textContent = lead.Title;
         document.getElementById('crmDetailCompany').innerHTML = `<i class="far fa-building me-1"></i> ${lead.Company || "No Company"}`;
         
@@ -219,14 +234,67 @@ const CRMView = {
         try {
             const items = await CRMService.getFullTimeline(lead);
             this.renderTimeline(items);
+            this.renderLeadSummary(lead, items);
         } catch (e) {
             timelineContainer.innerHTML = `<div class="alert alert-danger m-4">${e.message}</div>`;
         }
     },
 
+    renderLeadSummary(lead, timelineItems) {
+        const container = document.getElementById('crmLeadSummary');
+        if (!container) return;
+
+        // Logic to find the body: 
+        // 1. Most recent note event
+        // 2. Initial creation message (if not default)
+        let bodyMessage = "No specific notes found.";
+        
+        const latestNote = timelineItems.find(item => item.type === 'event' && item.eventType === 'Note');
+        
+        if (latestNote && latestNote.details) {
+            bodyMessage = latestNote.details;
+        } else if (lead.Description && !lead.Description.toLowerCase().includes('created by outlook add on')) {
+            bodyMessage = lead.Description;
+        }
+
+        container.innerHTML = `
+            <div class="p-3">
+                <h6 class="text-uppercase fw-bold text-muted mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px;">Lead Information</h6>
+                
+                <div class="mb-4">
+                    <label class="small text-muted mb-1 d-block">Interested SKU</label>
+                    <div class="fw-bold text-dark border rounded p-2 bg-light" style="font-size: 0.9rem;">
+                        ${lead.PartNumber || 'N/A'}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="small text-muted mb-1 d-block">Requested Quantity</label>
+                    <div class="fw-bold text-dark border rounded p-2 bg-light" style="font-size: 0.9rem;">
+                        ${lead.Quantity || '0'}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="small text-muted mb-1 d-block">Most Recent Update</label>
+                    <div class="p-3 rounded bg-white border-start border-4 border-warning shadow-sm" 
+                         style="font-size: 0.85rem; white-space: pre-wrap; line-height: 1.5; background: #fffbeb;">
+                        ${bodyMessage}
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-top">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">Owner</small>
+                        <small class="fw-semibold">${lead.Owner || 'Unassigned'}</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
     renderHeaderActions(lead) {
         const actionContainer = document.querySelector('#crmDetailHeader .d-flex.gap-2');
-        // Reduce gap between items locally
         actionContainer.classList.remove('gap-2');
         
         let badgeClass = 'crm-badge-new';
@@ -236,7 +304,6 @@ const CRMView = {
         else if (lead.Status === 'Closed') badgeClass = 'crm-badge-closed';
 
         actionContainer.innerHTML = `
-            <!-- 1. Status Dropdown (Leftmost) -->
             <div class="dropdown me-2">
                 <button class="badge ${badgeClass} dropdown-toggle status-dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" 
                         type="button" data-bs-toggle="dropdown">
@@ -252,13 +319,11 @@ const CRMView = {
                 </ul>
             </div>
 
-            <!-- 2. Note Button -->
             <button class="btn-note-icon" title="Add Note" onclick="CRMView.openAddNoteModal()">
                 <i class="fas fa-sticky-note fa-2x"></i>
                 <div class="note-plus">+</div>
             </button>
 
-            <!-- 3. Send To Quotes Button -->
             <button class="btn-action-icon-plain" title="Send to Quotes" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')">
                 <img src="/EasySearchTests/static/leads-icon.png" alt="Send to Quotes">
             </button>
