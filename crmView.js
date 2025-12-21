@@ -313,7 +313,7 @@ const CRMView = {
                     </div>
                     <div class="col-5">
                         <label class="small text-muted mb-1 d-block">Quantity</label>
-                        <div id="summaryFieldQuantity" class="lead-summary-field-box justify-content-center" onclick="CRMView.enterEditMode('${lead.LeadId}', 'Quantity')">
+                        <div id="summaryFieldQuantity" class="lead-summary-field-box" onclick="CRMView.enterEditMode('${lead.LeadId}', 'Quantity')">
                             <span>${lead.Quantity || '0'}</span>
                             <i class="fas fa-pen edit-indicator"></i>
                         </div>
