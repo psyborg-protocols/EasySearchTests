@@ -30,8 +30,8 @@ const CRMView = {
         style.innerHTML = `
             .crm-timeline-container { position: relative; padding-left: 20px; }
             .crm-timeline-container::before {
-                content: ''; position: absolute; top: 0; bottom: 0; 
-                left: 45px; width: 0; border-left: 2px dashed #cbd5e1; z-index: 0;
+                content: ''; position: absolute; top: 0; bottom: 0; margin-top: 10px;
+                left: 44px; width: 0; border-left: 3.5px dotted #cbd5e1; z-index: 0;
             }
 
             .avatar-circle {
