@@ -46,7 +46,7 @@ const CRMService = {
      * Calculates the estimated value of a lead based on SKU and Quantity.
      * Logic: 
      * 1. Try Pricing file for 'USER FB' price.
-     * 2. Fallback to DB UnitCost x 1.2.
+     * 2. Fallback to DB UnitCost x 1.4.
      */
     calculateLeadValue(partNumber, quantity) {
         const pn = (partNumber || "").trim();

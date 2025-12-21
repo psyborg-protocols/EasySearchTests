@@ -119,7 +119,7 @@ const CRMView = {
             .lead-summary-pane {
                 border-left: 1px solid #e2e8f0;
                 background-color: #fff;
-                width: 320px;
+                width: 280px;
                 display: none;
                 flex-shrink: 0;
             }
