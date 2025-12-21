@@ -1,6 +1,6 @@
 // ---------------------------------------------
 // crmView.js
-// Handles UI rendering for the CRM module
+// Handles UI rendering for the CRM module with smooth inline editing and color-coded statuses
 // ---------------------------------------------
 
 const CRMView = {
@@ -53,6 +53,7 @@ const CRMView = {
         const style = document.createElement('style');
         style.id = 'crm-custom-styles';
         style.innerHTML = `
+            /* --- Timeline Styling --- */
             .crm-timeline-container { position: relative; padding-left: 20px; }
             .crm-timeline-container::before {
                 content: ''; position: absolute; top: 0; bottom: 0; margin-top: 10px;
@@ -67,6 +68,7 @@ const CRMView = {
                 border: 1px solid #e2e8f0;
             }
 
+            /* --- Lead Cards --- */
             .crm-lead-card { 
                 transition: all 0.2s ease; cursor: pointer;
                 border: 1px solid #e2e8f0 !important;
@@ -81,6 +83,20 @@ const CRMView = {
                 border-left: 4px solid #3b82f6 !important;
                 background-color: #eff6ff !important;
             }
+
+            /* --- Color Coded Statuses --- */
+            .crm-badge-new { background-color: #dcfce7 !important; color: #166534 !important; }
+            .crm-badge-waiting { background-color: #fef9c3 !important; color: #854d0e !important; }
+            .crm-badge-action { background-color: #fee2e2 !important; color: #991b1b !important; }
+            .crm-badge-quotes { background-color: #e0f2fe !important; color: #0369a1 !important; }
+            .crm-badge-closed { background-color: #f3f4f6 !important; color: #374151 !important; }
+
+            .status-dropdown-item {
+                display: flex; align-items: center; gap: 8px;
+                padding: 8px 12px; font-weight: 500; font-size: 0.8rem;
+                border-radius: 6px; margin: 2px 0; transition: background 0.2s;
+            }
+            .status-dropdown-item:hover { filter: brightness(0.95); }
 
             /* --- Editable Summary Fields --- */
             .lead-summary-field-box {
@@ -226,11 +242,12 @@ const CRMView = {
             const initials = l.Title.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
             const valueStr = l._calculatedValue > 0 ? fmt.format(l._calculatedValue) : "TBD";
             const isActive = CRMService.currentLead?.LeadId === l.LeadId ? 'active-lead' : '';
-            let bC = 'crm-badge-new';
-            if (l.Status === 'Waiting On Contact') bC = 'crm-badge-waiting';
-            else if (l.Status === 'Action Required') bC = 'crm-badge-action';
-            else if (l.Status === 'Sent To Quotes') bC = 'crm-badge-quotes';
-            else if (l.Status === 'Closed') bC = 'crm-badge-closed';
+            
+            let badgeClass = 'crm-badge-new';
+            if (l.Status === 'Waiting On Contact') badgeClass = 'crm-badge-waiting';
+            else if (l.Status === 'Action Required') badgeClass = 'crm-badge-action';
+            else if (l.Status === 'Sent To Quotes') badgeClass = 'crm-badge-quotes';
+            else if (l.Status === 'Closed') badgeClass = 'crm-badge-closed';
 
             return `
             <div class="card mb-2 shadow-sm crm-lead-card ${isActive}" onclick="CRMView.loadLead('${l.LeadId}')">
@@ -247,7 +264,7 @@ const CRMView = {
                     </div>
                     <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light">
                         <div class="d-flex gap-2">
-                            <span class="badge ${bC} text-uppercase" style="font-size: 0.55rem;">${l.Status}</span>
+                            <span class="badge ${badgeClass} text-uppercase" style="font-size: 0.55rem; padding: 4px 8px; border-radius: 4px;">${l.Status}</span>
                             <span class="text-muted" style="font-size: 0.65rem;">${l.PartNumber || ''}</span>
                         </div>
                         <span class="text-muted" style="font-size: 0.65rem;">${this.getRelativeTime(new Date(l.LastActivityAt))}</span>
@@ -278,7 +295,7 @@ const CRMView = {
 
         try {
             const items = await CRMService.getFullTimeline(lead);
-            this.currentTimelineItems = items; // Cache items for non-destructive re-renders
+            this.currentTimelineItems = items; 
             this.renderTimeline(items);
             this.renderLeadSummary(lead, items);
         } catch (e) {
@@ -354,10 +371,9 @@ const CRMView = {
 
         const currentValue = lead[field] || '';
         
-        // Build edit container
         const editContainer = document.createElement('div');
         editContainer.className = 'crm-edit-container';
-        editContainer.onclick = (e) => e.stopPropagation(); // Don't re-trigger box click
+        editContainer.onclick = (e) => e.stopPropagation(); 
 
         const input = document.createElement('input');
         input.type = field === 'Quantity' ? 'number' : 'text';
@@ -439,24 +455,28 @@ const CRMView = {
     renderHeaderActions(lead) {
         const actionContainer = document.querySelector('#crmDetailHeader .d-flex.gap-2');
         if (!actionContainer) return;
-        let bC = 'crm-badge-new';
-        if (lead.Status === 'Waiting On Contact') bC = 'crm-badge-waiting';
-        else if (lead.Status === 'Action Required') bC = 'crm-badge-action';
-        else if (lead.Status === 'Sent To Quotes') bC = 'crm-badge-quotes';
-        else if (lead.Status === 'Closed') bC = 'crm-badge-closed';
+        
+        let badgeClass = 'crm-badge-new';
+        if (lead.Status === 'Waiting On Contact') badgeClass = 'crm-badge-waiting';
+        else if (lead.Status === 'Action Required') badgeClass = 'crm-badge-action';
+        else if (lead.Status === 'Sent To Quotes') badgeClass = 'crm-badge-quotes';
+        else if (lead.Status === 'Closed') badgeClass = 'crm-badge-closed';
 
         actionContainer.innerHTML = `
             <div class="dropdown me-2">
-                <button class="badge ${bC} dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" type="button" data-bs-toggle="dropdown">${lead.Status}</button>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2">
-                    <li><a class="dropdown-item rounded mb-1 crm-badge-new" onclick="CRMView.updateStatus('${lead.LeadId}', 'New Lead')">New Lead</a></li>
-                    <li><a class="dropdown-item rounded mb-1 crm-badge-waiting" onclick="CRMView.updateStatus('${lead.LeadId}', 'Waiting On Contact')">Waiting On Contact</a></li>
-                    <li><a class="dropdown-item rounded mb-1 crm-badge-action" onclick="CRMView.updateStatus('${lead.LeadId}', 'Action Required')">Action Required</a></li>
+                <button class="badge ${badgeClass} dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" type="button" data-bs-toggle="dropdown">
+                    ${lead.Status}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="min-width: 200px; border-radius: 12px;">
+                    <li><h6 class="dropdown-header small text-muted text-uppercase mb-2" style="font-size: 0.65rem; letter-spacing: 0.5px;">Change Status</h6></li>
+                    <li><a class="dropdown-item status-dropdown-item crm-badge-new" onclick="CRMView.updateStatus('${lead.LeadId}', 'New Lead')"><i class="fas fa-star me-2"></i>New Lead</a></li>
+                    <li><a class="dropdown-item status-dropdown-item crm-badge-waiting" onclick="CRMView.updateStatus('${lead.LeadId}', 'Waiting On Contact')"><i class="fas fa-clock me-2"></i>Waiting On Contact</a></li>
+                    <li><a class="dropdown-item status-dropdown-item crm-badge-action" onclick="CRMView.updateStatus('${lead.LeadId}', 'Action Required')"><i class="fas fa-exclamation-circle me-2"></i>Action Required</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item rounded text-danger" onclick="CRMView.closeLeadConfirm('${lead.LeadId}')">Close Lead</a></li>
+                    <li><a class="dropdown-item status-dropdown-item crm-badge-closed text-danger" onclick="CRMView.closeLeadConfirm('${lead.LeadId}')"><i class="fas fa-times-circle me-2"></i>Close Lead</a></li>
                 </ul>
             </div>
-            <button class="btn-note-icon" onclick="CRMView.openAddNoteModal()"><i class="fas fa-sticky-note fa-2x"></i><div class="note-plus" style="position: absolute; top: 5px; right: 4px; font-size: 0.65rem; background: white; border-radius: 50%; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; border: 1px solid #fbbf24; color: #b45309;">+</div></button>
+            <button class="btn-note-icon" onclick="CRMView.openAddNoteModal()"><i class="fas fa-sticky-note fa-2x"></i><div class="note-plus" style="position: absolute; top: 5px; right: 4px; font-size: 0.65rem; background: white; border-radius: 50%; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; border: 1px solid #fbbf24; color: #b45309; font-weight: bold;">+</div></button>
             <button onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')" style="background:none; border:none; padding:0; cursor:pointer;"><img src="/EasySearchTests/static/leads-icon.png" style="width:26px; height:26px;"></button>
         `;
     },
@@ -474,7 +494,7 @@ const CRMView = {
                 return `
                 <div class="d-flex mb-4 fade-in-up">
                     <div class="me-3 flex-shrink-0" style="width: 34px;">
-                        <div class="bg-white text-primary border rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                        <div class="bg-white text-primary border rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 34px; height: 34px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             <i class="fas fa-envelope"></i>
                         </div>
                     </div>
@@ -482,12 +502,12 @@ const CRMView = {
                         <div class="card border-0 shadow-sm" onclick="CRMView.toggleCollapse('${id}')" style="cursor:pointer;">
                             <div class="card-body p-3">
                                 <div class="d-flex justify-content-between mb-1">
-                                    <span class="small fw-bold">${item.from}</span>
+                                    <span class="small fw-bold text-primary">${item.from}</span>
                                     <small class="text-muted">${rel}</small>
                                 </div>
                                 <h6 class="mb-0 small fw-bold">${item.subject}</h6>
                                 <div id="${id}" class="collapse mt-2">
-                                    <div class="p-2 bg-light small border-start border-primary">${item.preview || ""}</div>
+                                    <div class="p-2 bg-light small border-start border-primary" style="border-width: 4px !important;">${item.preview || ""}</div>
                                 </div>
                             </div>
                         </div>
@@ -495,11 +515,13 @@ const CRMView = {
                 </div>`;
             } else {
                 const isSys = item.eventType === 'System';
+                const icon = isSys ? 'fa-cog' : 'fa-sticky-note';
+                const colorClass = isSys ? 'text-secondary' : 'text-warning';
                 return `
                 <div class="d-flex mb-4 fade-in-up">
                     <div class="me-3 flex-shrink-0" style="width: 34px;">
-                        <div class="bg-white border rounded-circle p-2 ${isSys?'text-secondary':'text-warning'} d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
-                            <i class="fas ${isSys?'fa-cog':'fa-sticky-note'}"></i>
+                        <div class="bg-white border rounded-circle p-2 ${colorClass} d-flex align-items-center justify-content-center" style="width: 34px; height: 34px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <i class="fas ${icon}"></i>
                         </div>
                     </div>
                     <div class="flex-grow-1">
@@ -510,7 +532,7 @@ const CRMView = {
                                     <small class="text-muted">${rel}</small>
                                 </div>
                                 <div class="fw-semibold small">${item.summary}</div>
-                                ${item.details ? `<div class="small opacity-75 mt-1">${item.details}</div>` : ''}
+                                ${item.details ? `<div class="small opacity-75 mt-1" style="white-space: pre-wrap;">${item.details}</div>` : ''}
                             </div>
                         </div>
                     </div>
