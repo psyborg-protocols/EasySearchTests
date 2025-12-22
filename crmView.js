@@ -254,30 +254,63 @@ const CRMView = {
                 box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
             }
 
+    /* --- Improved Note Icon Button --- */
             .btn-add-note {
+                width: 34px;
+                height: 34px;
                 background: #fbbf24;
                 color: white;
                 border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-size: 0.85rem;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.2s;
+                border-radius: 50%; /* Makes it circular */
                 display: flex;
                 align-items: center;
-                gap: 6px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                box-shadow: 0 2px 6px rgba(251, 191, 36, 0.4);
+                position: relative;
             }
 
             .btn-add-note:hover {
                 background: #f59e0b;
-                transform: translateY(-1px);
-                box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+                transform: scale(1.1);
+                box-shadow: 0 4px 12px rgba(251, 191, 36, 0.5);
             }
 
-            .btn-add-note i {
-                font-size: 0.9rem;
+            /* Container for the stacked icons */
+            .note-icon-stack {
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 20px;
+                height: 20px;
+            }
+
+            /* The base Sticky Note icon */
+            .note-icon-stack .fa-sticky-note {
+                font-size: 1.1rem;
+                color: white;
+            }
+
+            /* The "Blocky" Plus overlay */
+            .note-icon-stack .blocky-plus {
+                position: absolute;
+                bottom: -2px;
+                right: -4px;
+                font-size: 0.55rem;
+                background: #fbbf24; /* Matches button background */
+                color: white;
+                border: 1.5px solid #fbbf24; /* Creates the 'cutout' gap effect */
+                border-radius: 3px; /* Keeps it 'blocky' */
+                padding: 1px;
+                box-shadow: 1px 1px 2px rgba(0,0,0,0.15);
+                transition: background 0.2s;
+            }
+
+            .btn-add-note:hover .blocky-plus {
+                background: #f59e0b;
+                border-color: #f59e0b;
             }
 
             .quotes-btn-responsive {
@@ -431,6 +464,8 @@ const CRMView = {
         if (latestNote) bodyMessage = latestNote.details;
         else if (lead.Description && !lead.Description.toLowerCase().includes('created by outlook add on')) bodyMessage = lead.Description;
 
+        // NOTE: Removed inline onclick for "Save Note" to avoid deprecated global `event`.
+        // We attach a click handler via addEventListener right after injecting the HTML.
         container.innerHTML = `
             <div class="p-3">
                 <div id="crmNoteComposer" class="note-composer fade-in-up">
@@ -438,7 +473,7 @@ const CRMView = {
                     <textarea id="crmNoteInput" placeholder="Type your note here..."></textarea>
                     <div class="d-flex justify-content-end gap-2 mt-2">
                         <button class="btn btn-sm btn-link text-muted" onclick="CRMView.toggleNoteComposer(false)">Cancel</button>
-                        <button class="btn btn-sm btn-primary px-3" onclick="CRMView.submitInlineNote('${lead.LeadId}')">
+                        <button class="btn btn-sm btn-primary px-3" id="crmSaveNoteBtn">
                             <i class="fas fa-check me-1"></i>Save Note
                         </button>
                     </div>
@@ -447,9 +482,11 @@ const CRMView = {
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <label class="small text-muted mb-0 d-block text-uppercase fw-bold" style="font-size:0.65rem;">Most Recent Update</label>
-                        <button class="btn-add-note" onclick="CRMView.toggleNoteComposer(true)">
-                            <i class="fas fa-plus"></i>
-                            Add Note
+                        <button class="btn-add-note" onclick="CRMView.toggleNoteComposer(true)" title="Add Note">
+                            <div class="note-icon-stack">
+                                <i class="fas fa-sticky-note"></i>
+                                <i class="fas fa-plus blocky-plus"></i>
+                            </div>
                         </button>
                     </div>
                     <div class="p-3 rounded shadow-sm recent-update-card">
@@ -492,6 +529,17 @@ const CRMView = {
                 </div>
             </div>
         `;
+
+        // Attach click handler safely (no reliance on deprecated global `event`).
+        // Also prevents accidental form submission if this ends up inside a <form>.
+        const saveBtn = document.getElementById('crmSaveNoteBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.submitInlineNote(e, lead.LeadId);
+            });
+        }
     },
 
     enterEditMode(leadId, field) {
@@ -632,7 +680,7 @@ const CRMView = {
         }
     },
 
-    async submitInlineNote(leadId) {
+    async submitInlineNote(event, leadId) {
         const summaryInput = document.getElementById('crmNoteSummary');
         const detailsInput = document.getElementById('crmNoteInput');
         
@@ -644,10 +692,13 @@ const CRMView = {
             return;
         }
 
-        const btn = event.target;
-        const originalHTML = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+        const btn = event?.currentTarget;
+        const originalHTML = btn?.innerHTML;
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+        }
 
         try {
             await CRMService.addEvent(leadId, "Note", summary, details);
@@ -655,8 +706,10 @@ const CRMView = {
             this.loadLead(leadId); // Refresh to show new note in update card
         } catch (e) {
             alert("Failed to save note: " + e.message);
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
+            if (btn) {
+                btn.disabled = false;
+                if (originalHTML != null) btn.innerHTML = originalHTML;
+            }
         }
     },
 
