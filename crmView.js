@@ -258,7 +258,7 @@ const CRMView = {
             .btn-add-note {
                 width: 34px;
                 height: 34px;
-                background: #fbbf24;
+                background: #ffffffff;
                 color: white;
                 border: none;
                 border-radius: 50%; /* Makes it circular */
@@ -272,7 +272,7 @@ const CRMView = {
             }
 
             .btn-add-note:hover {
-                background: #f59e0b;
+                background: #fcf8f0ff;
                 transform: scale(1.1);
                 box-shadow: 0 4px 12px rgba(251, 191, 36, 0.5);
             }
@@ -290,7 +290,7 @@ const CRMView = {
             /* The base Sticky Note icon */
             .note-icon-stack .fa-sticky-note {
                 font-size: 1.1rem;
-                color: white;
+                color: #fbbf24;
             }
 
             /* The "Blocky" Plus overlay */
@@ -299,9 +299,9 @@ const CRMView = {
                 bottom: -2px;
                 right: -4px;
                 font-size: 0.55rem;
-                background: #fbbf24; /* Matches button background */
-                color: white;
-                border: 1.5px solid #fbbf24; /* Creates the 'cutout' gap effect */
+                background: white; /* Matches button background */
+                color: #fbbf24;
+                border: 1.5px solid white; /* Creates the 'cutout' gap effect */
                 border-radius: 3px; /* Keeps it 'blocky' */
                 padding: 1px;
                 box-shadow: 1px 1px 2px rgba(0,0,0,0.15);
