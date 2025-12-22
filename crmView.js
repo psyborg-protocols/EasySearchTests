@@ -150,6 +150,18 @@ const CRMView = {
                 font-weight: 600;
                 outline: none;
             }
+            /* Hide the up/down arrows (spinners) specifically for the quantity input */
+            #crmEditQtyInput::-webkit-outer-spin-button,
+            #crmEditQtyInput::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            #crmEditQtyInput {
+                padding-right: 32px !important; /* Reduces the "dead zone" slightly now that arrows are gone */
+            }
+            #crmEditQtyInput[type=number] {
+                -moz-appearance: textfield; /* For Firefox */
+            }            
             .crm-edit-actions {
                 position: absolute;
                 right: 5px;
