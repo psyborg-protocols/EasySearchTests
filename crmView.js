@@ -278,11 +278,8 @@ const CRMView = {
             /* Container for the stacked icons */
             .note-icon-stack {
                 position: relative;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 20px;
-                height: 20px;
+                display: flex; align-items: center; justify-content: center;
+                width: 20px; height: 20px;
             }
 
             /* The base Sticky Note icon */
@@ -291,22 +288,30 @@ const CRMView = {
                 color: #fbbf24;
             }
 
-            /* The "Blocky" Plus overlay */
-            .note-icon-stack .blocky-plus {
+            /* The "Blocky" Plus - This layer is the WHITE BORDER */
+            .blocky-plus {
                 position: absolute;
-                top: -2px;
+                top: -5px; 
                 right: -4px;
-                font-size: 0.6rem;
-                background: none; /* Matches button background */
-                color: #fbbf24;
-                border: none;
-                padding: 1px;
-                transition: background 0.2s;
+                width: 12px; /* Total size including border */
+                height: 12px;
+                background: white; 
+                /* The Swiss Cross Shape */
+                clip-path: polygon(33% 0%, 66% 0%, 66% 33%, 100% 33%, 100% 66%, 66% 66%, 66% 100%, 33% 100%, 33% 66%, 0% 66%, 0% 33%, 33% 33%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 2;
             }
 
-            .btn-add-note:hover .blocky-plus {
-                background: #f59e0b;
-                border-color: #f59e0b;
+            /* This layer is the YELLOW CENTER - Now shifted to 10px */
+            .blocky-plus::after {
+                content: '';
+                position: absolute;
+                width: 10px;
+                height: 10px;
+                background: #fbbf24;
+                clip-path: polygon(33% 0%, 66% 0%, 66% 33%, 100% 33%, 100% 66%, 66% 66%, 66% 100%, 33% 100%, 33% 66%, 0% 66%, 0% 33%, 33% 33%);
             }
 
             .quotes-btn-responsive {
@@ -481,7 +486,7 @@ const CRMView = {
                         <button class="btn-add-note" onclick="CRMView.toggleNoteComposer(true)" title="Add Note">
                             <div class="note-icon-stack">
                                 <i class="fas fa-sticky-note"></i>
-                                <i class="fas fa-plus blocky-plus"></i>
+                                <i class="blocky-plus"></i>
                             </div>
                         </button>
                     </div>
