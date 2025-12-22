@@ -191,7 +191,70 @@ const CRMView = {
                 cursor: pointer;
             }
             .crm-edit-dropdown .dropdown-item:hover { background: #f8fafc; }
+            .recent-update-card {
+                position: relative;
+                background: #fffbeb;
+                border-left: 4px solid #f6e05e !important;
+                transition: all 0.2s ease;
+            }
 
+            .btn-inline-note {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                background: white;
+                border: 1px solid #fef3c7;
+                border-radius: 6px;
+                width: 28px;
+                height: 28px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #b45309;
+                cursor: pointer;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                transition: all 0.2s;
+            }
+
+            .btn-inline-note:hover {
+                background: #fef3c7;
+                transform: translateY(-1px);
+            }
+
+            .note-composer {
+                background: white;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 10px;
+                margin-bottom: 15px;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+                display: none; /* Hidden by default */
+            }
+
+            .note-composer textarea {
+                border: none;
+                width: 100%;
+                resize: none;
+                font-size: 0.85rem;
+                outline: none;
+                min-height: 60px;
+            }
+
+            .quotes-btn-responsive {
+                transition: transform 0.2s, opacity 0.2s;
+                padding: 4px;
+                border-radius: 6px;
+            }
+
+            .quotes-btn-responsive:hover {
+                transform: scale(1.1);
+                background: #f0f9ff;
+            }
+
+            .quotes-btn-responsive:active {
+                transform: scale(0.95);
+                opacity: 0.7;
+            }
             .btn-note-icon {
                 background: none !important; border: none !important; padding: 0;
                 width: 36px; height: 36px; color: #fcd34d;
@@ -330,6 +393,24 @@ const CRMView = {
 
         container.innerHTML = `
             <div class="p-3">
+                <div id="crmNoteComposer" class="note-composer fade-in-up">
+                    <textarea id="crmNoteInput" placeholder="Type a quick note..."></textarea>
+                    <div class="d-flex justify-content-end gap-2 mt-2">
+                        <button class="btn btn-sm btn-link text-muted" onclick="CRMView.toggleNoteComposer(false)">Cancel</button>
+                        <button class="btn btn-sm btn-primary px-3" onclick="CRMView.submitInlineNote('${lead.LeadId}')">Save Note</button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="small text-muted mb-1 d-block text-uppercase fw-bold" style="font-size:0.65rem;">Most Recent Update</label>
+                    <div class="p-3 rounded shadow-sm recent-update-card" style="font-size: 0.85rem; white-space: pre-wrap;">
+                        <button class="btn-inline-note" title="Add Note" onclick="CRMView.toggleNoteComposer(true)">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        ${bodyMessage}
+                    </div>
+                </div>
+
                 <h6 class="text-uppercase fw-bold text-muted mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px;">Lead Information</h6>
                 
                 <div class="row g-2 mb-3">
@@ -353,13 +434,6 @@ const CRMView = {
                     <label class="small text-muted mb-1 d-block">Estimated Value</label>
                     <div class="fw-bold text-success border rounded p-2 bg-light shadow-sm" style="font-size: 1.1rem; border-left: 4px solid #198754 !important;">
                         ${estimatedValue > 0 ? fmt.format(estimatedValue) : "TBD"}
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="small text-muted mb-1 d-block">Most Recent Update</label>
-                    <div class="p-3 rounded bg-white border-start border-4 border-warning shadow-sm" style="font-size: 0.85rem; white-space: pre-wrap; background: #fffbeb;">
-                        ${bodyMessage}
                     </div>
                 </div>
 
@@ -475,23 +549,50 @@ const CRMView = {
         else if (lead.Status === 'Closed') badgeClass = 'crm-badge-closed';
 
         actionContainer.innerHTML = `
-            <div class="dropdown me-2">
+            <div class="dropdown">
                 <button class="badge ${badgeClass} dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" type="button" data-bs-toggle="dropdown">
                     ${lead.Status}
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="min-width: 150px; border-radius: 12px;">
-                    <li><h6 class="dropdown-header small text-muted text-uppercase mb-2" style="font-size: 0.65rem; letter-spacing: 0.5px;">Change Status</h6></li>
-                    <li><a class="dropdown-item status-dropdown-item crm-badge-new" onclick="CRMView.updateStatus('${lead.LeadId}', 'New Lead')"><i class="fas fa-star me-2"></i>New Lead</a></li>
-                    <li><a class="dropdown-item status-dropdown-item crm-badge-waiting" onclick="CRMView.updateStatus('${lead.LeadId}', 'Waiting On Contact')"><i class="fas fa-clock me-2"></i>Waiting On Contact</a></li>
-                    <li><a class="dropdown-item status-dropdown-item crm-badge-action" onclick="CRMView.updateStatus('${lead.LeadId}', 'Action Required')"><i class="fas fa-exclamation-circle me-2"></i>Action Required</a></li>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="border-radius: 12px;">
+                    <li><a class="dropdown-item status-dropdown-item crm-badge-new" onclick="CRMView.updateStatus('${lead.LeadId}', 'New Lead')">New Lead</a></li>
+                    <li><a class="dropdown-item status-dropdown-item crm-badge-waiting" onclick="CRMView.updateStatus('${lead.LeadId}', 'Waiting On Contact')">Waiting On Contact</a></li>
+                    <li><a class="dropdown-item status-dropdown-item crm-badge-action" onclick="CRMView.updateStatus('${lead.LeadId}', 'Action Required')">Action Required</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item status-dropdown-item crm-badge-closed text-danger" onclick="CRMView.closeLeadConfirm('${lead.LeadId}')"><i class="fas fa-times-circle me-2"></i>Close Lead</a></li>
+                    <li><a class="dropdown-item status-dropdown-item text-danger" onclick="CRMView.closeLeadConfirm('${lead.LeadId}')">Close Lead</a></li>
                 </ul>
             </div>
-            <button class="btn-note-icon" onclick="CRMView.openAddNoteModal()"><i class="fas fa-sticky-note fa-2x"></i><div class="note-plus" style="position: absolute; top: 5px; right: 4px; font-size: 0.65rem; background: white; border-radius: 50%; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; border: 1px solid #fbbf24; color: #b45309; font-weight: bold;">+</div></button>
-            <button onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')" style="background:none; border:none; padding:0; cursor:pointer;"><img src="/EasySearchTests/static/leads-icon.png" style="width:26px; height:26px;"></button>
+            <button class="quotes-btn-responsive btn" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')" title="Send to Quotes">
+                <img src="/EasySearchTests/static/leads-icon.png" style="width:24px; height:24px;">
+            </button>
         `;
     },
+
+    toggleNoteComposer(show) {
+        const composer = document.getElementById('crmNoteComposer');
+        if (!composer) return;
+        composer.style.display = show ? 'block' : 'none';
+        if (show) document.getElementById('crmNoteInput').focus();
+    },
+
+    async submitInlineNote(leadId) {
+        const input = document.getElementById('crmNoteInput');
+        const note = input?.value.trim();
+        if (!note) return;
+
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+
+        try {
+            await CRMService.addEvent(leadId, "Note", "User Note", note);
+            this.toggleNoteComposer(false);
+            this.loadLead(leadId); // Refresh to show new note in update card
+        } catch (e) {
+            alert("Failed to save note: " + e.message);
+            btn.disabled = false;
+            btn.innerText = "Save Note";
+        }
+    }
 
     async updateStatus(lId, s) { await CRMService.updateStatus(lId, s); this.loadLead(lId); this.renderList(); },
     async closeLeadConfirm(lId) { if (confirm("Close lead?")) this.updateStatus(lId, 'Closed'); },
