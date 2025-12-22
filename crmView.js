@@ -592,7 +592,7 @@ const CRMView = {
             btn.disabled = false;
             btn.innerText = "Save Note";
         }
-    }
+    },
 
     async updateStatus(lId, s) { await CRMService.updateStatus(lId, s); this.loadLead(lId); this.renderList(); },
     async closeLeadConfirm(lId) { if (confirm("Close lead?")) this.updateStatus(lId, 'Closed'); },
