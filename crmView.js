@@ -196,48 +196,88 @@ const CRMView = {
                 background: #fffbeb;
                 border-left: 4px solid #f6e05e !important;
                 transition: all 0.2s ease;
+                line-height: 1.6;
             }
 
-            .btn-inline-note {
-                position: absolute;
-                top: 8px;
-                right: 8px;
-                background: white;
-                border: 1px solid #fef3c7;
-                border-radius: 6px;
-                width: 28px;
-                height: 28px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #b45309;
-                cursor: pointer;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                transition: all 0.2s;
+            .recent-update-summary {
+                font-weight: 600;
+                color: #1e293b;
+                margin-bottom: 8px;
+                font-size: 0.9rem;
             }
 
-            .btn-inline-note:hover {
-                background: #fef3c7;
-                transform: translateY(-1px);
+            .recent-update-details {
+                color: #475569;
+                font-size: 0.85rem;
+                line-height: 1.6;
             }
 
             .note-composer {
                 background: white;
-                border: 1px solid #e2e8f0;
+                border: 2px solid #3b82f6;
                 border-radius: 8px;
-                padding: 10px;
+                padding: 12px;
                 margin-bottom: 15px;
-                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-                display: none; /* Hidden by default */
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                display: none;
+            }
+
+            .note-composer input {
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                width: 100%;
+                padding: 8px 10px;
+                font-size: 0.85rem;
+                outline: none;
+                margin-bottom: 8px;
+                font-weight: 600;
+            }
+
+            .note-composer input:focus {
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
             }
 
             .note-composer textarea {
-                border: none;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
                 width: 100%;
-                resize: none;
+                resize: vertical;
                 font-size: 0.85rem;
                 outline: none;
-                min-height: 60px;
+                min-height: 70px;
+                padding: 8px 10px;
+            }
+
+            .note-composer textarea:focus {
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+
+            .btn-add-note {
+                background: #fbbf24;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+
+            .btn-add-note:hover {
+                background: #f59e0b;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            }
+
+            .btn-add-note i {
+                font-size: 0.9rem;
             }
 
             .quotes-btn-responsive {
@@ -394,20 +434,27 @@ const CRMView = {
         container.innerHTML = `
             <div class="p-3">
                 <div id="crmNoteComposer" class="note-composer fade-in-up">
-                    <textarea id="crmNoteInput" placeholder="Type a quick note..."></textarea>
+                    <input type="text" id="crmNoteSummary" placeholder="Note title (optional)" value="User Note">
+                    <textarea id="crmNoteInput" placeholder="Type your note here..."></textarea>
                     <div class="d-flex justify-content-end gap-2 mt-2">
                         <button class="btn btn-sm btn-link text-muted" onclick="CRMView.toggleNoteComposer(false)">Cancel</button>
-                        <button class="btn btn-sm btn-primary px-3" onclick="CRMView.submitInlineNote('${lead.LeadId}')">Save Note</button>
+                        <button class="btn btn-sm btn-primary px-3" onclick="CRMView.submitInlineNote('${lead.LeadId}')">
+                            <i class="fas fa-check me-1"></i>Save Note
+                        </button>
                     </div>
                 </div>
 
                 <div class="mb-4">
-                    <label class="small text-muted mb-1 d-block text-uppercase fw-bold" style="font-size:0.65rem;">Most Recent Update</label>
-                    <div class="p-3 rounded shadow-sm recent-update-card" style="font-size: 0.85rem; white-space: pre-wrap;">
-                        <button class="btn-inline-note" title="Add Note" onclick="CRMView.toggleNoteComposer(true)">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="small text-muted mb-0 d-block text-uppercase fw-bold" style="font-size:0.65rem;">Most Recent Update</label>
+                        <button class="btn-add-note" onclick="CRMView.toggleNoteComposer(true)">
                             <i class="fas fa-plus"></i>
+                            Add Note
                         </button>
-                        ${bodyMessage}
+                    </div>
+                    <div class="p-3 rounded shadow-sm recent-update-card">
+                        <div class="recent-update-summary">${latestNote ? latestNote.summary : 'No notes yet'}</div>
+                        <div class="recent-update-details">${bodyMessage}</div>
                     </div>
                 </div>
 
@@ -571,26 +618,45 @@ const CRMView = {
         const composer = document.getElementById('crmNoteComposer');
         if (!composer) return;
         composer.style.display = show ? 'block' : 'none';
-        if (show) document.getElementById('crmNoteInput').focus();
+        if (show) {
+            document.getElementById('crmNoteInput').focus();
+            // Pre-select the summary text for easy overwriting
+            const summaryInput = document.getElementById('crmNoteSummary');
+            if (summaryInput) {
+                setTimeout(() => summaryInput.select(), 50);
+            }
+        } else {
+            // Reset fields when closing
+            document.getElementById('crmNoteSummary').value = 'User Note';
+            document.getElementById('crmNoteInput').value = '';
+        }
     },
 
     async submitInlineNote(leadId) {
-        const input = document.getElementById('crmNoteInput');
-        const note = input?.value.trim();
-        if (!note) return;
+        const summaryInput = document.getElementById('crmNoteSummary');
+        const detailsInput = document.getElementById('crmNoteInput');
+        
+        const summary = summaryInput?.value.trim() || 'User Note';
+        const details = detailsInput?.value.trim();
+        
+        if (!details) {
+            alert('Please enter note details');
+            return;
+        }
 
         const btn = event.target;
+        const originalHTML = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
 
         try {
-            await CRMService.addEvent(leadId, "Note", "User Note", note);
+            await CRMService.addEvent(leadId, "Note", summary, details);
             this.toggleNoteComposer(false);
             this.loadLead(leadId); // Refresh to show new note in update card
         } catch (e) {
             alert("Failed to save note: " + e.message);
             btn.disabled = false;
-            btn.innerText = "Save Note";
+            btn.innerHTML = originalHTML;
         }
     },
 
