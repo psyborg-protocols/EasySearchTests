@@ -267,14 +267,12 @@ const CRMView = {
                 justify-content: center;
                 cursor: pointer;
                 transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-                box-shadow: 0 2px 6px rgba(251, 191, 36, 0.4);
                 position: relative;
             }
 
             .btn-add-note:hover {
                 background: #fcf8f0ff;
                 transform: scale(1.05);
-                box-shadow: 0 4px 12px rgba(251, 191, 36, 0.5);
             }
 
             /* Container for the stacked icons */
@@ -301,10 +299,8 @@ const CRMView = {
                 font-size: 0.6rem;
                 background: none; /* Matches button background */
                 color: #fbbf24;
-                border: 1.5px solid white; /* Creates the 'cutout' gap effect */
-                border-radius: 3px; /* Keeps it 'blocky' */
+                border: none;
                 padding: 1px;
-                box-shadow: 1px 1px 2px rgba(0,0,0,0.15);
                 transition: background 0.2s;
             }
 
