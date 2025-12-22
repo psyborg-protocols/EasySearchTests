@@ -289,7 +289,7 @@ const CRMView = {
 
             /* The base Sticky Note icon */
             .note-icon-stack .fa-sticky-note {
-                font-size: 1.1rem;
+                font-size: 1.5rem;
                 color: #fbbf24;
             }
 
