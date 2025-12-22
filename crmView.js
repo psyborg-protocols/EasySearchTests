@@ -273,7 +273,7 @@ const CRMView = {
 
             .btn-add-note:hover {
                 background: #fcf8f0ff;
-                transform: scale(1.1);
+                transform: scale(1.05);
                 box-shadow: 0 4px 12px rgba(251, 191, 36, 0.5);
             }
 
@@ -296,10 +296,10 @@ const CRMView = {
             /* The "Blocky" Plus overlay */
             .note-icon-stack .blocky-plus {
                 position: absolute;
-                bottom: -2px;
+                top: -2px;
                 right: -4px;
-                font-size: 0.55rem;
-                background: white; /* Matches button background */
+                font-size: 0.6rem;
+                background: none; /* Matches button background */
                 color: #fbbf24;
                 border: 1.5px solid white; /* Creates the 'cutout' gap effect */
                 border-radius: 3px; /* Keeps it 'blocky' */
