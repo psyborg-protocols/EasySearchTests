@@ -479,7 +479,7 @@ const CRMView = {
                 <button class="badge ${badgeClass} dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" type="button" data-bs-toggle="dropdown">
                     ${lead.Status}
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="min-width: 200px; border-radius: 12px;">
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="min-width: 150px; border-radius: 12px;">
                     <li><h6 class="dropdown-header small text-muted text-uppercase mb-2" style="font-size: 0.65rem; letter-spacing: 0.5px;">Change Status</h6></li>
                     <li><a class="dropdown-item status-dropdown-item crm-badge-new" onclick="CRMView.updateStatus('${lead.LeadId}', 'New Lead')"><i class="fas fa-star me-2"></i>New Lead</a></li>
                     <li><a class="dropdown-item status-dropdown-item crm-badge-waiting" onclick="CRMView.updateStatus('${lead.LeadId}', 'Waiting On Contact')"><i class="fas fa-clock me-2"></i>Waiting On Contact</a></li>
