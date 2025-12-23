@@ -508,12 +508,18 @@ const CRMView = {
         if (latestNote) bodyMessage = latestNote.details;
         else if (lead.Description && !lead.Description.toLowerCase().includes('created by outlook add on')) bodyMessage = lead.Description;
 
-        // --- NEW: Generate Contacts List ---
+// --- NEW: Generate Contacts List with Outlook Deep Link ---
         const linkedContacts = CRMService.anchorsCache.filter(a => a.LeadId === lead.LeadId);
         const contactsHtml = linkedContacts.length > 0 
             ? linkedContacts.map(c => {
                 const email = c.Email || "Unknown";
                 const initial = email.charAt(0).toUpperCase();
+                
+                // 1. Create a "Deep Link" specific to Outlook Web
+                // 2. Pre-fill the Subject with the Lead Title
+                const subject = encodeURIComponent(`Regarding: ${lead.Title}`);
+                const outlookLink = `https://outlook.office.com/mail/deeplink/compose?to=${email}&subject=${subject}`;
+
                 return `
                 <div class="d-flex align-items-center justify-content-between p-2 mb-1 bg-white border rounded shadow-sm">
                     <div class="d-flex align-items-center overflow-hidden">
@@ -522,7 +528,7 @@ const CRMView = {
                         </div>
                         <span class="text-truncate small fw-medium text-dark" style="font-size: 0.85rem;" title="${email}">${email}</span>
                     </div>
-                    <a href="mailto:${email}" class="btn btn-sm btn-link text-primary p-0 ms-2" title="Open in Outlook">
+                    <a href="${outlookLink}" target="_blank" class="btn btn-sm btn-link text-primary p-0 ms-2" title="Compose in Outlook Web">
                         <i class="fas fa-envelope"></i>
                     </a>
                 </div>`;
