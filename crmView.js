@@ -71,14 +71,9 @@ const CRMView = {
         const style = document.createElement('style');
         style.id = 'crm-custom-styles';
         style.innerHTML = `
-            /* --- Sparkle Animation (Auto-Status) --- */
-            @keyframes sparklePulse {
-                0% { transform: scale(1); opacity: 0.8; }
-                50% { transform: scale(1.2); opacity: 1; }
-                100% { transform: scale(1); opacity: 0.8; }
-            }
+            /* --- Sparkle Icon (Auto-Status) --- */
             .sparkle-anim {
-                animation: sparklePulse 2s infinite ease-in-out;
+                /* Animation removed */
                 color: #fbbf24; /* Amber-400 */
             }
 
@@ -283,7 +278,7 @@ const CRMView = {
                 box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
             }
 
-    /* --- Improved Note Icon Button --- */
+            /* --- Improved Note Icon Button --- */
             .btn-add-note {
                 width: 34px;
                 height: 34px;
