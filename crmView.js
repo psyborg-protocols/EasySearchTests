@@ -508,8 +508,28 @@ const CRMView = {
         if (latestNote) bodyMessage = latestNote.details;
         else if (lead.Description && !lead.Description.toLowerCase().includes('created by outlook add on')) bodyMessage = lead.Description;
 
-        // NOTE: Removed inline onclick for "Save Note" to avoid deprecated global `event`.
-        // We attach a click handler via addEventListener right after injecting the HTML.
+        // --- NEW: Generate Contacts List ---
+        const linkedContacts = CRMService.anchorsCache.filter(a => a.LeadId === lead.LeadId);
+        const contactsHtml = linkedContacts.length > 0 
+            ? linkedContacts.map(c => {
+                const email = c.Email || "Unknown";
+                const initial = email.charAt(0).toUpperCase();
+                return `
+                <div class="d-flex align-items-center justify-content-between p-2 mb-1 bg-white border rounded shadow-sm">
+                    <div class="d-flex align-items-center overflow-hidden">
+                        <div class="avatar-circle me-2 bg-light border" style="width: 24px; height: 24px; font-size: 0.65rem; color: #64748b;">
+                            ${initial}
+                        </div>
+                        <span class="text-truncate small fw-medium text-dark" style="font-size: 0.85rem;" title="${email}">${email}</span>
+                    </div>
+                    <a href="mailto:${email}" class="btn btn-sm btn-link text-primary p-0 ms-2" title="Open in Outlook">
+                        <i class="fas fa-envelope"></i>
+                    </a>
+                </div>`;
+            }).join('')
+            : `<div class="text-muted small fst-italic px-1 mb-2">No linked contacts found.</div>`;
+
+
         container.innerHTML = `
             <div class="p-3">
                 <div id="crmNoteComposer" class="note-composer fade-in-up">
@@ -565,6 +585,11 @@ const CRMView = {
                     </div>
                 </div>
 
+                <div class="mb-3">
+                    <label class="small text-muted mb-1 d-block">Linked Contacts</label>
+                    ${contactsHtml}
+                </div>
+
                 <div class="mt-4 pt-3 border-top">
                     <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted">Owner</small>
@@ -574,8 +599,7 @@ const CRMView = {
             </div>
         `;
 
-        // Attach click handler safely (no reliance on deprecated global `event`).
-        // Also prevents accidental form submission if this ends up inside a <form>.
+        // Attach click handler safely
         const saveBtn = document.getElementById('crmSaveNoteBtn');
         if (saveBtn) {
             saveBtn.addEventListener('click', (e) => {
@@ -618,7 +642,6 @@ const CRMView = {
         const actions = document.createElement('div');
         actions.className = 'crm-edit-actions';
         
-        // UPDATED: Removed the 'x' button. Only Check remains.
         actions.innerHTML = `
             <button class="btn-crm-save" onclick="CRMView.saveEdit('${leadId}', '${field}')"><i class="fas fa-check"></i></button>
         `;
