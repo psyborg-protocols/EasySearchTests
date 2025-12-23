@@ -207,7 +207,8 @@ const CRMService = {
             batchRequests.push({
                 id: lead.LeadId,
                 method: "GET",
-                url: `/me/messages?$search="${searchQuery}"&$top=1&$select=receivedDateTime,from,toRecipients,sender`,
+                // CHANGED: Added 'isDraft' to $select
+                url: `/me/messages?$search="${searchQuery}"&$top=10&$select=receivedDateTime,from,toRecipients,sender,isDraft`,
                 headers: { "Content-Type": "application/json" }
             });
         });
@@ -230,33 +231,33 @@ const CRMService = {
 
                 const messages = res.body.value;
                 if (messages && messages.length > 0) {
-                    const latestMsg = messages[0];
-                    const msgDate = new Date(latestMsg.receivedDateTime);
-                    const leadDate = new Date(lead.LastActivityAt || 0);
+                    // CHANGED: Filter out drafts before picking the latest message
+                    const validMessages = messages.filter(m => m.isDraft !== true);
+                    
+                    if (validMessages.length > 0) {
+                        const latestMsg = validMessages[0]; // Assuming Graph returns newest first (default rank), otherwise sort
+                        const msgDate = new Date(latestMsg.receivedDateTime);
+                        const leadDate = new Date(lead.LastActivityAt || 0);
 
-                    // If message is NEWER than the last known CRM activity/status
-                    if (msgDate > leadDate) {
-                        const myEmail = userAccount?.username?.toLowerCase() || "";
-                        const sender = (latestMsg.from?.emailAddress?.address || "").toLowerCase();
-                        
-                        let newStatus = null;
-
-                        if (sender === myEmail) {
-                            if (lead.Status !== 'Waiting On Contact') newStatus = 'Waiting On Contact';
-                        } else {
-                            if (lead.Status !== 'Action Required') newStatus = 'Action Required';
-                        }
-
-                        if (newStatus && lead.Status !== newStatus) {
-                            console.log(`[SmartStatus] Calculated update for ${lead.Title}: ${newStatus}`);
+                        // If message is NEWER than the last known CRM activity/status
+                        if (msgDate > leadDate) {
+                            const myEmail = userAccount?.username?.toLowerCase() || "";
+                            const sender = (latestMsg.from?.emailAddress?.address || "").toLowerCase();
                             
-                            // 1. Update In-Memory Object ONLY
-                            lead.Status = newStatus; 
-                            
-                            // 2. FLAG FOR UI
-                            lead._isCalculated = true; 
+                            let newStatus = null;
 
-                            batchUpdates = true;
+                            if (sender === myEmail) {
+                                if (lead.Status !== 'Waiting On Contact') newStatus = 'Waiting On Contact';
+                            } else {
+                                if (lead.Status !== 'Action Required') newStatus = 'Action Required';
+                            }
+
+                            if (newStatus && lead.Status !== newStatus) {
+                                console.log(`[SmartStatus] Calculated update for ${lead.Title}: ${newStatus}`);
+                                lead.Status = newStatus; 
+                                lead._isCalculated = true; 
+                                batchUpdates = true;
+                            }
                         }
                     }
                 }
@@ -334,25 +335,29 @@ const CRMService = {
         const anchors = this.anchorsCache.filter(a => a.LeadId === leadId);
         
         if (anchors.length > 0) {
-            const emailPromises = anchors.map(async (a) => {
+const emailPromises = anchors.map(async (a) => {
                 if (!a.Email) return [];
                 const email = a.Email.toLowerCase();
                 
                 const search = `participants:${email}`;
-                const url = `https://graph.microsoft.com/v1.0/me/messages?$search="${search}"&$top=20&$select=id,subject,receivedDateTime,bodyPreview,from,isRead,conversationId`;
+                // CHANGED: Added 'isDraft' to $select
+                const url = `https://graph.microsoft.com/v1.0/me/messages?$search="${search}"&$top=20&$select=id,subject,receivedDateTime,bodyPreview,from,isRead,conversationId,isDraft`;
                 
                 try {
                     const res = await this._graphRequest(url);
-                    return res.value.map(m => ({
-                        type: "email",
-                        date: new Date(m.receivedDateTime),
-                        subject: m.subject,
-                        preview: m.bodyPreview,
-                        from: m.from?.emailAddress?.name || m.from?.emailAddress?.address || "Unknown",
-                        isRead: m.isRead,
-                        id: m.id,
-                        conversationId: m.conversationId
-                    }));
+                    // CHANGED: Filter m.isDraft !== true
+                    return res.value
+                        .filter(m => m.isDraft !== true)
+                        .map(m => ({
+                            type: "email",
+                            date: new Date(m.receivedDateTime),
+                            subject: m.subject,
+                            preview: m.bodyPreview,
+                            from: m.from?.emailAddress?.name || m.from?.emailAddress?.address || "Unknown",
+                            isRead: m.isRead,
+                            id: m.id,
+                            conversationId: m.conversationId
+                        }));
                 } catch(e) { return []; }
             });
 
