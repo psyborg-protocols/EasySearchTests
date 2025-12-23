@@ -62,6 +62,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         const cachedOrders = await idbUtil.getDataset("OrdersData");
         const cachedSamples = await idbUtil.getDataset("SamplesData");
         const cachedPurchases = await idbUtil.getDataset("PurchasesData");
+        
+        // --- ADDED: Load CRM Leads Cache ---
+        const cachedCRMLeads = await idbUtil.getDataset("CRMLeadsData");
 
         // Ensure dataStore is initialized
         window.dataStore = window.dataStore || {};
@@ -83,6 +86,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (cachedOrders) window.dataStore["Orders"] = cachedOrders;
             if (cachedSamples) window.dataStore["Samples"] = cachedSamples;
             if (cachedPurchases) window.dataStore["Purchases"] = cachedPurchases;
+            
+            // --- ADDED: Populate CRM DataStore ---
+            if (cachedCRMLeads) window.dataStore["CRMLeadsData"] = cachedCRMLeads;
 
             // --- OPTIMIZATION: EXTRACT LINKS FROM CACHE ---
             // We pull the URLs from the cached metadata so links appear instantly
