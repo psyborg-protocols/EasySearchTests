@@ -6,7 +6,8 @@
 const CRMView = {
     sortBy: 'recent', 
     currentTimelineItems: [], // Cache for instant UI reverts
-    
+    currentEditCleanup: null, // Cleanup function for current edit session
+
     // Custom Icon for Auto-Calculated Statuses
     SPARKLE_ICON: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-stars me-1 sparkle-anim" viewBox="0 0 16 16"><path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z"/></svg>`,
 
@@ -494,6 +495,12 @@ const CRMView = {
     },
 
     renderLeadSummary(lead, timelineItems) {
+        // Safety cleanup if we are re-rendering while an edit was open
+        if (this.currentEditCleanup) {
+            this.currentEditCleanup();
+            this.currentEditCleanup = null;
+        }
+
         const container = document.getElementById('crmLeadSummary');
         if (!container) return;
 
@@ -585,6 +592,12 @@ const CRMView = {
     },
 
     enterEditMode(leadId, field) {
+        // Safety: Cleanup any pending listeners from previous edits
+        if (this.currentEditCleanup) {
+            this.currentEditCleanup();
+            this.currentEditCleanup = null;
+        }
+
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         if (!lead) return;
 
@@ -596,6 +609,7 @@ const CRMView = {
         
         const editContainer = document.createElement('div');
         editContainer.className = 'crm-edit-container';
+        // Prevent clicks inside the box from bubbling to the outside listener immediately
         editContainer.onclick = (e) => e.stopPropagation(); 
 
         const input = document.createElement('input');
@@ -608,14 +622,16 @@ const CRMView = {
 
         const actions = document.createElement('div');
         actions.className = 'crm-edit-actions';
+        
+        // UPDATED: Removed the 'x' button. Only Check remains.
         actions.innerHTML = `
             <button class="btn-crm-save" onclick="CRMView.saveEdit('${leadId}', '${field}')"><i class="fas fa-check"></i></button>
-            <button class="btn-crm-cancel" onclick="CRMView.renderLeadSummary(CRMService.leadsCache.find(l => l.LeadId => '${leadId}'), CRMView.currentTimelineItems)"><i class="fas fa-times"></i></button>
         `;
 
         editContainer.appendChild(input);
         editContainer.appendChild(actions);
 
+        // Dropdown logic for PartNumber
         if (field === 'PartNumber') {
             const dropdown = document.createElement('div');
             dropdown.id = 'crmEditPartDropdown';
@@ -647,13 +663,35 @@ const CRMView = {
         box.appendChild(editContainer);
         input.focus();
         input.select();
+
+        // UPDATED: Add Global Click Listener for "Click Outside to Revert"
+        const outsideClickHandler = (e) => {
+            // If the click is NOT inside the edit container, revert.
+            if (!e.target.closest('.crm-edit-container')) {
+                this.renderLeadSummary(lead, this.currentTimelineItems); // Re-renders original state
+            }
+        };
+
+        // Use mousedown to feel snappier and match dropdown behavior
+        document.addEventListener('mousedown', outsideClickHandler);
+
+        // Store cleanup function
+        this.currentEditCleanup = () => {
+            document.removeEventListener('mousedown', outsideClickHandler);
+        };
     },
 
     async saveEdit(leadId, field) {
+        // Remove the outside listener so it doesn't fire or hang around
+        if (this.currentEditCleanup) {
+            this.currentEditCleanup();
+            this.currentEditCleanup = null;
+        }
+
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         const inputId = field === 'PartNumber' ? 'crmEditPartInput' : 'crmEditQtyInput';
         const input = document.getElementById(inputId);
-        if (!input) return;
+        if (!input) return; // Should not happen usually
 
         const newValue = input.value.trim();
         if (newValue === String(lead[field])) { 
@@ -663,12 +701,16 @@ const CRMView = {
 
         try {
             const updates = {}; updates[field] = newValue;
+            // Show Loading Spinner
             const containerId = field === 'PartNumber' ? 'summaryFieldPartNumber' : 'summaryFieldQuantity';
-            document.getElementById(containerId).innerHTML = `<div class="p-2 text-center w-100"><div class="spinner-border spinner-border-sm text-primary"></div></div>`;
+            const container = document.getElementById(containerId);
+            if(container) container.innerHTML = `<div class="p-2 text-center w-100"><div class="spinner-border spinner-border-sm text-primary"></div></div>`;
             
             await CRMService.updateLeadFields(leadId, updates);
+            
+            // Refresh UI
             this.renderLeadSummary(lead, this.currentTimelineItems);
-            this.renderList();
+            this.renderList(); // Update the sidebar list (values/totals might change)
         } catch (e) {
             alert("Save failed: " + e.message);
             this.renderLeadSummary(lead, this.currentTimelineItems);
