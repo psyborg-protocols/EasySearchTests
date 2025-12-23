@@ -84,8 +84,8 @@ const CRMView = {
             /* --- Timeline Styling --- */
             .crm-timeline-container { position: relative; padding-left: 20px; }
             .crm-timeline-container::before {
-                content: ''; position: absolute; top: 0; bottom: 0; margin-top: 10px;
-                left: 37px; width: 0; border-left: 3.5px dotted #cbd5e1; z-index: 0;
+                content: ''; position: absolute; top: 0; bottom: 0; margin-top: 10px; margin-bottom: 80px;
+                left: 34.5px; width: 0; border-left: 3.5px dotted #cbd5e1; z-index: 0;
             }
 
             .avatar-circle {
@@ -523,7 +523,7 @@ const CRMView = {
 
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="small text-muted mb-0 d-block text-uppercase fw-bold" style="font-size:0.65rem;">Most Recent Update</label>
+                        <label class="small text-muted mb-0 d-block text-uppercase fw-bold" style="font-size:0.85rem;">Most Recent Update</label>
                         <button class="btn-add-note" onclick="CRMView.toggleNoteComposer(true)" title="Add Note">
                             <div class="note-icon-stack">
                                 <i class="fas fa-sticky-note"></i>
