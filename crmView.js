@@ -449,7 +449,7 @@ const CRMView = {
                     </div>
                     <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light">
                         <div class="d-flex gap-2">
-                            <span class="badge ${badgeClass} text-uppercase d-flex align-items-center" ${tooltip} style="font-size: 0.55rem; padding: 4px 8px; border-radius: 4px;">
+                            <span class="badge ${badgeClass} text-uppercase d-flex align-items-center" ${tooltip} style="font-size: 0.6rem; padding: 4px 4px; border-radius: 8px;">
                                 ${statusIcon}${l.Status}
                             </span>
                             <span class="text-muted" style="font-size: 0.65rem;">${l.PartNumber || ''}</span>
