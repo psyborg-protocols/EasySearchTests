@@ -283,8 +283,8 @@ const CRMService = {
     async updateLeadFields(leadId, updatedFields) {
         const lead = this.leadsCache.find(l => l.LeadId === leadId);
         if (!lead) return;
-        const now = new Date().toISOString();
-        const fieldsToUpdate = { ...updatedFields, LastActivityAt: now };
+
+        const fieldsToUpdate = { ...updatedFields }; 
 
         await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`, "PATCH", { fields: fieldsToUpdate });
         

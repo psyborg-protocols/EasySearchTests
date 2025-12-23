@@ -85,7 +85,7 @@ const CRMView = {
             .crm-timeline-container { position: relative; padding-left: 20px; }
             .crm-timeline-container::before {
                 content: ''; position: absolute; top: 0; bottom: 0; margin-top: 10px; margin-bottom: 80px;
-                left: 34.5px; width: 0; border-left: 3.5px dotted #cbd5e1; z-index: 0;
+                left: 35px; width: 0; border-left: 3.5px dotted #cbd5e1; z-index: 0;
             }
 
             .avatar-circle {
