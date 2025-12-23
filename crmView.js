@@ -580,7 +580,7 @@ const CRMView = {
                         </button>
                         
                         <div class="recent-update-summary">${latestNote ? latestNote.summary : 'No notes yet'}</div>
-                        <div class="recent-update-details">${bodyMessage}</div>
+                        <div class="recent-update-details">${recentBodyMessage}</div>
                     </div>
                 </div>
 
