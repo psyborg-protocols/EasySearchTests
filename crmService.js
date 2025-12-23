@@ -1,7 +1,7 @@
 // ---------------------------------------------
 // crmService.js
 // Abstraction layer for SharePoint Lists and Graph Email interactions
-// Now with Delta Query support for efficient syncing
+// With Delta Sync and Smart Status Batching
 // ---------------------------------------------
 
 const CRM_CONFIG = {
@@ -11,12 +11,17 @@ const CRM_CONFIG = {
         EVENTS: "fa306d38-3403-4c29-9db8-f73c4acd63b0",
         ANCHORS: "2af7b8ed-71c0-4bff-9d04-b3237d4dd388"
     },
-    STORAGE_KEY: "CRMLeadsData"
+    KEYS: {
+        LEADS: "CRMLeadsData",
+        ANCHORS: "CRMAnchorsData"
+    }
 };
 
 const CRMService = {
     leadsCache: [],
+    anchorsCache: [], // Cache for email anchors
     deltaLink: null,
+    anchorsDeltaLink: null,
     currentLead: null,
 
     // --- Helpers ---
@@ -77,63 +82,36 @@ const CRMService = {
         return unitPrice * qty;
     },
 
-    // --- Leads Operations ---
-    
-    /**
-     * Primary method to get leads. 
-     * 1. Loads from cache if available.
-     * 2. Triggers a delta sync with Microsoft Graph.
-     * 3. Updates cache and persists to IDB.
-     */
+    // --- Core Sync Operations ---
     async getLeads() {
-        // 1. Load from IDB/Global Store if memory is empty
-        if (this.leadsCache.length === 0) {
-            await this._loadFromStorage();
-        }
+        if (this.leadsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
+        if (this.anchorsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink');
 
-        // 2. Perform Delta Sync
-        try {
-            await this._syncWithGraph();
-        } catch (error) {
-            console.error("[CRM] Sync failed:", error);
-            // If sync fails (e.g., network), we still return the cached data we have
-        }
+        // Sync both
+        await Promise.allSettled([
+            this._syncWithGraph(CRM_CONFIG.LISTS.LEADS, 'leadsCache', 'deltaLink', CRM_CONFIG.KEYS.LEADS),
+            this._syncWithGraph(CRM_CONFIG.LISTS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink', CRM_CONFIG.KEYS.ANCHORS)
+        ]);
+
+        // After sync, run the Smart Status Check in the background
+        this.runSmartStatusCheck().catch(err => console.error("[SmartStatus] Check failed:", err));
 
         return this.leadsCache;
     },
 
-    /**
-     * Loads the initial state from IndexedDB (via window.dataStore if populated by app.js, or directly)
-     */
-    async _loadFromStorage() {
-        // Check if app.js already populated dataStore
-        let stored = window.dataStore?.[CRM_CONFIG.STORAGE_KEY];
-        
-        // If not in memory, try fetching from IDB directly
-        if (!stored && window.idbUtil) {
-            stored = await idbUtil.getDataset(CRM_CONFIG.STORAGE_KEY);
-        }
+    async _loadFromStorage(key, cacheProp, linkProp) {
+        let stored = window.dataStore?.[key];
+        if (!stored && window.idbUtil) stored = await idbUtil.getDataset(key);
 
         if (stored) {
-            this.leadsCache = stored.items || [];
-            this.deltaLink = stored.deltaLink || null;
-            console.log(`[CRM] Loaded ${this.leadsCache.length} leads from cache.`);
+            this[cacheProp] = stored.items || [];
+            this[linkProp] = stored.deltaLink || null;
         }
     },
 
-    /**
-     * Executes the Delta Query loop
-     */
-    async _syncWithGraph() {
-        let nextUrl = this.deltaLink;
-        
-        // If no delta link, start a fresh delta query
-        if (!nextUrl) {
-            nextUrl = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/delta?expand=fields`;
-            console.log("[CRM] Starting full sync (no delta token)...");
-        } else {
-            console.log("[CRM] Starting delta sync...");
-        }
+    async _syncWithGraph(listId, cacheProp, linkProp, storageKey) {
+        let nextUrl = this[linkProp];
+        if (!nextUrl) nextUrl = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${listId}/items/delta?expand=fields`;
 
         let changes = [];
         let newDeltaLink = null;
@@ -141,10 +119,7 @@ const CRMService = {
 
         try {
             while (hasMore) {
-                // Determine if we need to add headers (only for initial request if not using a nextLink/deltaLink)
-                // Actually, delta links encode the headers, so we just call the URL.
                 const data = await this._graphRequest(nextUrl);
-
                 changes.push(...data.value);
 
                 if (data["@odata.deltaLink"]) {
@@ -153,149 +128,206 @@ const CRMService = {
                 } else if (data["@odata.nextLink"]) {
                     nextUrl = data["@odata.nextLink"];
                 } else {
-                    // Should not happen in standard delta flow, but safety break
                     hasMore = false;
                 }
             }
         } catch (e) {
             if (e.message === "DELTA_EXPIRED") {
-                this.deltaLink = null;
-                this.leadsCache = []; // Clear cache to prevent duplicates on full resync
-                return this._syncWithGraph(); // Recursive retry (Fresh Sync)
+                this[linkProp] = null;
+                this[cacheProp] = [];
+                return this._syncWithGraph(listId, cacheProp, linkProp, storageKey);
             }
             throw e;
         }
 
         if (changes.length > 0) {
-            this._applyChanges(changes);
-            console.log(`[CRM] Synced ${changes.length} changes.`);
-        } else {
-            console.log("[CRM] No changes found.");
-        }
-
-        // Save new state
-        if (newDeltaLink) {
-            this.deltaLink = newDeltaLink;
-            await this._persistToStorage();
+            this._applyChanges(changes, cacheProp);
+            if (newDeltaLink) this[linkProp] = newDeltaLink;
+            await this._persistToStorage(storageKey, cacheProp, linkProp);
         }
     },
 
-    /**
-     * Merges changes into the local cache
-     */
-    _applyChanges(changes) {
+    _applyChanges(changes, cacheProp) {
         changes.forEach(item => {
             if (item["@removed"]) {
-                // Remove item from cache
-                this.leadsCache = this.leadsCache.filter(l => l.itemId !== item.id);
+                this[cacheProp] = this[cacheProp].filter(l => l.itemId !== item.id);
             } else {
-                // Map Graph item to our flat structure
-                // Note: 'fields' contains the custom columns
-                const leadData = {
-                    itemId: item.id,
-                    ...item.fields
-                };
-
-                // Upsert (Update or Insert)
-                const index = this.leadsCache.findIndex(l => l.itemId === item.id);
-                if (index > -1) {
-                    this.leadsCache[index] = leadData;
-                } else {
-                    this.leadsCache.push(leadData);
-                }
+                const data = { itemId: item.id, ...item.fields };
+                const index = this[cacheProp].findIndex(l => l.itemId === item.id);
+                if (index > -1) this[cacheProp][index] = data;
+                else this[cacheProp].push(data);
             }
         });
     },
 
-    async _persistToStorage() {
+    async _persistToStorage(key, cacheProp, linkProp) {
         if (!window.idbUtil) return;
-        
         const payload = {
-            items: this.leadsCache,
-            deltaLink: this.deltaLink,
+            items: this[cacheProp],
+            deltaLink: this[linkProp],
             timestamp: new Date().toISOString()
         };
-
-        // Update Global Store
         if (!window.dataStore) window.dataStore = {};
-        window.dataStore[CRM_CONFIG.STORAGE_KEY] = payload;
+        window.dataStore[key] = payload;
+        await idbUtil.setDataset(key, payload);
+    },
 
-        // Persist to IDB
-        await idbUtil.setDataset(CRM_CONFIG.STORAGE_KEY, payload);
+    // --- Smart Status Logic ---
+    async runSmartStatusCheck() {
+        console.log("[SmartStatus] Starting batch check...");
+        const activeLeads = this.leadsCache.filter(l => l.Status !== 'Closed');
+        
+        // Group leads into batches of 20 (Graph Batch Limit)
+        const batches = [];
+        for (let i = 0; i < activeLeads.length; i += 20) {
+            batches.push(activeLeads.slice(i, i + 20));
+        }
+
+        for (const batch of batches) {
+            await this._processBatch(batch);
+        }
+    },
+
+    async _processBatch(leads) {
+        const token = await getAccessToken();
+        const batchRequests = [];
+        let batchUpdates = false; // Track if we made any changes in this batch
+
+        // 1. Build Batch Requests
+        leads.forEach((lead) => {
+            const anchors = this.anchorsCache.filter(a => a.LeadId === lead.LeadId);
+            const emails = anchors
+                .map(a => a.Email)
+                .filter(e => e && e.includes('@'))
+                .map(e => `participants:${e}`);
+
+            if (emails.length === 0) return;
+
+            const searchQuery = emails.join(' OR ');
+            
+            batchRequests.push({
+                id: lead.LeadId,
+                method: "GET",
+                url: `/me/messages?$search="${searchQuery}"&$top=1&$select=receivedDateTime,from,toRecipients,sender`,
+                headers: { "Content-Type": "application/json" }
+            });
+        });
+
+        if (batchRequests.length === 0) return;
+
+        // 2. Send Batch
+        const response = await fetch("https://graph.microsoft.com/v1.0/$batch", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ requests: batchRequests })
+        });
+        const result = await response.json();
+
+        // 3. Process Responses
+        if (result.responses) {
+            for (const res of result.responses) {
+                if (res.status !== 200) continue;
+
+                const lead = this.leadsCache.find(l => l.LeadId === res.id);
+                if (!lead) continue;
+
+                const messages = res.body.value;
+                if (messages && messages.length > 0) {
+                    const latestMsg = messages[0];
+                    const msgDate = new Date(latestMsg.receivedDateTime);
+                    const leadDate = new Date(lead.LastActivityAt || 0);
+
+                    // If message is NEWER than the last known CRM activity/status
+                    if (msgDate > leadDate) {
+                        const myEmail = userAccount?.username?.toLowerCase() || "";
+                        const sender = (latestMsg.from?.emailAddress?.address || "").toLowerCase();
+                        
+                        let newStatus = null;
+
+                        // Logic:
+                        // If I sent the last email -> Waiting On Contact
+                        // If they sent the last email -> Action Required
+                        if (sender === myEmail) {
+                            if (lead.Status !== 'Waiting On Contact') newStatus = 'Waiting On Contact';
+                        } else {
+                            if (lead.Status !== 'Action Required') newStatus = 'Action Required';
+                        }
+
+                        // --- MODIFIED: Calculated Status Only ---
+                        if (newStatus && lead.Status !== newStatus) {
+                            console.log(`[SmartStatus] Calculated update for ${lead.Title}: ${newStatus}`);
+                            
+                            // 1. Update In-Memory Object ONLY (No Graph Patch)
+                            lead.Status = newStatus; 
+                            
+                            // Optional: You could add a flag to style it differently in the UI
+                            // lead._isCalculated = true; 
+
+                            batchUpdates = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Trigger UI Update "Right Away" for this batch
+        if (batchUpdates) {
+            window.dispatchEvent(new Event('crm-smart-status-updated'));
+        }
     },
 
     // --- Updates (Write Operations) ---
-    // These methods update the server AND the local cache immediately to maintain UI responsiveness
-
     async updateLeadActivity(leadId) {
         const lead = this.leadsCache.find(l => l.LeadId === leadId);
         if(!lead) return;
-
-        const url = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`;
-        await this._graphRequest(url, "PATCH", {
-            fields: { LastActivityAt: new Date().toISOString() }
+        const now = new Date().toISOString();
+        await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`, "PATCH", {
+            fields: { LastActivityAt: now }
         });
-        // We don't necessarily need to re-fetch here; the next sync will catch the timestamp update if needed.
-        // But updating local cache keeps UI fresh:
-        lead.LastActivityAt = new Date().toISOString();
+        lead.LastActivityAt = now;
     },
 
     async updateLeadFields(leadId, updatedFields) {
         const lead = this.leadsCache.find(l => l.LeadId === leadId);
         if (!lead) return;
+        const now = new Date().toISOString();
+        const fieldsToUpdate = { ...updatedFields, LastActivityAt: now };
 
-        const url = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`;
-        const timestamp = new Date().toISOString();
+        await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`, "PATCH", { fields: fieldsToUpdate });
         
-        const fieldsToUpdate = { 
-            ...updatedFields,
-            LastActivityAt: timestamp
-        };
-
-        await this._graphRequest(url, "PATCH", { fields: fieldsToUpdate });
-
-        // Log the change
         const summary = Object.keys(updatedFields).map(k => `${k}: ${updatedFields[k]}`).join(", ");
         await this.addEvent(leadId, "System", "Lead Updated", `Updated fields: ${summary}`);
 
-        // Update local cache immediately
         Object.assign(lead, fieldsToUpdate);
-        await this._persistToStorage(); // Save changes to IDB so they survive reload
+        await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
     },
 
     async updateStatus(leadId, newStatus) {
         const lead = this.leadsCache.find(l => l.LeadId === leadId);
         if (!lead) return;
+        const now = new Date().toISOString();
 
-        const url = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`;
-        const timestamp = new Date().toISOString();
-        
-        await this._graphRequest(url, "PATCH", {
-            fields: { 
-                Status: newStatus,
-                LastActivityAt: timestamp
-            }
+        await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`, "PATCH", {
+            fields: { Status: newStatus, LastActivityAt: now }
         });
 
         await this.addEvent(leadId, "System", "Status Update", `Status changed to: ${newStatus}`);
 
         lead.Status = newStatus;
-        lead.LastActivityAt = timestamp;
-        await this._persistToStorage();
+        lead.LastActivityAt = now;
+        await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
     },
 
-    // --- Timeline Data (Existing Logic) ---
+    // --- Timeline Data ---
     async getFullTimeline(lead) {
+        // Fetch specific timeline details (BodyPreview, etc) that we don't cache globally
+        // This remains an on-demand deep fetch
         this.currentLead = lead;
         const leadId = lead.LeadId;
 
         const eventsUrl = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.EVENTS}/items?expand=fields&$filter=fields/LeadId eq '${leadId}'`;
         const eventsPromise = this._graphRequest(eventsUrl);
-
-        const anchorsUrl = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.ANCHORS}/items?expand=fields&$filter=fields/LeadId eq '${leadId}'`;
-        const anchorsPromise = this._graphRequest(anchorsUrl);
-
-        const [eventsData, anchorsData] = await Promise.all([eventsPromise, anchorsPromise]);
+        const [eventsData] = await Promise.all([eventsPromise]);
 
         const timeline = eventsData.value.map(e => ({
             type: 'event',
@@ -305,74 +337,33 @@ const CRMService = {
             details: e.fields.Details,
             id: e.id
         }));
+
+        // We use the cached anchors to drive the email search
+        const anchors = this.anchorsCache.filter(a => a.LeadId === leadId);
         
-        if (anchorsData.value.length > 0) {
-            const toLower = (s) => (s || "").toLowerCase();
-            const addrList = (recips) =>
-                (Array.isArray(recips) ? recips : [])
-                .map(r => toLower(r?.emailAddress?.address))
-                .filter(Boolean);
-
-            const fetchAllPages = async (firstUrl, extraHeaders = null, maxPages = 4) => {
-                const out = [];
-                let url = firstUrl;
-                for (let page = 0; url && page < maxPages; page++) {
-                const data = await this._graphRequest(url, "GET", null, extraHeaders);
-                out.push(...(data?.value || []));
-                url = data?.["@odata.nextLink"] || null;
-                }
-                return out;
-            };
-
-            const emailPromises = anchorsData.value.map(async (anchor) => {
-                const a = anchor.fields;
-                const fetchPromises = [];
-
-                if (a.ConversationId) {
-                    const filter = `conversationId eq '${a.ConversationId}'`;
-                    const url = `https://graph.microsoft.com/v1.0/me/messages?$select=id,subject,receivedDateTime,bodyPreview,from,isRead,conversationId&$top=25&$filter=${encodeURIComponent(filter)}`;
-                    fetchPromises.push(this._graphRequest(url).then(d => d.value || []).catch(() => []));
-                }
-
-                if (a.Email) {
-                    const thirdParty = toLower(a.Email);
-                    let startDate = a.StartTrackingFrom ? new Date(a.StartTrackingFrom) : null;
-                    if (!startDate || isNaN(startDate.getTime())) {
-                        startDate = new Date();
-                        startDate.setDate(startDate.getDate() - 30);
-                    }
-                    const sinceIso = startDate.toISOString();
-
-                    // Inbox
-                    const inboxFilter = `receivedDateTime ge ${sinceIso} and from/emailAddress/address eq '${thirdParty}'`;
-                    fetchPromises.push(fetchAllPages(`https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$select=id,subject,receivedDateTime,bodyPreview,from,toRecipients,ccRecipients,isRead,conversationId&$orderby=receivedDateTime desc&$top=50&$filter=${encodeURIComponent(inboxFilter)}`).catch(() => []));
-
-                    // Sent
-                    const sentFilter = `receivedDateTime ge ${sinceIso}`;
-                    fetchPromises.push(fetchAllPages(`https://graph.microsoft.com/v1.0/me/mailFolders/sentitems/messages?$select=id,subject,receivedDateTime,bodyPreview,from,toRecipients,ccRecipients,isRead,conversationId&$orderby=receivedDateTime desc&$top=50&$filter=${encodeURIComponent(sentFilter)}`)
-                        .then(sentAll => sentAll.filter(m => {
-                            const to = addrList(m.toRecipients);
-                            const cc = addrList(m.ccRecipients);
-                            return to.includes(thirdParty) || cc.includes(thirdParty);
-                        }))
-                        .catch(() => []));
-                }
-
-                const results = await Promise.all(fetchPromises);
-                const rawMessages = results.flat();
-                const byId = new Map();
-                for (const m of rawMessages) if (m?.id) byId.set(m.id, m);
+        if (anchors.length > 0) {
+            const emailPromises = anchors.map(async (a) => {
+                if (!a.Email) return [];
+                const email = a.Email.toLowerCase();
                 
-                return [...byId.values()].map(m => ({
-                    type: "email",
-                    date: new Date(m.receivedDateTime),
-                    subject: m.subject,
-                    preview: m.bodyPreview,
-                    from: m.from?.emailAddress?.name || m.from?.emailAddress?.address || "Unknown",
-                    isRead: m.isRead,
-                    id: m.id,
-                    conversationId: m.conversationId
-                }));
+                // Fetch recent interactions with this specific email
+                // We use $search here as well for specific retrieval
+                const search = `participants:${email}`;
+                const url = `https://graph.microsoft.com/v1.0/me/messages?$search="${search}"&$top=20&$select=id,subject,receivedDateTime,bodyPreview,from,isRead,conversationId`;
+                
+                try {
+                    const res = await this._graphRequest(url);
+                    return res.value.map(m => ({
+                        type: "email",
+                        date: new Date(m.receivedDateTime),
+                        subject: m.subject,
+                        preview: m.bodyPreview,
+                        from: m.from?.emailAddress?.name || m.from?.emailAddress?.address || "Unknown",
+                        isRead: m.isRead,
+                        id: m.id,
+                        conversationId: m.conversationId
+                    }));
+                } catch(e) { return []; }
             });
 
             const emailResults = await Promise.all(emailPromises);
@@ -394,6 +385,5 @@ const CRMService = {
             }
         };
         await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.EVENTS}/items`, "POST", payload);
-        await this.updateLeadActivity(leadId);
     }
 };

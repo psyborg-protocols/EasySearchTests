@@ -46,6 +46,20 @@ const CRMView = {
                 dd.classList.remove('show');
             }
         });
+
+        // --- NEW: Listen for Smart Status Updates ---
+        window.addEventListener('crm-smart-status-updated', () => {
+            console.log("[View] Refreshing due to smart status update...");
+            this.renderList();
+            
+            // If the detail pane is open for a lead, refresh its header to show new status
+            if (CRMService.currentLead) {
+                const lead = CRMService.leadsCache.find(l => l.LeadId === CRMService.currentLead.LeadId);
+                if (lead) {
+                    this.renderHeaderActions(lead);
+                }
+            }
+        });
     },
 
     injectStyles() {
@@ -569,7 +583,7 @@ const CRMView = {
         actions.className = 'crm-edit-actions';
         actions.innerHTML = `
             <button class="btn-crm-save" onclick="CRMView.saveEdit('${leadId}', '${field}')"><i class="fas fa-check"></i></button>
-            <button class="btn-crm-cancel" onclick="CRMView.renderLeadSummary(CRMService.leadsCache.find(l => l.LeadId === '${leadId}'), CRMView.currentTimelineItems)"><i class="fas fa-times"></i></button>
+            <button class="btn-crm-cancel" onclick="CRMView.renderLeadSummary(CRMService.leadsCache.find(l => l.LeadId => '${leadId}'), CRMView.currentTimelineItems)"><i class="fas fa-times"></i></button>
         `;
 
         editContainer.appendChild(input);
