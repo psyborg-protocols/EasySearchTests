@@ -215,12 +215,15 @@ const CRMView = {
                 cursor: pointer;
             }
             .crm-edit-dropdown .dropdown-item:hover { background: #f8fafc; }
+            
+            /* --- UPDATED: Recent Update Card with Space for Ghost Button --- */
             .recent-update-card {
                 position: relative;
                 background: #fffbeb;
                 border-left: 4px solid #f6e05e !important;
                 transition: all 0.2s ease;
                 line-height: 1.6;
+                padding-right: 40px !important; /* Space for button */
             }
 
             .recent-update-summary {
@@ -278,64 +281,77 @@ const CRMView = {
                 box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
             }
 
-            /* --- Improved Note Icon Button --- */
-            .btn-add-note {
-                width: 34px;
-                height: 34px;
-                background: #ffffffff;
-                color: white;
-                border: none;
-                border-radius: 50%; /* Makes it circular */
-                display: flex;
-                align-items: center;
-                justify-content: center;
+            /* --- NEW: Style 2 (Ghost) + Icon Stack Logic --- */
+            
+            .btn-add-note-ghost {
+                position: absolute; 
+                top: 8px; 
+                right: 8px;
+                width: 38px;
+                height: 38px;
                 cursor: pointer;
-                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-                position: relative;
+                display: flex; 
+                align-items: center; 
+                justify-content: center;
+                border: none;
+                outline: none;
+                z-index: 10;
+                
+                /* Ghost Style */
+                background: transparent;
+                border-radius: 8px;
+                transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            }
+            
+            .btn-add-note-ghost:hover {
+                background: white;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                transform: translateY(-1px);
             }
 
-            .btn-add-note:hover {
-                background: #fcf8f0ff;
-                transform: scale(1.05);
-            }
-
-            /* Container for the stacked icons */
+            /* Icon Stack Logic */
             .note-icon-stack {
                 position: relative;
                 display: flex; align-items: center; justify-content: center;
                 width: 20px; height: 20px;
+                pointer-events: none;
             }
 
-            /* The base Sticky Note icon */
             .note-icon-stack .fa-sticky-note {
-                font-size: 1.5rem;
-                color: #fbbf24;
+                font-size: 1.4rem;
+                color: #fbbf24; /* Amber-400 */
+                transition: color 0.2s;
             }
 
-            /* The "Blocky" Plus - This layer is the WHITE BORDER */
+            /* The "Blocky" Plus - Border Layer (Matches background to look like cutout) */
             .blocky-plus {
                 position: absolute;
                 top: -5px; 
-                right: -4px;
-                width: 12px; /* Total size including border */
-                height: 12px;
-                background: white; 
-                /* The Swiss Cross Shape */
-                clip-path: polygon(33% 0%, 66% 0%, 66% 33%, 100% 33%, 100% 66%, 66% 66%, 66% 100%, 33% 100%, 33% 66%, 0% 66%, 0% 33%, 33% 33%);
+                right: -6px;
+                width: 14px; 
+                height: 14px;
+                background: #fffbeb; /* Matches Card Background */
+                clip-path: polygon(35% 0%, 65% 0%, 65% 35%, 100% 35%, 100% 65%, 65% 65%, 65% 100%, 35% 100%, 35% 65%, 0% 65%, 0% 35%, 35% 35%);
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 z-index: 2;
+                transition: background 0.2s;
+            }
+            
+            /* Change cutout color on hover to match button bg */
+            .btn-add-note-ghost:hover .blocky-plus {
+                background: white; 
             }
 
-            /* This layer is the YELLOW CENTER - Now shifted to 10px */
+            /* The "Blocky" Plus - Center Color */
             .blocky-plus::after {
                 content: '';
                 position: absolute;
                 width: 10px;
                 height: 10px;
-                background: #fbbf24;
-                clip-path: polygon(33% 0%, 66% 0%, 66% 33%, 100% 33%, 100% 66%, 66% 66%, 66% 100%, 33% 100%, 33% 66%, 0% 66%, 0% 33%, 33% 33%);
+                background: #f59e0b; /* Amber-500 */
+                clip-path: polygon(35% 0%, 65% 0%, 65% 35%, 100% 35%, 100% 65%, 65% 65%, 65% 100%, 35% 100%, 35% 65%, 0% 65%, 0% 35%, 35% 35%);
             }
 
             .quotes-btn-responsive {
@@ -343,23 +359,12 @@ const CRMView = {
                 padding: 4px;
                 border-radius: 6px;
             }
-
-            .quotes-btn-responsive:hover {
-                transform: scale(1.1);
-                background: #f0f9ff;
-            }
-
+            /* ... existing code ... */
             .quotes-btn-responsive:active {
                 transform: scale(0.95);
                 opacity: 0.7;
             }
-            .btn-note-icon {
-                background: none !important; border: none !important; padding: 0;
-                width: 36px; height: 36px; color: #fcd34d;
-                display: flex; align-items: center; justify-content: center;
-                transition: all 0.2s; cursor: pointer; position: relative;
-            }
-            .btn-note-icon:hover { transform: scale(1.1); color: #fbbf24; }
+            /* REMOVED OLD .btn-note-icon styles */
 
             #crmSortRecent.active { background-color: #0d6efd; color: white; }
             #crmSortValue.active { background-color: #198754; color: white; }
@@ -564,21 +569,23 @@ const CRMView = {
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <label class="small text-muted mb-0 d-block text-uppercase fw-bold" style="font-size:0.85rem;">Most Recent Update</label>
-                        <button class="btn-add-note" onclick="CRMView.toggleNoteComposer(true)" title="Add Note">
-                            <div class="note-icon-stack">
-                                <i class="fas fa-sticky-note"></i>
-                                <i class="blocky-plus"></i>
-                            </div>
-                        </button>
                     </div>
                     <div class="p-3 rounded shadow-sm recent-update-card">
-                        <div class="recent-update-summary">${recentSummaryTitle}</div>
-                        <div class="recent-update-details">${recentBodyMessage}</div>
+                        <!-- BUTTON MOVED INSIDE THE CARD WITH GHOST STYLE -->
+                        <button class="btn-add-note-ghost" onclick="CRMView.toggleNoteComposer(true)" title="Add Note">
+                            <div class="note-icon-stack">
+                                <i class="fas fa-sticky-note"></i>
+                                <div class="blocky-plus"></div>
+                            </div>
+                        </button>
+                        
+                        <div class="recent-update-summary">${latestNote ? latestNote.summary : 'No notes yet'}</div>
+                        <div class="recent-update-details">${bodyMessage}</div>
                     </div>
                 </div>
 
                 <h6 class="text-uppercase fw-bold text-muted mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px;">Lead Information</h6>
-                
+
                 <div class="row g-2 mb-3">
                     <div class="col-7">
                         <label class="small text-muted mb-1 d-block">Requested Part #</label>
