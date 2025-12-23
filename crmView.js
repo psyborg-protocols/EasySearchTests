@@ -503,12 +503,24 @@ const CRMView = {
         const estimatedValue = CRMService.calculateLeadValue(partNumber, lead.Quantity);
         const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
         
-        let bodyMessage = "No specific notes found.";
-        const latestNote = timelineItems.find(item => item.type === 'event' && item.eventType === 'Note');
-        if (latestNote) bodyMessage = latestNote.details;
-        else if (lead.Description && !lead.Description.toLowerCase().includes('created by outlook add on')) bodyMessage = lead.Description;
+        // --- UPDATED LOGIC: Determine Recent Update Content ---
+        let recentSummaryTitle = "No notes yet";
+        let recentBodyMessage = "No specific notes found.";
 
-// --- NEW: Generate Contacts List with Outlook Deep Link ---
+        const latestNote = timelineItems.find(item => item.type === 'event' && item.eventType === 'Note');
+
+        if (latestNote) {
+            // Case 1: We have a user note
+            recentSummaryTitle = latestNote.summary;
+            recentBodyMessage = latestNote.details;
+        } else {
+            // Case 2: No note, use lead creation
+            const leadCreated = timelineItems.find(item => item.summary === 'Lead Created');
+            recentSummaryTitle = "Lead Created";
+            recentBodyMessage = leadCreated.details;
+        }
+
+        // --- NEW: Generate Contacts List with Outlook Deep Link ---
         const linkedContacts = CRMService.anchorsCache.filter(a => a.LeadId === lead.LeadId);
         const contactsHtml = linkedContacts.length > 0 
             ? linkedContacts.map(c => {
@@ -560,8 +572,8 @@ const CRMView = {
                         </button>
                     </div>
                     <div class="p-3 rounded shadow-sm recent-update-card">
-                        <div class="recent-update-summary">${latestNote ? latestNote.summary : 'No notes yet'}</div>
-                        <div class="recent-update-details">${bodyMessage}</div>
+                        <div class="recent-update-summary">${recentSummaryTitle}</div>
+                        <div class="recent-update-details">${recentBodyMessage}</div>
                     </div>
                 </div>
 
