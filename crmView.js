@@ -448,7 +448,7 @@ const CRMView = {
                         <div class="text-end ps-2"><div class="fw-bold text-success" style="font-size: 0.9rem;">${valueStr}</div></div>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light">
-                        <div class="d-flex gap-2">
+                        <div class="d-flex gap-2 align-items-center">
                             <span class="badge ${badgeClass} text-uppercase d-flex align-items-center" ${tooltip} style="font-size: 0.6rem; padding: 4px 4px; border-radius: 8px;">
                                 ${statusIcon}${l.Status}
                             </span>
@@ -786,7 +786,7 @@ const CRMView = {
                                 </div>
                                 <h6 class="mb-0 small fw-bold">${item.subject}</h6>
                                 <div id="${id}" class="collapse mt-2">
-                                    <div class="p-2 bg-light small border-start border-primary" style="border-width: 4px !important;">${item.preview || ""}</div>
+                                    <div class="p-2 bg-light small border-start border-primary text-break" style="border-width: 4px !important;">${item.preview || ""}</div>
                                 </div>
                             </div>
                         </div>
