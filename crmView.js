@@ -6,6 +6,9 @@
 const CRMView = {
     sortBy: 'recent', 
     currentTimelineItems: [], // Cache for instant UI reverts
+    
+    // Custom Icon for Auto-Calculated Statuses
+    SPARKLE_ICON: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-stars me-1 sparkle-anim" viewBox="0 0 16 16"><path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z"/></svg>`,
 
     init() {
         this.injectStyles();
@@ -67,6 +70,17 @@ const CRMView = {
         const style = document.createElement('style');
         style.id = 'crm-custom-styles';
         style.innerHTML = `
+            /* --- Sparkle Animation (Auto-Status) --- */
+            @keyframes sparklePulse {
+                0% { transform: scale(1); opacity: 0.8; }
+                50% { transform: scale(1.2); opacity: 1; }
+                100% { transform: scale(1); opacity: 0.8; }
+            }
+            .sparkle-anim {
+                animation: sparklePulse 2s infinite ease-in-out;
+                color: #fbbf24; /* Amber-400 */
+            }
+
             /* --- Timeline Styling --- */
             .crm-timeline-container { position: relative; padding-left: 20px; }
             .crm-timeline-container::before {
@@ -411,6 +425,14 @@ const CRMView = {
             else if (l.Status === 'Action Required') badgeClass = 'crm-badge-action';
             else if (l.Status === 'Sent To Quotes') badgeClass = 'crm-badge-quotes';
             else if (l.Status === 'Closed') badgeClass = 'crm-badge-closed';
+            
+            // --- SPARKLE LOGIC ---
+            let statusIcon = '';
+            let tooltip = '';
+            if (l._isCalculated) {
+                statusIcon = this.SPARKLE_ICON;
+                tooltip = 'title="Status updated based on recent email" data-bs-toggle="tooltip"';
+            }
 
             return `
             <div class="card mb-2 shadow-sm crm-lead-card ${isActive}" onclick="CRMView.loadLead('${l.LeadId}')">
@@ -427,7 +449,9 @@ const CRMView = {
                     </div>
                     <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light">
                         <div class="d-flex gap-2">
-                            <span class="badge ${badgeClass} text-uppercase" style="font-size: 0.55rem; padding: 4px 8px; border-radius: 4px;">${l.Status}</span>
+                            <span class="badge ${badgeClass} text-uppercase d-flex align-items-center" ${tooltip} style="font-size: 0.55rem; padding: 4px 8px; border-radius: 4px;">
+                                ${statusIcon}${l.Status}
+                            </span>
                             <span class="text-muted" style="font-size: 0.65rem;">${l.PartNumber || ''}</span>
                         </div>
                         <span class="text-muted" style="font-size: 0.65rem;">${this.getRelativeTime(new Date(l.LastActivityAt))}</span>
@@ -435,6 +459,9 @@ const CRMView = {
                 </div>
             </div>`;
         }).join('');
+        
+        // Re-init tooltips
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
     },
 
     async loadLead(leadId) {
@@ -658,10 +685,15 @@ const CRMView = {
         else if (lead.Status === 'Sent To Quotes') badgeClass = 'crm-badge-quotes';
         else if (lead.Status === 'Closed') badgeClass = 'crm-badge-closed';
 
+        let statusIcon = '';
+        if (lead._isCalculated) {
+             statusIcon = this.SPARKLE_ICON;
+        }
+
         actionContainer.innerHTML = `
             <div class="dropdown">
-                <button class="badge ${badgeClass} dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0" type="button" data-bs-toggle="dropdown">
-                    ${lead.Status}
+                <button class="badge ${badgeClass} dropdown-toggle text-uppercase px-3 py-2 rounded-pill fw-bold border-0 d-flex align-items-center" type="button" data-bs-toggle="dropdown">
+                    ${statusIcon}${lead.Status}
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="border-radius: 12px; min-width: 150px;">
                     <li><a class="dropdown-item status-dropdown-item crm-badge-new" onclick="CRMView.updateStatus('${lead.LeadId}', 'New Lead')">New Lead</a></li>

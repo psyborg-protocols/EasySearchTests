@@ -191,9 +191,8 @@ const CRMService = {
     async _processBatch(leads) {
         const token = await getAccessToken();
         const batchRequests = [];
-        let batchUpdates = false; // Track if we made any changes in this batch
+        let batchUpdates = false; 
 
-        // 1. Build Batch Requests
         leads.forEach((lead) => {
             const anchors = this.anchorsCache.filter(a => a.LeadId === lead.LeadId);
             const emails = anchors
@@ -215,7 +214,6 @@ const CRMService = {
 
         if (batchRequests.length === 0) return;
 
-        // 2. Send Batch
         const response = await fetch("https://graph.microsoft.com/v1.0/$batch", {
             method: "POST",
             headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
@@ -223,7 +221,6 @@ const CRMService = {
         });
         const result = await response.json();
 
-        // 3. Process Responses
         if (result.responses) {
             for (const res of result.responses) {
                 if (res.status !== 200) continue;
@@ -244,24 +241,20 @@ const CRMService = {
                         
                         let newStatus = null;
 
-                        // Logic:
-                        // If I sent the last email -> Waiting On Contact
-                        // If they sent the last email -> Action Required
                         if (sender === myEmail) {
                             if (lead.Status !== 'Waiting On Contact') newStatus = 'Waiting On Contact';
                         } else {
                             if (lead.Status !== 'Action Required') newStatus = 'Action Required';
                         }
 
-                        // --- MODIFIED: Calculated Status Only ---
                         if (newStatus && lead.Status !== newStatus) {
                             console.log(`[SmartStatus] Calculated update for ${lead.Title}: ${newStatus}`);
                             
-                            // 1. Update In-Memory Object ONLY (No Graph Patch)
+                            // 1. Update In-Memory Object ONLY
                             lead.Status = newStatus; 
                             
-                            // Optional: You could add a flag to style it differently in the UI
-                            // lead._isCalculated = true; 
+                            // 2. FLAG FOR UI
+                            lead._isCalculated = true; 
 
                             batchUpdates = true;
                         }
@@ -270,7 +263,7 @@ const CRMService = {
             }
         }
 
-        // 4. Trigger UI Update "Right Away" for this batch
+        // 4. Trigger UI Update
         if (batchUpdates) {
             window.dispatchEvent(new Event('crm-smart-status-updated'));
         }
@@ -315,13 +308,13 @@ const CRMService = {
 
         lead.Status = newStatus;
         lead.LastActivityAt = now;
+        // If user manually updates status, clear the calculation flag
+        delete lead._isCalculated;
         await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
     },
 
     // --- Timeline Data ---
     async getFullTimeline(lead) {
-        // Fetch specific timeline details (BodyPreview, etc) that we don't cache globally
-        // This remains an on-demand deep fetch
         this.currentLead = lead;
         const leadId = lead.LeadId;
 
@@ -338,7 +331,6 @@ const CRMService = {
             id: e.id
         }));
 
-        // We use the cached anchors to drive the email search
         const anchors = this.anchorsCache.filter(a => a.LeadId === leadId);
         
         if (anchors.length > 0) {
@@ -346,8 +338,6 @@ const CRMService = {
                 if (!a.Email) return [];
                 const email = a.Email.toLowerCase();
                 
-                // Fetch recent interactions with this specific email
-                // We use $search here as well for specific retrieval
                 const search = `participants:${email}`;
                 const url = `https://graph.microsoft.com/v1.0/me/messages?$search="${search}"&$top=20&$select=id,subject,receivedDateTime,bodyPreview,from,isRead,conversationId`;
                 
