@@ -752,10 +752,23 @@ const CRMView = {
                     </div>
                 </div>`;
             } else {
-                // System Events & Notes
                 const isSys = item.eventType === 'System';
-                const icon = isSys ? 'fa-cog' : 'fa-sticky-note';
-                const colorClass = isSys ? 'text-secondary' : 'text-warning';
+                const isSample = item.eventType === 'SampleSent'; // <--- Detect new type
+
+                let icon = 'fa-sticky-note';
+                let colorClass = 'text-warning'; 
+                let bgClass = 'background:#fffbeb';
+
+                if (isSys) {
+                    icon = 'fa-cog';
+                    colorClass = 'text-secondary';
+                    bgClass = '';
+                } else if (isSample) {
+                    // --- NEW SAMPLE STYLING ---
+                    icon = 'fa-vial'; // 'fa-vial' or 'fa-flask'
+                    colorClass = 'text-info'; // Blue icon
+                    bgClass = 'background:#f0f9ff; border: 1px solid #bae6fd;'; // Blue card
+                }
                 
                 return `
                 <div class="d-flex mb-4 fade-in-up">
@@ -765,7 +778,7 @@ const CRMView = {
                         </div>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="card border-0 shadow-sm ${isSys ? 'bg-light' : ''}" style="${isSys ? '' : 'background:#fffbeb'}">
+                        <div class="card border-0 shadow-sm ${isSys ? 'bg-light' : ''}" style="${bgClass}">
                             <div class="card-body p-3">
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-uppercase fw-bold text-muted" style="font-size:0.7rem;">${item.eventType}</span>
@@ -784,24 +797,40 @@ const CRMView = {
     },
 
     async handleSuggestion(leadId, company, action, prod, date, count) {
-        // Visual feedback (grey out the timeline while processing)
-        document.getElementById('crmTimeline').style.opacity = '0.5';
+        const timelineContainer = document.getElementById('crmTimeline');
+        timelineContainer.style.opacity = '0.5';
 
         try {
             if (action === 'dismiss') {
                 await CRMService.dismissSuggestion(leadId, company);
+                await this.loadLead(leadId); 
             } else {
+                // 1. Send to server
                 await CRMService.linkSample(leadId, { 
                     company, latestProduct: prod, latestDate: date, count 
                 });
+
+                // 2. OPTIMISTIC UPDATE (Instant Feedback)
+                // We force this event into the top of the list immediately
+                const fakeEvent = {
+                    type: 'event',
+                    eventType: 'SampleSent',
+                    date: new Date(), // Set to NOW so it appears at the top as a "newly discovered" record
+                    summary: `Sample: ${prod}`,
+                    details: `Sent on ${date}`, // The text body contains the historical date
+                    id: 'temp_' + Date.now()
+                };
+
+                this.currentTimelineItems.unshift(fakeEvent);
+                
+                // Re-render immediately (pass null to hide the suggestion card)
+                this.renderTimeline(this.currentTimelineItems, null);
             }
-            // Reloading the lead will re-fetch the timeline. 
-            // The "System" event we just created will now block the suggestion from showing up.
-            await this.loadLead(leadId);
         } catch (e) {
             console.error(e);
             alert("Action failed.");
-            document.getElementById('crmTimeline').style.opacity = '1';
+        } finally {
+            timelineContainer.style.opacity = '1';
         }
     },
     

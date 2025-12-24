@@ -410,11 +410,13 @@ async checkSampleSuggestions(lead, currentTimelineEvents) {
     // Links the data via a Note
     async linkSample(leadId, suggestion) {
         await this.addEvent(
-            leadId, 
-            "Note", 
-            "Sample Linked", 
-            `Linked to historical samples for '${suggestion.company}'.\nFound ${suggestion.count} previous samples.\nMost recent: ${suggestion.latestProduct} on ${suggestion.latestDate}.`
-        );
+                leadId, 
+                "SampleSent", 
+                // Summary: Just the product name
+                `Sample: ${suggestion.latestProduct}`, 
+                // Details: Just the relevant fact (Date)
+                `Sent on ${suggestion.latestDate}`
+            );
     },
 
     // --- Timeline Data ---
