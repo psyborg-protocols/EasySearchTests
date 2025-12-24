@@ -97,7 +97,7 @@ const CRMView = {
             /* --- Color Coded Statuses --- */
             .crm-badge-new { background-color: #dcfce7 !important; color: #166534 !important; }
             .crm-badge-waiting { background-color: #fef9c3 !important; color: #854d0e !important; } /* Waiting On Contact (Yellow) */
-            .crm-badge-waiting-you { background-color: #ffedd5 !important; color: #9a3412 !important; } /* Waiting On You (Orange) */
+            .crm-badge-waiting-you { background-color:#fff7ed!important; color:#c2410c!important; border:1px solid #fdba74!important; } /* Waiting On You (Orange) */
             .crm-badge-action { background-color: #fee2e2 !important; color: #991b1b !important; } /* Action Required (Red) */
             .crm-badge-quotes { background-color: #e0f2fe !important; color: #0369a1 !important; }
             .crm-badge-closed { background-color: #f3f4f6 !important; color: #374151 !important; }
