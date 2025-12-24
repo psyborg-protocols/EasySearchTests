@@ -1,109 +1,173 @@
-/* reports/potentialLeadsReport.js */
+/* reports/potentialLeadsReport.js
+   --------------------------------------------------------------- 
+   Identifies customers who have placed a single order > $5,000 
+   in the past but haven't bought anything in the last 12 months.
+*/
 
 window.buildPotentialLeadsReport = function buildPotentialLeadsReport(modalEl, reportId) {
   return new Promise((resolve, reject) => {
-    const item = modalEl.querySelector(`#item-${reportId}`);
-    if (!item) return reject({ reportId, error: 'list-item not found' });
+
+    /* --- 1. Locate list item in Modal --- */
+    const liId = `item-${reportId}`;
+    const item = modalEl.querySelector(`#${liId}`);
+    if (!item) {
+      return reject({ reportId, error: 'list-item not found' });
+    }
 
     setTimeout(() => {
       try {
         const salesDF = window.dataStore?.Sales?.dataframe || [];
-        const orgContacts = window.dataStore?.OrgContacts || new Map();
 
         if (!salesDF.length) {
           item.querySelector('.spinner-border')?.remove();
-          item.insertAdjacentHTML('beforeend', ' <small class="text-muted">(no sales data)</small>');
+          item.insertAdjacentHTML('beforeend', ' <small class="text-muted">(No sales data)</small>');
           return resolve({ reportId, status: 'success', count: 0 });
         }
 
+        /* --- 2. Configuration --- */
+        const LARGE_ORDER_THRESHOLD = 5000;
         const today = new Date();
-        const twelveMonthsAgo = new Date();
-        twelveMonthsAgo.setFullYear(today.getFullYear() - 1);
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(today.getFullYear() - 1);
 
-        // 1. Group Data by Customer
-        const customerStats = {};
+        const parseDate = ReportUtils.parseDate;
+        const parseNumber = ReportUtils.parseNumber;
+        const normalize = ReportUtils.normalise;
 
-        salesDF.forEach(r => {
-          const customer = r.Customer;
-          if (!customer) return;
+        /* --- 3. Aggregation --- */
+        // We need to group by Customer -> Invoice(Num) to check order totals.
+        // We also need to track the *latest* date per customer to check inactivity.
+        
+        const custMap = {}; // Key: normalizedName -> { displayName, lastDate, invoices: { num: total }, products: { name: totalRev } }
 
-          const date = ReportUtils.parseDate(r.Date);
-          const amount = ReportUtils.parseNumber(r.Total_Amount);
-          const invoiceNum = r.Num || 'No-Inv';
+        salesDF.forEach(row => {
+          const rawName = row.Customer;
+          if (!rawName) return;
+          
+          const nameKey = normalize(rawName);
+          const date = parseDate(row.Date);
+          if (!date) return;
 
-          if (!customerStats[customer]) {
-            customerStats[customer] = {
-              lastDate: new Date(0),
-              invoices: {}, // To track total per invoice
-              hasHighValueOrder: false
+          const amount = parseNumber(row.Total_Amount);
+          const invoiceNum = row.Num || 'UNKNOWN_INV';
+          const prodName = row.Product_Service;
+
+          // Init customer bucket
+          if (!custMap[nameKey]) {
+            custMap[nameKey] = {
+              displayName: rawName,
+              lastDate: date,
+              invoices: {},
+              products: {}
             };
           }
 
-          // Track the most recent order date
-          if (date && date > customerStats[customer].lastDate) {
-            customerStats[customer].lastDate = date;
+          const c = custMap[nameKey];
+
+          // Update Last Seen Date
+          if (date > c.lastDate) {
+            c.lastDate = date;
           }
 
-          // Aggregate by Invoice Number (Num)
-          customerStats[customer].invoices[invoiceNum] = (customerStats[customer].invoices[invoiceNum] || 0) + amount;
+          // Accumulate Invoice Total (Stacking line items by Invoice Number)
+          c.invoices[invoiceNum] = (c.invoices[invoiceNum] || 0) + amount;
+
+          // Accumulate Product Revenue (for "Top Products" list)
+          if (prodName) {
+            c.products[prodName] = (c.products[prodName] || 0) + amount;
+          }
         });
 
-        // 2. Filter for Leads (Inactive 12mo AND had an invoice > $5k)
+        /* --- 4. Filtering --- */
         const leads = [];
-        Object.entries(customerStats).forEach(([name, stats]) => {
-          // Check if any invoice exceeded $5,000
-          const hasBigOrder = Object.values(stats.invoices).some(total => total >= 5000);
-          const isInactive = stats.lastDate < twelveMonthsAgo;
 
-          if (hasBigOrder && isInactive) {
-            const contacts = orgContacts.get(name) || [];
+        Object.values(custMap).forEach(c => {
+          // Rule 1: Must be inactive (Latest date < 12 months ago)
+          if (c.lastDate >= oneYearAgo) return;
+
+          // Rule 2: Must have at least one invoice > $5,000
+          // specificBigOrder will hold the highest order amount found
+          let maxOrderVal = 0;
+          const hasBigOrder = Object.values(c.invoices).some(val => {
+            if (val > maxOrderVal) maxOrderVal = val;
+            return val >= LARGE_ORDER_THRESHOLD;
+          });
+
+          if (hasBigOrder) {
+            // Determine Top 3 Products by Revenue
+            const sortedProds = Object.entries(c.products)
+              .sort((a, b) => b[1] - a[1]) // Sort desc by revenue
+              .slice(0, 3)
+              .map(p => p[0])
+              .join(', ');
+
             leads.push({
-              name,
-              lastOrder: stats.lastDate,
-              maxInvoice: Math.max(...Object.values(stats.invoices)),
-              contact: contacts.length > 0 ? contacts[0] : null // Primary contact
+              'Customer': c.displayName,
+              'Last Sale Date': c.lastDate.toLocaleDateString('en-US'),
+              'Max Order Value': maxOrderVal, // Keep number for sorting, format later
+              'Top Products': sortedProds
             });
           }
         });
 
-        // Sort by most recent "last order" (hottest leads first)
-        leads.sort((a, b) => b.lastOrder - a.lastOrder);
+        /* --- 5. Sorting (Highest potential value first) --- */
+        leads.sort((a, b) => b['Max Order Value'] - a['Max Order Value']);
 
-        // 3. Generate CSV
-        const headers = ['Customer Name', 'Last Order Date', 'Highest Single Invoice', 'Contact Name', 'Contact Email'];
-        const csvRows = [headers.join(',')];
-
-        leads.forEach(l => {
-          const row = [
-            l.name,
-            l.lastOrder.toLocaleDateString(),
-            l.maxInvoice.toFixed(2),
-            l.contact ? l.contact.Name : 'N/A',
-            l.contact ? (l.contact.Email || l.contact.mail) : 'N/A'
-          ];
-          csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
-        });
-
-        // 4. UI & Download
         item.querySelector('.spinner-border')?.remove();
-        if (leads.length > 0) {
-          const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-          const btn = document.createElement('button');
-          btn.className = 'report-download-btn';
-          btn.innerHTML = `
+
+        if (leads.length === 0) {
+          item.insertAdjacentHTML('beforeend', ' <small class="text-muted">(No matching leads)</small>');
+          return resolve({ reportId, status: 'success', message: 'empty' });
+        }
+
+        /* --- 6. CSV Generation --- */
+        // Helper to format currency for CSV
+        const fmtMoney = v => `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        
+        // Convert rows to CSV-ready strings
+        const csvRows = leads.map(r => ({
+          ...r,
+          'Max Order Value': fmtMoney(r['Max Order Value'])
+        }));
+
+        const toCSV = (data) => {
+          if (!data.length) return '';
+          const headers = Object.keys(data[0]);
+          const csvContent = [
+            headers.join(','),
+            ...data.map(row => headers.map(fieldName => {
+              let val = row[fieldName] || '';
+              // Escape quotes and wrap in quotes
+              val = String(val).replace(/"/g, '""');
+              return `"${val}"`;
+            }).join(','))
+          ].join('\n');
+          return csvContent;
+        };
+
+        const csv = toCSV(csvRows);
+
+        /* --- 7. UI Download Button --- */
+        const btn = document.createElement('button');
+        btn.className = 'report-download-btn';
+        btn.title = 'Download Potential Leads Report';
+        btn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="#5f6368">
               <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
             </svg>`;
-          btn.onclick = () => saveAs(blob, 'Potential_Leads_Report.csv');
-          item.appendChild(btn);
-        } else {
-          item.insertAdjacentHTML('beforeend', ' <small class="text-muted">(no leads found)</small>');
-        }
+        
+        btn.onclick = () => {
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+          saveAs(blob, 'Potential_Leads_Report.csv');
+        };
 
-        resolve({ reportId, status: 'success', count: leads.length });
+        item.appendChild(btn);
+        resolve({ reportId, status: 'success', rows: leads.length });
+
       } catch (err) {
-        console.error(err);
+        console.error('Potential Leads Report Error:', err);
         item.querySelector('.spinner-border')?.remove();
+        item.insertAdjacentHTML('beforeend', ' <small class="text-danger">(Error)</small>');
         reject({ reportId, error: err });
       }
     }, 0);
