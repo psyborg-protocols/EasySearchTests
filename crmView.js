@@ -97,7 +97,7 @@ const CRMView = {
             /* --- Color Coded Statuses --- */
             .crm-badge-new { background-color: #dcfce7 !important; color: #166534 !important; }
             .crm-badge-waiting { background-color: #fef9c3 !important; color: #854d0e !important; } /* Waiting On Contact (Yellow) */
-            .crm-badge-waiting-you { background-color:#fff7ed!important; color:#c2410c!important; border:1px solid #fdba74!important; } /* Waiting On You (Orange) */
+            .crm-badge-waiting-you { background-color: #fff7ed !important; color: #c2410c !important; border: 1px solid #fdba74 !important; } /* Waiting On You (Orange) */
             .crm-badge-action { background-color: #fee2e2 !important; color: #991b1b !important; } /* Action Required (Red) */
             .crm-badge-quotes { background-color: #e0f2fe !important; color: #0369a1 !important; }
             .crm-badge-closed { background-color: #f3f4f6 !important; color: #374151 !important; }
@@ -324,7 +324,12 @@ const CRMView = {
         try {
             const items = await CRMService.getFullTimeline(lead);
             this.currentTimelineItems = items; 
-            this.renderTimeline(items);
+
+            // 2. Run the smart check
+            // We pass 'items' so it can see if a dismissal event exists
+            const suggestion = await CRMService.checkSampleSuggestions(lead, items);
+
+            this.renderTimeline(items, suggestion);
             this.renderLeadSummary(lead, items);
         } catch (e) {
             document.getElementById('crmTimeline').innerHTML = `<div class="alert alert-danger m-4">${e.message}</div>`;
@@ -664,11 +669,64 @@ const CRMView = {
     async updateStatus(lId, s) { await CRMService.updateStatus(lId, s); this.loadLead(lId); this.renderList(); },
     async closeLeadConfirm(lId) { if (confirm("Close lead?")) this.updateStatus(lId, 'Closed'); },
 
-    renderTimeline(items) {
+    renderTimeline(items, suggestion = null) {
         const container = document.getElementById('crmTimeline');
-        if (items.length === 0) { container.innerHTML = `<div class="text-center mt-5 opacity-50"><h5>Start the conversation</h5></div>`; return; }
-        const html = items.map((item, idx) => {
+        
+        // --- 1. FILTER: Hide 'Suggestion Dismissed' events from view ---
+        // We keep them in the database for logic, but hide them from the UI
+        const visibleItems = items.filter(item => 
+            !(item.eventType === 'System' && item.summary === 'Suggestion Dismissed')
+        );
+
+        let html = '';
+
+        // --- 2. Render Smart Suggestion Card (if exists) ---
+        if (suggestion) {
+            const safeComp = suggestion.company.replace(/'/g, "\\'");
+            const safeProd = suggestion.latestProduct.replace(/'/g, "\\'");
+            const safeDate = suggestion.latestDate;
+            const safeCount = suggestion.count;
+            const leadId = CRMService.currentLead.LeadId;
+
+            html += `
+            <div class="fade-in-up mb-4">
+                <div class="card border-primary" style="background-color: #f0f9ff; border: 1px dashed #3b82f6;">
+                    <div class="card-body p-3">
+                        <div class="d-flex gap-3">
+                            <div class="text-primary pt-1">${this.SPARKLE_ICON}</div>
+                            <div class="flex-grow-1">
+                                <h6 class="fw-bold text-primary mb-1">Found ${safeCount} Samples for "${suggestion.company}"</h6>
+                                <p class="small text-muted mb-2">
+                                    Should this lead be linked to this history? <br>
+                                    Last sample: <strong>${safeProd}</strong> on ${safeDate}.
+                                </p>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-primary px-3" 
+                                        onclick="CRMView.handleSuggestion('${leadId}', '${safeComp}', 'link', '${safeProd}', '${safeDate}', '${safeCount}')">
+                                        <i class="fas fa-link me-1"></i> Link History
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" 
+                                        onclick="CRMView.handleSuggestion('${leadId}', '${safeComp}', 'dismiss')">
+                                        Dismiss
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        // --- 3. Check for Empty State (using visibleItems) ---
+        if (visibleItems.length === 0 && !suggestion) { 
+            container.innerHTML = `<div class="text-center mt-5 opacity-50"><h5>Start the conversation</h5></div>`; 
+            return; 
+        }
+
+        // --- 4. Render Visible Timeline Items ---
+        html += visibleItems.map((item, idx) => {
             const rel = this.getRelativeTime(item.date);
+            
             if (item.type === 'email') {
                 const id = `email-${idx}`;
                 return `
@@ -694,9 +752,11 @@ const CRMView = {
                     </div>
                 </div>`;
             } else {
+                // System Events & Notes
                 const isSys = item.eventType === 'System';
                 const icon = isSys ? 'fa-cog' : 'fa-sticky-note';
                 const colorClass = isSys ? 'text-secondary' : 'text-warning';
+                
                 return `
                 <div class="d-flex mb-4 fade-in-up">
                     <div class="me-3 flex-shrink-0" style="width: 34px;">
@@ -705,7 +765,7 @@ const CRMView = {
                         </div>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="card border-0 shadow-sm ${isSys?'bg-light':''}" style="${isSys?'':'background:#fffbeb'}">
+                        <div class="card border-0 shadow-sm ${isSys ? 'bg-light' : ''}" style="${isSys ? '' : 'background:#fffbeb'}">
                             <div class="card-body p-3">
                                 <div class="d-flex justify-content-between mb-2">
                                     <span class="text-uppercase fw-bold text-muted" style="font-size:0.7rem;">${item.eventType}</span>
@@ -719,7 +779,30 @@ const CRMView = {
                 </div>`;
             }
         }).join('');
+
         container.innerHTML = `<div class="crm-timeline-container pt-2 pb-5">${html}</div>`;
+    },
+
+    async handleSuggestion(leadId, company, action, prod, date, count) {
+        // Visual feedback (grey out the timeline while processing)
+        document.getElementById('crmTimeline').style.opacity = '0.5';
+
+        try {
+            if (action === 'dismiss') {
+                await CRMService.dismissSuggestion(leadId, company);
+            } else {
+                await CRMService.linkSample(leadId, { 
+                    company, latestProduct: prod, latestDate: date, count 
+                });
+            }
+            // Reloading the lead will re-fetch the timeline. 
+            // The "System" event we just created will now block the suggestion from showing up.
+            await this.loadLead(leadId);
+        } catch (e) {
+            console.error(e);
+            alert("Action failed.");
+            document.getElementById('crmTimeline').style.opacity = '1';
+        }
     },
     
     toggleCollapse(id) { const el = document.getElementById(id); if (el) { el.classList.toggle('show'); } },

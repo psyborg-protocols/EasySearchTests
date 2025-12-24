@@ -345,6 +345,78 @@ const CRMService = {
         await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
     },
 
+    /**
+     * Checks for samples sent to companies with similar names.
+     * Filters out any that have already been linked or dismissed in the timeline.
+     */
+async checkSampleSuggestions(lead, currentTimelineEvents) {
+        if (!lead || !lead.Company) return null;
+
+        // 1. Get Samples from the data store defined in recentActivity.js
+        const samples = window.dataStore?.["Samples"]?.dataframe || [];
+        if (samples.length === 0) return null;
+
+        // 2. Get unique company names from samples to match against
+        // We set threshold to 0.4 (loose) to catch "Acme Corp" vs "Acme Inc"
+        const uniqueCompanies = [...new Set(samples.map(s => s.Customer).filter(c => c))];
+        const fuse = new Fuse(uniqueCompanies, { includeScore: true, threshold: 0.4 });
+        
+        // Search for the lead's company
+        const matches = fuse.search(lead.Company);
+        if (matches.length === 0) return null;
+
+        // Take the best match
+        const bestMatch = matches[0].item;
+        
+        // 3. CHECK HISTORY: Has this specific company been dismissed or linked before?
+        // We look through the timeline events we just loaded for a "System" event marking this dismissal.
+        const alreadyHandled = currentTimelineEvents.some(e => 
+            e.eventType === 'System' && 
+            (e.summary === 'Suggestion Dismissed' || e.summary === 'Sample Linked') &&
+            e.details.includes(bestMatch) // The dismissal details will contain the company name
+        );
+
+        if (alreadyHandled) return null;
+
+        // 4. Gather details for the suggestion card
+        const companySamples = samples.filter(s => s.Customer === bestMatch);
+        
+        // Sort by date using the field name found in recentActivity.js
+        companySamples.sort((a, b) => new Date(b["Customer order(date)"]) - new Date(a["Customer order(date)"]));
+        
+        const latest = companySamples[0];
+        
+        // Try to find a Product/Description field, fallback to generic if missing
+        const product = latest["Product"] || latest["Item"] || latest["Description"] || "Unknown Item";
+
+        return {
+            company: bestMatch,
+            count: companySamples.length,
+            latestDate: latest["Customer order(date)"],
+            latestProduct: product
+        };
+    },
+
+    // Writes a persistent "System" event so the suggestion doesn't appear again
+    async dismissSuggestion(leadId, companyName) {
+        await this.addEvent(
+            leadId, 
+            "System", 
+            "Suggestion Dismissed", 
+            `Autosuggestion for samples to '${companyName}' was dismissed by user.`
+        );
+    },
+
+    // Links the data via a Note
+    async linkSample(leadId, suggestion) {
+        await this.addEvent(
+            leadId, 
+            "Note", 
+            "Sample Linked", 
+            `Linked to historical samples for '${suggestion.company}'.\nFound ${suggestion.count} previous samples.\nMost recent: ${suggestion.latestProduct} on ${suggestion.latestDate}.`
+        );
+    },
+
     // --- Timeline Data ---
     async getFullTimeline(lead) {
         this.currentLead = lead;
