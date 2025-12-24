@@ -201,6 +201,7 @@ const CRMView = {
             }
 
             .quotes-btn-responsive { transition: transform 0.2s, opacity 0.2s; padding: 4px; border-radius: 6px; }
+            .quotes-btn-responsive:hover { transform: scale(1.1); background-color: #e2e8f0; border-color: #cbd5e1;}
             .quotes-btn-responsive:active { transform: scale(0.95); opacity: 0.7; }
 
             #crmSortRecent.active { background-color: #0d6efd; color: white; }
