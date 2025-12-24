@@ -16,7 +16,8 @@ const ReportManager = {
     { id: 'prodlapsed', title: 'Lapsed Products', desc: 'Products with no sales in 6 months.', generatorFunctionName: 'buildProductLapsedReport' },
     { id: 'invstuck', title: 'Stuck Inventory', desc: 'Excess inventory (>12mo supply).', generatorFunctionName: 'buildStuckInventoryReport' },
     { id: 'top20cust', title: 'Top 20 Customers', desc: 'Highest revenue customers (Last 12mo).', generatorFunctionName: 'buildTopCustomersByRevenueReport' },
-    { id: 'profit', title: 'Profit Report', desc: 'Profitability analysis by Customer/Product.', generatorFunctionName: 'buildProfitReport' }
+    { id: 'profit', title: 'Profit Report', desc: 'Profitability analysis by Customer/Product.', generatorFunctionName: 'buildProfitReport' },
+    { id: 'pot-leads', title: 'Potential Leads', desc: 'Customers with past $5k+ orders, inactive for 12mo.', generatorFunctionName: 'buildPotentialLeadsReport' },
   ],
 
   // Load status from IDB
