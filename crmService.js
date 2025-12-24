@@ -19,7 +19,7 @@ const CRM_CONFIG = {
 
 const CRMService = {
     leadsCache: [],
-    anchorsCache: [], // Cache for email anchors
+    anchorsCache: [], 
     deltaLink: null,
     anchorsDeltaLink: null,
     currentLead: null,
@@ -41,7 +41,6 @@ const CRMService = {
             body: body != null ? JSON.stringify(body) : undefined
         });
 
-        // Handle Delta Link Expiry (410 Gone)
         if (res.status === 410) {
             console.warn("[CRM] Delta token expired. Forcing full resync.");
             throw new Error("DELTA_EXPIRED");
@@ -64,13 +63,11 @@ const CRMService = {
         const pricingData = window.dataStore?.["Pricing"]?.dataframe || [];
         const dbData = window.dataStore?.["DB"]?.dataframe || [];
 
-        // 1. Check Pricing Data
         const pricingEntry = pricingData.find(row => String(row["Product"]).trim() === pn);
         if (pricingEntry) {
             unitPrice = parseFloat(pricingEntry["USER FB"]) || parseFloat(pricingEntry["USER HB"]) || 0;
         } 
         
-        // 2. Fallback to DB UnitCost x 1.4 markup
         if (unitPrice === 0) {
             const dbEntry = dbData.find(row => String(row["PartNumber"]).trim() === pn);
             if (dbEntry) {
@@ -87,13 +84,11 @@ const CRMService = {
         if (this.leadsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
         if (this.anchorsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink');
 
-        // Sync both
         await Promise.allSettled([
             this._syncWithGraph(CRM_CONFIG.LISTS.LEADS, 'leadsCache', 'deltaLink', CRM_CONFIG.KEYS.LEADS),
             this._syncWithGraph(CRM_CONFIG.LISTS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink', CRM_CONFIG.KEYS.ANCHORS)
         ]);
 
-        // After sync, run the Smart Status Check in the background
         this.runSmartStatusCheck().catch(err => console.error("[SmartStatus] Check failed:", err));
 
         return this.leadsCache;
@@ -177,7 +172,6 @@ const CRMService = {
         console.log("[SmartStatus] Starting batch check...");
         const activeLeads = this.leadsCache.filter(l => l.Status !== 'Closed');
         
-        // Group leads into batches of 20 (Graph Batch Limit)
         const batches = [];
         for (let i = 0; i < activeLeads.length; i += 20) {
             batches.push(activeLeads.slice(i, i + 20));
@@ -193,6 +187,7 @@ const CRMService = {
         const batchRequests = [];
         let batchUpdates = false; 
 
+        // 1. Build Batch Requests
         leads.forEach((lead) => {
             const anchors = this.anchorsCache.filter(a => a.LeadId === lead.LeadId);
             const emails = anchors
@@ -207,7 +202,6 @@ const CRMService = {
             batchRequests.push({
                 id: lead.LeadId,
                 method: "GET",
-                // CHANGED: Added 'isDraft' to $select
                 url: `/me/messages?$search="${searchQuery}"&$top=10&$select=receivedDateTime,from,toRecipients,sender,isDraft`,
                 headers: { "Content-Type": "application/json" }
             });
@@ -215,6 +209,7 @@ const CRMService = {
 
         if (batchRequests.length === 0) return;
 
+        // 2. Execute Batch
         const response = await fetch("https://graph.microsoft.com/v1.0/$batch", {
             method: "POST",
             headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
@@ -222,6 +217,7 @@ const CRMService = {
         });
         const result = await response.json();
 
+        // 3. Process Responses
         if (result.responses) {
             for (const res of result.responses) {
                 if (res.status !== 200) continue;
@@ -230,36 +226,72 @@ const CRMService = {
                 if (!lead) continue;
 
                 const messages = res.body.value;
-                if (messages && messages.length > 0) {
-                    // CHANGED: Filter out drafts before picking the latest message
-                    const validMessages = messages.filter(m => m.isDraft !== true);
+                if (!messages || messages.length === 0) continue;
+
+                // Filter drafts
+                const validMessages = messages.filter(m => m.isDraft !== true);
+                if (validMessages.length === 0) continue;
+
+                const latestMsg = validMessages[0]; 
+                const msgDate = new Date(latestMsg.receivedDateTime);
+                // Use existing Lead Date (fallback to 0 if null)
+                const leadDate = new Date(lead.LastActivityAt || 0);
+
+                const myEmail = userAccount?.username?.toLowerCase() || "";
+                const sender = (latestMsg.from?.emailAddress?.address || "").toLowerCase();
+                const isMyEmail = sender === myEmail;
+
+                // --- LOGIC START ---
+                let calculatedStatus = lead.Status; 
+                let needsUpdate = false;
+                
+                // A) Did a NEW message arrive since last activity?
+                // If YES, we update the Base Status.
+                if (msgDate > leadDate) {
+                    // Update Last Activity Time to this new message
+                    lead.LastActivityAt = msgDate.toISOString(); 
                     
-                    if (validMessages.length > 0) {
-                        const latestMsg = validMessages[0]; // Assuming Graph returns newest first (default rank), otherwise sort
-                        const msgDate = new Date(latestMsg.receivedDateTime);
-                        const leadDate = new Date(lead.LastActivityAt || 0);
-
-                        // If message is NEWER than the last known CRM activity/status
-                        if (msgDate > leadDate) {
-                            const myEmail = userAccount?.username?.toLowerCase() || "";
-                            const sender = (latestMsg.from?.emailAddress?.address || "").toLowerCase();
-                            
-                            let newStatus = null;
-
-                            if (sender === myEmail) {
-                                if (lead.Status !== 'Waiting On Contact') newStatus = 'Waiting On Contact';
-                            } else {
-                                if (lead.Status !== 'Action Required') newStatus = 'Action Required';
-                            }
-
-                            if (newStatus && lead.Status !== newStatus) {
-                                console.log(`[SmartStatus] Calculated update for ${lead.Title}: ${newStatus}`);
-                                lead.Status = newStatus; 
-                                lead._isCalculated = true; 
-                                batchUpdates = true;
-                            }
-                        }
+                    if (isMyEmail) {
+                        // I sent the last email -> They need to reply
+                        calculatedStatus = 'Waiting On Contact';
+                    } else {
+                        // They sent the last email -> I need to reply
+                        // Initially "Waiting On You" (Orange), escalates to Action Required (Red) later
+                        calculatedStatus = 'Waiting On You'; 
                     }
+                    needsUpdate = true;
+                }
+
+                // B) Escalation Logic (Time-based check)
+                // We check how much time has passed since the *Effective Last Activity*
+                // Note: If we just updated lead.LastActivityAt above, we use that. 
+                const effectiveActivityDate = new Date(lead.LastActivityAt);
+                const now = new Date();
+                const diffHours = (now - effectiveActivityDate) / (1000 * 60 * 60);
+                const diffDays = diffHours / 24;
+
+                // Rule 1: "Waiting On You" escalates to "Action Required" after ~2 days (48h)
+                if (calculatedStatus === 'Waiting On You' && diffDays > 2) {
+                    if (calculatedStatus !== 'Action Required') {
+                        calculatedStatus = 'Action Required';
+                        needsUpdate = true;
+                    }
+                }
+                
+                // Rule 2: "Waiting On Contact" escalates to "Action Required" after 7 days
+                else if (calculatedStatus === 'Waiting On Contact' && diffDays > 7) {
+                    if (calculatedStatus !== 'Action Required') {
+                        calculatedStatus = 'Action Required';
+                        needsUpdate = true;
+                    }
+                }
+
+                // C) Apply Changes
+                if (needsUpdate && lead.Status !== calculatedStatus) {
+                    console.log(`[SmartStatus] Update for ${lead.Title}: ${lead.Status} -> ${calculatedStatus}`);
+                    lead.Status = calculatedStatus; 
+                    lead._isCalculated = true; // Mark as auto-updated for the sparkle icon
+                    batchUpdates = true;
                 }
             }
         }
@@ -309,7 +341,6 @@ const CRMService = {
 
         lead.Status = newStatus;
         lead.LastActivityAt = now;
-        // If user manually updates status, clear the calculation flag
         delete lead._isCalculated;
         await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
     },
@@ -335,17 +366,15 @@ const CRMService = {
         const anchors = this.anchorsCache.filter(a => a.LeadId === leadId);
         
         if (anchors.length > 0) {
-const emailPromises = anchors.map(async (a) => {
+            const emailPromises = anchors.map(async (a) => {
                 if (!a.Email) return [];
                 const email = a.Email.toLowerCase();
                 
                 const search = `participants:${email}`;
-                // CHANGED: Added 'isDraft' to $select
                 const url = `https://graph.microsoft.com/v1.0/me/messages?$search="${search}"&$top=20&$select=id,subject,receivedDateTime,bodyPreview,from,isRead,conversationId,isDraft`;
                 
                 try {
                     const res = await this._graphRequest(url);
-                    // CHANGED: Filter m.isDraft !== true
                     return res.value
                         .filter(m => m.isDraft !== true)
                         .map(m => ({

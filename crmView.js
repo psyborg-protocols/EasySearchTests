@@ -5,10 +5,9 @@
 
 const CRMView = {
     sortBy: 'recent', 
-    currentTimelineItems: [], // Cache for instant UI reverts
-    currentEditCleanup: null, // Cleanup function for current edit session
+    currentTimelineItems: [], 
+    currentEditCleanup: null, 
 
-    // Custom Icon for Auto-Calculated Statuses
     SPARKLE_ICON: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-stars me-1 sparkle-anim" viewBox="0 0 16 16"><path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z"/></svg>`,
 
     init() {
@@ -24,7 +23,6 @@ const CRMView = {
             searchInput.addEventListener('input', () => this.renderList());
         }
 
-        // Sort Listeners
         const btnRecent = document.getElementById('crmSortRecent');
         const btnValue = document.getElementById('crmSortValue');
 
@@ -43,7 +41,6 @@ const CRMView = {
             });
         }
 
-        // Close dropdowns on outside click
         document.addEventListener('mousedown', (e) => {
             const dd = document.getElementById('crmEditPartDropdown');
             if (dd && !e.target.closest('.crm-edit-dropdown') && !e.target.closest('#crmEditPartInput')) {
@@ -51,17 +48,12 @@ const CRMView = {
             }
         });
 
-        // --- NEW: Listen for Smart Status Updates ---
         window.addEventListener('crm-smart-status-updated', () => {
             console.log("[View] Refreshing due to smart status update...");
             this.renderList();
-            
-            // If the detail pane is open for a lead, refresh its header to show new status
             if (CRMService.currentLead) {
                 const lead = CRMService.leadsCache.find(l => l.LeadId === CRMService.currentLead.LeadId);
-                if (lead) {
-                    this.renderHeaderActions(lead);
-                }
+                if (lead) this.renderHeaderActions(lead);
             }
         });
     },
@@ -71,13 +63,8 @@ const CRMView = {
         const style = document.createElement('style');
         style.id = 'crm-custom-styles';
         style.innerHTML = `
-            /* --- Sparkle Icon (Auto-Status) --- */
-            .sparkle-anim {
-                /* Animation removed */
-                color: #fbbf24; /* Amber-400 */
-            }
+            .sparkle-anim { color: #fbbf24; }
 
-            /* --- Timeline Styling --- */
             .crm-timeline-container { position: relative; padding-left: 20px; }
             .crm-timeline-container::before {
                 content: ''; position: absolute; top: 0; bottom: 0; margin-top: 10px; margin-bottom: 80px;
@@ -92,7 +79,6 @@ const CRMView = {
                 border: 1px solid #e2e8f0;
             }
 
-            /* --- Lead Cards --- */
             .crm-lead-card { 
                 transition: all 0.2s ease; cursor: pointer;
                 border: 1px solid #e2e8f0 !important;
@@ -110,8 +96,9 @@ const CRMView = {
 
             /* --- Color Coded Statuses --- */
             .crm-badge-new { background-color: #dcfce7 !important; color: #166534 !important; }
-            .crm-badge-waiting { background-color: #fef9c3 !important; color: #854d0e !important; }
-            .crm-badge-action { background-color: #fee2e2 !important; color: #991b1b !important; }
+            .crm-badge-waiting { background-color: #fef9c3 !important; color: #854d0e !important; } /* Waiting On Contact (Yellow) */
+            .crm-badge-waiting-you { background-color: #ffedd5 !important; color: #9a3412 !important; } /* Waiting On You (Orange) */
+            .crm-badge-action { background-color: #fee2e2 !important; color: #991b1b !important; } /* Action Required (Red) */
             .crm-badge-quotes { background-color: #e0f2fe !important; color: #0369a1 !important; }
             .crm-badge-closed { background-color: #f3f4f6 !important; color: #374151 !important; }
 
@@ -122,88 +109,44 @@ const CRMView = {
             }
             .status-dropdown-item:hover { filter: brightness(0.95); }
 
-            /* --- Editable Summary Fields --- */
             .lead-summary-field-box {
-                position: relative;
-                cursor: pointer;
-                transition: all 0.2s;
-                border: 1px solid #e2e8f0;
-                border-radius: 6px;
-                background: #f8fafc;
-                min-height: 32px;
-                display: flex;
-                align-items: center;
-                padding: 0 10px;
-                font-weight: 600;
-                color: #1e293b;
-                font-size: 0.9rem;
+                position: relative; cursor: pointer; transition: all 0.2s;
+                border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc;
+                min-height: 32px; display: flex; align-items: center;
+                padding: 0 10px; font-weight: 600; color: #1e293b; font-size: 0.9rem;
             }
-            .lead-summary-field-box:hover {
-                border-color: #cbd5e1;
-                background: #f1f5f9;
-            }
+            .lead-summary-field-box:hover { border-color: #cbd5e1; background: #f1f5f9; }
             .lead-summary-field-box .edit-indicator {
-                position: absolute;
-                right: 8px;
-                color: #94a3b8;
-                font-size: 0.65rem;
-                opacity: 0;
-                transition: opacity 0.2s;
+                position: absolute; right: 8px; color: #94a3b8;
+                font-size: 0.65rem; opacity: 0; transition: opacity 0.2s;
             }
-            .lead-summary-field-box:hover .edit-indicator {
-                opacity: 1;
-            }
+            .lead-summary-field-box:hover .edit-indicator { opacity: 1; }
 
             .crm-edit-container {
-                position: absolute;
-                top: 0; left: 0; right: 0; bottom: 0;
-                z-index: 10;
-                background: white;
-                border-radius: 6px;
-                display: flex;
-                align-items: center;
+                position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                z-index: 10; background: white; border-radius: 6px;
+                display: flex; align-items: center;
                 box-shadow: 0 0 0 2px #3b82f6, 0 4px 6px -1px rgba(0,0,0,0.1);
             }
             .crm-edit-input-field {
-                border: none;
-                background: transparent;
-                width: 100%;
-                height: 100%;
-                padding: 0 40px 0 10px;
-                font-size: 0.9rem;
-                font-weight: 600;
-                outline: none;
+                border: none; background: transparent; width: 100%; height: 100%;
+                padding: 0 40px 0 10px; font-size: 0.9rem; font-weight: 600; outline: none;
             }
-            /* Hide the up/down arrows (spinners) specifically for the quantity input */
             #crmEditQtyInput::-webkit-outer-spin-button,
-            #crmEditQtyInput::-webkit-inner-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
-            }
-            #crmEditQtyInput {
-                padding-right: 32px !important; /* Reduces the "dead zone" slightly now that arrows are gone */
-            }
-            #crmEditQtyInput[type=number] {
-                -moz-appearance: textfield; /* For Firefox */
-            }            
-            .crm-edit-actions {
-                position: absolute;
-                right: 5px;
-                display: flex;
-                gap: 2px;
-            }
+            #crmEditQtyInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+            #crmEditQtyInput { padding-right: 32px !important; }
+            #crmEditQtyInput[type=number] { -moz-appearance: textfield; }            
+            
+            .crm-edit-actions { position: absolute; right: 5px; display: flex; gap: 2px; }
             .btn-crm-save, .btn-crm-cancel {
                 border: none; background: none; padding: 4px; border-radius: 4px;
                 cursor: pointer; transition: background 0.2s;
             }
-            .btn-crm-save { color: #10b981; }
-            .btn-crm-cancel { color: #ef4444; }
-            .btn-crm-save:hover { background: #ecfdf5; }
-            .btn-crm-cancel:hover { background: #fef2f2; }
+            .btn-crm-save { color: #10b981; } .btn-crm-cancel { color: #ef4444; }
+            .btn-crm-save:hover { background: #ecfdf5; } .btn-crm-cancel:hover { background: #fef2f2; }
 
             .crm-edit-dropdown {
-                position: absolute;
-                top: 100%; left: 0; right: 0;
+                position: absolute; top: 100%; left: 0; right: 0;
                 background: white; border: 1px solid #e2e8f0;
                 border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
                 z-index: 100; max-height: 220px; overflow-y: auto;
@@ -211,160 +154,54 @@ const CRMView = {
             }
             .crm-edit-dropdown.show { display: block; }
             .crm-edit-dropdown .dropdown-item {
-                padding: 10px 12px; font-size: 0.75rem; border-bottom: 1px solid #f1f5f9;
-                cursor: pointer;
+                padding: 10px 12px; font-size: 0.75rem; border-bottom: 1px solid #f1f5f9; cursor: pointer;
             }
             .crm-edit-dropdown .dropdown-item:hover { background: #f8fafc; }
             
-            /* --- UPDATED: Recent Update Card with Space for Ghost Button --- */
             .recent-update-card {
-                position: relative;
-                background: #fffbeb;
-                border-left: 4px solid #f6e05e !important;
-                transition: all 0.2s ease;
-                line-height: 1.6;
-                padding-right: 40px !important; /* Space for button */
+                position: relative; background: #fffbeb; border-left: 4px solid #f6e05e !important;
+                transition: all 0.2s ease; line-height: 1.6; padding-right: 40px !important;
             }
-
-            .recent-update-summary {
-                font-weight: 600;
-                color: #1e293b;
-                margin-bottom: 8px;
-                font-size: 0.9rem;
-            }
-
-            .recent-update-details {
-                color: #475569;
-                font-size: 0.85rem;
-                line-height: 1.6;
-            }
+            .recent-update-summary { font-weight: 600; color: #1e293b; margin-bottom: 8px; font-size: 0.9rem; }
+            .recent-update-details { color: #475569; font-size: 0.85rem; line-height: 1.6; }
 
             .note-composer {
-                background: white;
-                border: 2px solid #3b82f6;
-                border-radius: 8px;
-                padding: 12px;
-                margin-bottom: 15px;
-                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-                display: none;
+                background: white; border: 2px solid #3b82f6; border-radius: 8px;
+                padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); display: none;
             }
-
             .note-composer input {
-                border: 1px solid #e2e8f0;
-                border-radius: 6px;
-                width: 100%;
-                padding: 8px 10px;
-                font-size: 0.85rem;
-                outline: none;
-                margin-bottom: 8px;
-                font-weight: 600;
+                border: 1px solid #e2e8f0; border-radius: 6px; width: 100%;
+                padding: 8px 10px; font-size: 0.85rem; outline: none; margin-bottom: 8px; font-weight: 600;
             }
-
-            .note-composer input:focus {
-                border-color: #3b82f6;
-                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-            }
-
             .note-composer textarea {
-                border: 1px solid #e2e8f0;
-                border-radius: 6px;
-                width: 100%;
-                resize: vertical;
-                font-size: 0.85rem;
-                outline: none;
-                min-height: 70px;
-                padding: 8px 10px;
+                border: 1px solid #e2e8f0; border-radius: 6px; width: 100%;
+                resize: vertical; font-size: 0.85rem; outline: none; min-height: 70px; padding: 8px 10px;
             }
 
-            .note-composer textarea:focus {
-                border-color: #3b82f6;
-                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-            }
-
-            /* --- NEW: Style 2 (Ghost) + Icon Stack Logic --- */
-            
             .btn-add-note-ghost {
-                position: absolute; 
-                top: 8px; 
-                right: 8px;
-                width: 38px;
-                height: 38px;
-                cursor: pointer;
-                display: flex; 
-                align-items: center; 
-                justify-content: center;
-                border: none;
-                outline: none;
-                z-index: 10;
-                
-                /* Ghost Style */
-                background: transparent;
-                border-radius: 8px;
-                transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+                position: absolute; top: 8px; right: 8px; width: 38px; height: 38px;
+                cursor: pointer; display: flex; align-items: center; justify-content: center;
+                border: none; outline: none; z-index: 10;
+                background: transparent; border-radius: 8px; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
-            
-            .btn-add-note-ghost:hover {
-                background: white;
-                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-                transform: translateY(-1px);
-            }
+            .btn-add-note-ghost:hover { background: white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
 
-            /* Icon Stack Logic */
-            .note-icon-stack {
-                position: relative;
-                display: flex; align-items: center; justify-content: center;
-                width: 20px; height: 20px;
-                pointer-events: none;
-            }
-
-            .note-icon-stack .fa-sticky-note {
-                font-size: 1.4rem;
-                color: #fbbf24; /* Amber-400 */
-                transition: color 0.2s;
-            }
-
-            /* The "Blocky" Plus - Border Layer (Matches background to look like cutout) */
+            .note-icon-stack { position: relative; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; pointer-events: none; }
+            .note-icon-stack .fa-sticky-note { font-size: 1.4rem; color: #fbbf24; transition: color 0.2s; }
             .blocky-plus {
-                position: absolute;
-                top: -5px; 
-                right: -6px;
-                width: 14px; 
-                height: 14px;
-                background: #fffbeb; /* Matches Card Background */
+                position: absolute; top: -5px; right: -6px; width: 14px; height: 14px;
+                background: #fffbeb;
                 clip-path: polygon(35% 0%, 65% 0%, 65% 35%, 100% 35%, 100% 65%, 65% 65%, 65% 100%, 35% 100%, 35% 65%, 0% 65%, 0% 35%, 35% 35%);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 2;
-                transition: background 0.2s;
+                display: flex; align-items: center; justify-content: center; z-index: 2; transition: background 0.2s;
             }
-            
-            /* Change cutout color on hover to match button bg */
-            .btn-add-note-ghost:hover .blocky-plus {
-                background: white; 
-            }
-
-            /* The "Blocky" Plus - Center Color */
+            .btn-add-note-ghost:hover .blocky-plus { background: white; }
             .blocky-plus::after {
-                content: '';
-                position: absolute;
-                width: 10px;
-                height: 10px;
-                background: #f59e0b; /* Amber-500 */
+                content: ''; position: absolute; width: 10px; height: 10px; background: #f59e0b;
                 clip-path: polygon(35% 0%, 65% 0%, 65% 35%, 100% 35%, 100% 65%, 65% 65%, 65% 100%, 35% 100%, 35% 65%, 0% 65%, 0% 35%, 35% 35%);
             }
 
-            .quotes-btn-responsive {
-                transition: transform 0.2s, opacity 0.2s;
-                padding: 4px;
-                border-radius: 6px;
-            }
-            /* ... existing code ... */
-            .quotes-btn-responsive:active {
-                transform: scale(0.95);
-                opacity: 0.7;
-            }
-            /* REMOVED OLD .btn-note-icon styles */
+            .quotes-btn-responsive { transition: transform 0.2s, opacity 0.2s; padding: 4px; border-radius: 6px; }
+            .quotes-btn-responsive:active { transform: scale(0.95); opacity: 0.7; }
 
             #crmSortRecent.active { background-color: #0d6efd; color: white; }
             #crmSortValue.active { background-color: #198754; color: white; }
@@ -421,18 +258,19 @@ const CRMView = {
             const valueStr = l._calculatedValue > 0 ? fmt.format(l._calculatedValue) : "TBD";
             const isActive = CRMService.currentLead?.LeadId === l.LeadId ? 'active-lead' : '';
             
+            // --- STATUS COLOR LOGIC ---
             let badgeClass = 'crm-badge-new';
             if (l.Status === 'Waiting On Contact') badgeClass = 'crm-badge-waiting';
+            else if (l.Status === 'Waiting On You') badgeClass = 'crm-badge-waiting-you'; // New Orange Status
             else if (l.Status === 'Action Required') badgeClass = 'crm-badge-action';
             else if (l.Status === 'Sent To Quotes') badgeClass = 'crm-badge-quotes';
             else if (l.Status === 'Closed') badgeClass = 'crm-badge-closed';
             
-            // --- SPARKLE LOGIC ---
             let statusIcon = '';
             let tooltip = '';
             if (l._isCalculated) {
                 statusIcon = this.SPARKLE_ICON;
-                tooltip = 'title="Status updated based on recent email" data-bs-toggle="tooltip"';
+                tooltip = 'title="Status updated automatically" data-bs-toggle="tooltip"';
             }
 
             return `
@@ -461,7 +299,6 @@ const CRMView = {
             </div>`;
         }).join('');
         
-        // Re-init tooltips
         document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
     },
 
@@ -495,7 +332,6 @@ const CRMView = {
     },
 
     renderLeadSummary(lead, timelineItems) {
-        // Safety cleanup if we are re-rendering while an edit was open
         if (this.currentEditCleanup) {
             this.currentEditCleanup();
             this.currentEditCleanup = null;
@@ -508,32 +344,25 @@ const CRMView = {
         const estimatedValue = CRMService.calculateLeadValue(partNumber, lead.Quantity);
         const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
         
-        // --- UPDATED LOGIC: Determine Recent Update Content ---
         let recentSummaryTitle = "No notes yet";
         let recentBodyMessage = "No specific notes found.";
 
         const latestNote = timelineItems.find(item => item.type === 'event' && item.eventType === 'Note');
 
         if (latestNote) {
-            // Case 1: We have a user note
             recentSummaryTitle = latestNote.summary;
             recentBodyMessage = latestNote.details;
         } else {
-            // Case 2: No note, use lead creation
             const leadCreated = timelineItems.find(item => item.summary === 'Lead Created');
             recentSummaryTitle = "Lead Created";
-            recentBodyMessage = leadCreated.details;
+            recentBodyMessage = leadCreated?.details || "Lead initialized.";
         }
 
-        // --- NEW: Generate Contacts List with Outlook Deep Link ---
         const linkedContacts = CRMService.anchorsCache.filter(a => a.LeadId === lead.LeadId);
         const contactsHtml = linkedContacts.length > 0 
             ? linkedContacts.map(c => {
                 const email = c.Email || "Unknown";
                 const initial = email.charAt(0).toUpperCase();
-                
-                // 1. Create a "Deep Link" specific to Outlook Web
-                // 2. Pre-fill the Subject with the Lead Title
                 const subject = encodeURIComponent(`Regarding: ${lead.Title}`);
                 const outlookLink = `https://outlook.office.com/mail/deeplink/compose?to=${email}&subject=${subject}`;
 
@@ -571,7 +400,6 @@ const CRMView = {
                         <label class="small text-muted mb-0 d-block text-uppercase fw-bold" style="font-size:0.85rem;">Most Recent Update</label>
                     </div>
                     <div class="p-3 rounded shadow-sm recent-update-card">
-                        <!-- BUTTON MOVED INSIDE THE CARD WITH GHOST STYLE -->
                         <button class="btn-add-note-ghost" onclick="CRMView.toggleNoteComposer(true)" title="Add Note">
                             <div class="note-icon-stack">
                                 <i class="fas fa-sticky-note"></i>
@@ -624,7 +452,6 @@ const CRMView = {
             </div>
         `;
 
-        // Attach click handler safely
         const saveBtn = document.getElementById('crmSaveNoteBtn');
         if (saveBtn) {
             saveBtn.addEventListener('click', (e) => {
@@ -636,7 +463,6 @@ const CRMView = {
     },
 
     enterEditMode(leadId, field) {
-        // Safety: Cleanup any pending listeners from previous edits
         if (this.currentEditCleanup) {
             this.currentEditCleanup();
             this.currentEditCleanup = null;
@@ -653,7 +479,6 @@ const CRMView = {
         
         const editContainer = document.createElement('div');
         editContainer.className = 'crm-edit-container';
-        // Prevent clicks inside the box from bubbling to the outside listener immediately
         editContainer.onclick = (e) => e.stopPropagation(); 
 
         const input = document.createElement('input');
@@ -666,7 +491,6 @@ const CRMView = {
 
         const actions = document.createElement('div');
         actions.className = 'crm-edit-actions';
-        
         actions.innerHTML = `
             <button class="btn-crm-save" onclick="CRMView.saveEdit('${leadId}', '${field}')"><i class="fas fa-check"></i></button>
         `;
@@ -674,7 +498,6 @@ const CRMView = {
         editContainer.appendChild(input);
         editContainer.appendChild(actions);
 
-        // Dropdown logic for PartNumber
         if (field === 'PartNumber') {
             const dropdown = document.createElement('div');
             dropdown.id = 'crmEditPartDropdown';
@@ -707,25 +530,20 @@ const CRMView = {
         input.focus();
         input.select();
 
-        // UPDATED: Add Global Click Listener for "Click Outside to Revert"
         const outsideClickHandler = (e) => {
-            // If the click is NOT inside the edit container, revert.
             if (!e.target.closest('.crm-edit-container')) {
-                this.renderLeadSummary(lead, this.currentTimelineItems); // Re-renders original state
+                this.renderLeadSummary(lead, this.currentTimelineItems);
             }
         };
 
-        // Use mousedown to feel snappier and match dropdown behavior
         document.addEventListener('mousedown', outsideClickHandler);
 
-        // Store cleanup function
         this.currentEditCleanup = () => {
             document.removeEventListener('mousedown', outsideClickHandler);
         };
     },
 
     async saveEdit(leadId, field) {
-        // Remove the outside listener so it doesn't fire or hang around
         if (this.currentEditCleanup) {
             this.currentEditCleanup();
             this.currentEditCleanup = null;
@@ -734,7 +552,7 @@ const CRMView = {
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         const inputId = field === 'PartNumber' ? 'crmEditPartInput' : 'crmEditQtyInput';
         const input = document.getElementById(inputId);
-        if (!input) return; // Should not happen usually
+        if (!input) return;
 
         const newValue = input.value.trim();
         if (newValue === String(lead[field])) { 
@@ -744,16 +562,13 @@ const CRMView = {
 
         try {
             const updates = {}; updates[field] = newValue;
-            // Show Loading Spinner
             const containerId = field === 'PartNumber' ? 'summaryFieldPartNumber' : 'summaryFieldQuantity';
             const container = document.getElementById(containerId);
             if(container) container.innerHTML = `<div class="p-2 text-center w-100"><div class="spinner-border spinner-border-sm text-primary"></div></div>`;
             
             await CRMService.updateLeadFields(leadId, updates);
-            
-            // Refresh UI
             this.renderLeadSummary(lead, this.currentTimelineItems);
-            this.renderList(); // Update the sidebar list (values/totals might change)
+            this.renderList(); 
         } catch (e) {
             alert("Save failed: " + e.message);
             this.renderLeadSummary(lead, this.currentTimelineItems);
@@ -764,8 +579,10 @@ const CRMView = {
         const actionContainer = document.querySelector('#crmDetailHeader .d-flex.gap-2');
         if (!actionContainer) return;
         
+        // --- UPDATED STATUS BADGE MAPPING ---
         let badgeClass = 'crm-badge-new';
         if (lead.Status === 'Waiting On Contact') badgeClass = 'crm-badge-waiting';
+        else if (lead.Status === 'Waiting On You') badgeClass = 'crm-badge-waiting-you';
         else if (lead.Status === 'Action Required') badgeClass = 'crm-badge-action';
         else if (lead.Status === 'Sent To Quotes') badgeClass = 'crm-badge-quotes';
         else if (lead.Status === 'Closed') badgeClass = 'crm-badge-closed';
@@ -782,6 +599,7 @@ const CRMView = {
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="border-radius: 12px; min-width: 150px;">
                     <li><a class="dropdown-item status-dropdown-item crm-badge-new" onclick="CRMView.updateStatus('${lead.LeadId}', 'New Lead')">New Lead</a></li>
+                    <li><a class="dropdown-item status-dropdown-item crm-badge-waiting-you" onclick="CRMView.updateStatus('${lead.LeadId}', 'Waiting On You')">Waiting On You</a></li>
                     <li><a class="dropdown-item status-dropdown-item crm-badge-waiting" onclick="CRMView.updateStatus('${lead.LeadId}', 'Waiting On Contact')">Waiting On Contact</a></li>
                     <li><a class="dropdown-item status-dropdown-item crm-badge-action" onclick="CRMView.updateStatus('${lead.LeadId}', 'Action Required')">Action Required</a></li>
                     <li><hr class="dropdown-divider"></li>
@@ -800,13 +618,11 @@ const CRMView = {
         composer.style.display = show ? 'block' : 'none';
         if (show) {
             document.getElementById('crmNoteInput').focus();
-            // Pre-select the summary text for easy overwriting
             const summaryInput = document.getElementById('crmNoteSummary');
             if (summaryInput) {
                 setTimeout(() => summaryInput.select(), 50);
             }
         } else {
-            // Reset fields when closing
             document.getElementById('crmNoteSummary').value = 'User Note';
             document.getElementById('crmNoteInput').value = '';
         }
@@ -835,7 +651,7 @@ const CRMView = {
         try {
             await CRMService.addEvent(leadId, "Note", summary, details);
             this.toggleNoteComposer(false);
-            this.loadLead(leadId); // Refresh to show new note in update card
+            this.loadLead(leadId); 
         } catch (e) {
             alert("Failed to save note: " + e.message);
             if (btn) {
