@@ -672,11 +672,16 @@ const CRMView = {
     renderTimeline(items, suggestion = null) {
         const container = document.getElementById('crmTimeline');
         
-        // --- 1. FILTER: Hide 'Suggestion Dismissed' events from view ---
-        // We keep them in the database for logic, but hide them from the UI
-        const visibleItems = items.filter(item => 
-            !(item.eventType === 'System' && item.summary === 'Suggestion Dismissed')
-        );
+        // --- 1. FILTER: Logic Update ---
+        // Hide ALL "System" events by default, EXCEPT for "Lead Created".
+        // We keep Emails, Notes, and the new 'SampleSent' events.
+        const visibleItems = items.filter(item => {
+            // Always show non-system events (Emails, Notes, SampleSent)
+            if (item.eventType !== 'System') return true;
+            
+            // For System events, ONLY show "Lead Created"
+            return item.summary === 'Lead Created';
+        });
 
         let html = '';
 
@@ -713,11 +718,10 @@ const CRMView = {
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>`;
+                </div>`;
         }
 
-        // --- 3. Check for Empty State (using visibleItems) ---
+        // --- 3. Empty State Check ---
         if (visibleItems.length === 0 && !suggestion) { 
             container.innerHTML = `<div class="text-center mt-5 opacity-50"><h5>Start the conversation</h5></div>`; 
             return; 
@@ -728,6 +732,7 @@ const CRMView = {
             const rel = this.getRelativeTime(item.date);
             
             if (item.type === 'email') {
+                // ... (Email rendering logic remains exactly the same) ...
                 const id = `email-${idx}`;
                 return `
                 <div class="d-flex mb-4 fade-in-up">
@@ -752,22 +757,26 @@ const CRMView = {
                     </div>
                 </div>`;
             } else {
+                // Notes, Samples, and 'Lead Created'
                 const isSys = item.eventType === 'System';
-                const isSample = item.eventType === 'SampleSent'; // <--- Detect new type
+                const isSample = item.eventType === 'SampleSent';
 
+                // Default Styling (Notes)
                 let icon = 'fa-sticky-note';
                 let colorClass = 'text-warning'; 
                 let bgClass = 'background:#fffbeb';
 
+                // Styling overrides
                 if (isSys) {
-                    icon = 'fa-cog';
+                    // This will now ONLY apply to 'Lead Created' due to the filter
+                    icon = 'fa-flag'; // Changed to flag to represent "Start"
                     colorClass = 'text-secondary';
-                    bgClass = '';
+                    bgClass = 'background:#f8fafc; border: 1px solid #e2e8f0;';
                 } else if (isSample) {
-                    // --- NEW SAMPLE STYLING ---
-                    icon = 'fa-vial'; // 'fa-vial' or 'fa-flask'
-                    colorClass = 'text-info'; // Blue icon
-                    bgClass = 'background:#f0f9ff; border: 1px solid #bae6fd;'; // Blue card
+                    // Sample Styling
+                    icon = 'fa-vial'; 
+                    colorClass = 'text-info';
+                    bgClass = 'background:#f0f9ff; border: 1px solid #bae6fd;';
                 }
                 
                 return `
