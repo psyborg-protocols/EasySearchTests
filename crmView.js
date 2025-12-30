@@ -683,78 +683,99 @@ async loadLead(leadId) {
         }
     },
 
-    editTitle(leadId) {
+editTitle(leadId) {
+        // 1. Cleanup any existing listeners/edits from other fields
+        if (this.currentEditCleanup) {
+            this.currentEditCleanup();
+            this.currentEditCleanup = null;
+        }
+
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         if (!lead) return;
 
         const container = document.getElementById('crmDetailTitle');
         const currentVal = lead.Title;
 
-        // Replace title text with input group
+        // 2. Render "Invisible" Input Mode
+        // flex-grow: 1 ensures it fills the space. inherit styles make it look like the text.
         container.innerHTML = `
-            <div class="d-flex align-items-center gap-1" onclick="event.stopPropagation()">
-                <input type="text" id="crmTitleEditInput" class="form-control form-control-sm" 
+            <div class="d-flex align-items-center w-100 position-relative" id="crmTitleEditContainer" onclick="event.stopPropagation()">
+                <input type="text" id="crmTitleEditInput" 
                        value="${currentVal}" 
-                       style="font-weight:bold; font-size: 1.1rem; min-width: 200px;">
-                <button class="btn btn-sm btn-success py-0 px-2" onclick="CRMView.saveTitle('${leadId}')" title="Save">
+                       style="border: none; background: transparent; outline: none; font-weight: bold; font-size: inherit; color: inherit; flex-grow: 1; padding: 0; box-shadow: none;"
+                       autocomplete="off">
+                <button class="btn-crm-save ms-2" onclick="CRMView.saveTitle('${leadId}')" title="Save" style="font-size: 1rem; padding: 6px;">
                     <i class="fas fa-check"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="CRMView.cancelEditTitle('${leadId}')" title="Cancel">
-                    <i class="fas fa-times"></i>
                 </button>
             </div>
         `;
         
         const input = document.getElementById('crmTitleEditInput');
         input.focus();
-        // Allow saving on Enter key
+        
+        // 3. Handle Keys (Enter=Save, Escape=Cancel)
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') this.saveTitle(leadId);
             if (e.key === 'Escape') this.cancelEditTitle(leadId);
         });
+
+        // 4. Handle "Click Outside" to Cancel
+        const outsideClickHandler = (e) => {
+            // If the click target is NOT inside our edit container, cancel.
+            if (!e.target.closest('#crmTitleEditContainer')) {
+                this.cancelEditTitle(leadId);
+            }
+        };
+
+        // Delay adding the listener slightly so the click that opened this doesn't immediately close it
+        setTimeout(() => document.addEventListener('mousedown', outsideClickHandler), 0);
+
+        // Store cleanup to remove listener later
+        this.currentEditCleanup = () => {
+            document.removeEventListener('mousedown', outsideClickHandler);
+        };
     },
 
     async saveTitle(leadId) {
+        // Remove click-outside listener
+        if (this.currentEditCleanup) { this.currentEditCleanup(); this.currentEditCleanup = null; }
+
         const input = document.getElementById('crmTitleEditInput');
         if (!input) return;
         
         const newVal = input.value.trim();
-        if (!newVal) {
-            alert("Title cannot be empty");
+        
+        // If empty or unchanged, just revert
+        const currentLead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+        if (!newVal || newVal === currentLead?.Title) {
+            this.cancelEditTitle(leadId);
             return;
         }
 
-        // Optimistic UI update (Show spinner)
+        // Show spinner
         const container = document.getElementById('crmDetailTitle');
         container.innerHTML = `<div class="spinner-border spinner-border-sm text-primary"></div>`;
 
         try {
-            // Update via Service
             await CRMService.updateLeadFields(leadId, { Title: newVal });
+            this.renderList(); // Refresh sidebar
             
-            // Refresh UI
-            this.renderList(); // Update sidebar list
-            
-            // Re-render just the title part (avoid reloading whole timeline)
-            const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
-            container.innerHTML = `
-                <span class="me-2">${lead.Title}</span>
-                <i class="fas fa-pen text-muted edit-title-icon" 
-                   onclick="event.stopPropagation(); CRMView.editTitle('${lead.LeadId}')" 
-                   title="Edit Title" 
-                   style="cursor: pointer; font-size: 0.85rem; opacity: 0.5; transition: all 0.2s;">
-                </i>`;
+            // Re-render the static title view (cancelEditTitle does exactly this logic using the now-updated cache)
+            this.cancelEditTitle(leadId); 
         } catch (e) {
             alert("Error updating title: " + e.message);
-            this.cancelEditTitle(leadId); // Revert on error
+            this.cancelEditTitle(leadId);
         }
     },
 
     cancelEditTitle(leadId) {
-        // Revert to static text without re-fetching data
+        // Remove click-outside listener
+        if (this.currentEditCleanup) { this.currentEditCleanup(); this.currentEditCleanup = null; }
+
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         if (!lead) return;
         
+        // Restore Static View
         const container = document.getElementById('crmDetailTitle');
         container.innerHTML = `
             <span class="me-2">${lead.Title}</span>
