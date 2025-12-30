@@ -768,22 +768,93 @@ editTitle(leadId) {
         }
     },
 
-    cancelEditTitle(leadId) {
-        // Remove click-outside listener
-        if (this.currentEditCleanup) { this.currentEditCleanup(); this.currentEditCleanup = null; }
+editTitle(leadId) {
+        if (this.currentEditCleanup) {
+            this.currentEditCleanup();
+            this.currentEditCleanup = null;
+        }
 
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         if (!lead) return;
-        
-        // Restore Static View
+
         const container = document.getElementById('crmDetailTitle');
+        const currentVal = lead.Title;
+
+        // Use a Textarea for auto-expanding height on long titles
         container.innerHTML = `
-            <span class="me-2">${lead.Title}</span>
-            <i class="fas fa-pen text-muted edit-title-icon" 
-               onclick="event.stopPropagation(); CRMView.editTitle('${lead.LeadId}')" 
-               title="Edit Title" 
-               style="cursor: pointer; font-size: 0.85rem; opacity: 0.5; transition: all 0.2s;">
-            </i>`;
+            <div class="d-flex align-items-start w-100 position-relative" id="crmTitleEditContainer" onclick="event.stopPropagation()">
+                <textarea id="crmTitleEditInput" rows="1"
+                       style="border: none; background: transparent; outline: none; font-weight: bold; font-size: inherit; color: inherit; width: 100%; resize: none; overflow: hidden; line-height: 1.2;"
+                       autocomplete="off">${currentVal}</textarea>
+                <button class="btn-crm-save ms-2 mt-1" onclick="CRMView.saveTitle('${leadId}')" title="Save" style="font-size: 1rem; padding: 6px; flex-shrink: 0;">
+                    <i class="fas fa-check"></i>
+                </button>
+            </div>
+        `;
+        
+        const input = document.getElementById('crmTitleEditInput');
+        
+        // Auto-resize function
+        const autoResize = () => {
+            input.style.height = 'auto';
+            input.style.height = input.scrollHeight + 'px';
+        };
+
+        // Initialize focus and height
+        input.focus();
+        autoResize();
+
+        // Listeners
+        input.addEventListener('input', autoResize);
+        
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent new line in textarea
+                this.saveTitle(leadId);
+            }
+            if (e.key === 'Escape') this.cancelEditTitle(leadId);
+        });
+
+        // Click Outside to Cancel
+        const outsideClickHandler = (e) => {
+            if (!e.target.closest('#crmTitleEditContainer')) {
+                this.cancelEditTitle(leadId);
+            }
+        };
+
+        setTimeout(() => document.addEventListener('mousedown', outsideClickHandler), 0);
+        this.currentEditCleanup = () => {
+            document.removeEventListener('mousedown', outsideClickHandler);
+        };
+    },
+
+    async saveTitle(leadId) {
+        if (this.currentEditCleanup) { this.currentEditCleanup(); this.currentEditCleanup = null; }
+
+        const input = document.getElementById('crmTitleEditInput');
+        if (!input) return;
+        
+        // Get value from textarea
+        const newVal = input.value.trim();
+        const currentLead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+
+        if (!newVal || newVal === currentLead?.Title) {
+            this.cancelEditTitle(leadId);
+            return;
+        }
+
+        // Show spinner
+        const container = document.getElementById('crmDetailTitle');
+        container.innerHTML = `<div class="spinner-border spinner-border-sm text-primary"></div>`;
+
+        try {
+            await CRMService.updateLeadFields(leadId, { Title: newVal });
+            this.renderList(); 
+            this.cancelEditTitle(leadId); // Re-renders the static view
+        } catch (e) {
+            alert("Error updating title: " + e.message);
+            this.cancelEditTitle(leadId);
+        }
     },
 
     renderHeaderActions(lead) {
