@@ -64,7 +64,7 @@ const CRMView = {
         style.id = 'crm-custom-styles';
         style.innerHTML = `
             .sparkle-anim { color: #fbbf24; }
-
+            .edit-title-icon:hover { opacity: 1 !important; color: #3b82f6 !important; transform: scale(1.1); }            
             .crm-timeline-container { position: relative; padding-left: 20px; }
             .crm-timeline-container::before {
                 content: ''; position: absolute; top: 0; bottom: 0; margin-top: 10px; margin-bottom: 80px;
@@ -595,6 +595,88 @@ const CRMView = {
             alert("Save failed: " + e.message);
             this.renderLeadSummary(lead, this.currentTimelineItems);
         }
+    },
+
+    editTitle(leadId) {
+        const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+        if (!lead) return;
+
+        const container = document.getElementById('crmDetailTitle');
+        const currentVal = lead.Title;
+
+        // Replace title text with input group
+        container.innerHTML = `
+            <div class="d-flex align-items-center gap-1" onclick="event.stopPropagation()">
+                <input type="text" id="crmTitleEditInput" class="form-control form-control-sm" 
+                       value="${currentVal}" 
+                       style="font-weight:bold; font-size: 1.1rem; min-width: 200px;">
+                <button class="btn btn-sm btn-success py-0 px-2" onclick="CRMView.saveTitle('${leadId}')" title="Save">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="CRMView.cancelEditTitle('${leadId}')" title="Cancel">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        const input = document.getElementById('crmTitleEditInput');
+        input.focus();
+        // Allow saving on Enter key
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.saveTitle(leadId);
+            if (e.key === 'Escape') this.cancelEditTitle(leadId);
+        });
+    },
+
+    async saveTitle(leadId) {
+        const input = document.getElementById('crmTitleEditInput');
+        if (!input) return;
+        
+        const newVal = input.value.trim();
+        if (!newVal) {
+            alert("Title cannot be empty");
+            return;
+        }
+
+        // Optimistic UI update (Show spinner)
+        const container = document.getElementById('crmDetailTitle');
+        container.innerHTML = `<div class="spinner-border spinner-border-sm text-primary"></div>`;
+
+        try {
+            // Update via Service
+            await CRMService.updateLeadFields(leadId, { Title: newVal });
+            
+            // Refresh UI
+            this.renderList(); // Update sidebar list
+            
+            // Re-render just the title part (avoid reloading whole timeline)
+            const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+            container.innerHTML = `
+                <span class="me-2">${lead.Title}</span>
+                <i class="fas fa-pen text-muted edit-title-icon" 
+                   onclick="event.stopPropagation(); CRMView.editTitle('${lead.LeadId}')" 
+                   title="Edit Title" 
+                   style="cursor: pointer; font-size: 0.85rem; opacity: 0.5; transition: all 0.2s;">
+                </i>`;
+        } catch (e) {
+            alert("Error updating title: " + e.message);
+            this.cancelEditTitle(leadId); // Revert on error
+        }
+    },
+
+    cancelEditTitle(leadId) {
+        // Revert to static text without re-fetching data
+        const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+        if (!lead) return;
+        
+        const container = document.getElementById('crmDetailTitle');
+        container.innerHTML = `
+            <span class="me-2">${lead.Title}</span>
+            <i class="fas fa-pen text-muted edit-title-icon" 
+               onclick="event.stopPropagation(); CRMView.editTitle('${lead.LeadId}')" 
+               title="Edit Title" 
+               style="cursor: pointer; font-size: 0.85rem; opacity: 0.5; transition: all 0.2s;">
+            </i>`;
     },
 
     renderHeaderActions(lead) {
