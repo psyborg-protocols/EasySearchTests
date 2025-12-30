@@ -683,8 +683,7 @@ async loadLead(leadId) {
         }
     },
 
-editTitle(leadId) {
-        // 1. Cleanup any existing listeners/edits from other fields
+    editTitle(leadId) {
         if (this.currentEditCleanup) {
             this.currentEditCleanup();
             this.currentEditCleanup = null;
@@ -696,15 +695,16 @@ editTitle(leadId) {
         const container = document.getElementById('crmDetailTitle');
         const currentVal = lead.Title;
 
-        // 2. Render "Invisible" Input Mode
-        // flex-grow: 1 ensures it fills the space. inherit styles make it look like the text.
+        // 1. Setup Container
+        // w-100 ensures the edit container takes full width of the parent
+        // position-relative helps with click detection
         container.innerHTML = `
             <div class="d-flex align-items-center w-100 position-relative" id="crmTitleEditContainer" onclick="event.stopPropagation()">
                 <input type="text" id="crmTitleEditInput" 
                        value="${currentVal}" 
-                       style="border: none; background: transparent; outline: none; font-weight: bold; font-size: inherit; color: inherit; flex-grow: 1; padding: 0; box-shadow: none;"
+                       style="border: none; background: transparent; outline: none; font-weight: bold; font-size: inherit; color: inherit; width: 100%; min-width: 0; padding: 0; margin: 0; box-shadow: none;"
                        autocomplete="off">
-                <button class="btn-crm-save ms-2" onclick="CRMView.saveTitle('${leadId}')" title="Save" style="font-size: 1rem; padding: 6px;">
+                <button class="btn-crm-save ms-2 flex-shrink-0" onclick="CRMView.saveTitle('${leadId}')" title="Save" style="font-size: 1rem; padding: 6px;">
                     <i class="fas fa-check"></i>
                 </button>
             </div>
@@ -712,55 +712,49 @@ editTitle(leadId) {
         
         const input = document.getElementById('crmTitleEditInput');
         input.focus();
+        // Move cursor to end of text
+        input.setSelectionRange(input.value.length, input.value.length); 
         
-        // 3. Handle Keys (Enter=Save, Escape=Cancel)
+        // 2. Listeners
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') this.saveTitle(leadId);
             if (e.key === 'Escape') this.cancelEditTitle(leadId);
         });
 
-        // 4. Handle "Click Outside" to Cancel
+        // 3. Click Outside to Cancel
         const outsideClickHandler = (e) => {
-            // If the click target is NOT inside our edit container, cancel.
             if (!e.target.closest('#crmTitleEditContainer')) {
                 this.cancelEditTitle(leadId);
             }
         };
 
-        // Delay adding the listener slightly so the click that opened this doesn't immediately close it
         setTimeout(() => document.addEventListener('mousedown', outsideClickHandler), 0);
-
-        // Store cleanup to remove listener later
         this.currentEditCleanup = () => {
             document.removeEventListener('mousedown', outsideClickHandler);
         };
     },
 
     async saveTitle(leadId) {
-        // Remove click-outside listener
         if (this.currentEditCleanup) { this.currentEditCleanup(); this.currentEditCleanup = null; }
 
         const input = document.getElementById('crmTitleEditInput');
         if (!input) return;
         
         const newVal = input.value.trim();
-        
-        // If empty or unchanged, just revert
         const currentLead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+
+        // If unchanged, just revert
         if (!newVal || newVal === currentLead?.Title) {
             this.cancelEditTitle(leadId);
             return;
         }
 
-        // Show spinner
         const container = document.getElementById('crmDetailTitle');
         container.innerHTML = `<div class="spinner-border spinner-border-sm text-primary"></div>`;
 
         try {
             await CRMService.updateLeadFields(leadId, { Title: newVal });
-            this.renderList(); // Refresh sidebar
-            
-            // Re-render the static title view (cancelEditTitle does exactly this logic using the now-updated cache)
+            this.renderList(); 
             this.cancelEditTitle(leadId); 
         } catch (e) {
             alert("Error updating title: " + e.message);
@@ -768,93 +762,22 @@ editTitle(leadId) {
         }
     },
 
-editTitle(leadId) {
-        if (this.currentEditCleanup) {
-            this.currentEditCleanup();
-            this.currentEditCleanup = null;
-        }
+    cancelEditTitle(leadId) {
+        // Remove click-outside listener
+        if (this.currentEditCleanup) { this.currentEditCleanup(); this.currentEditCleanup = null; }
 
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         if (!lead) return;
-
+        
+        // Restore Static View
         const container = document.getElementById('crmDetailTitle');
-        const currentVal = lead.Title;
-
-        // Use a Textarea for auto-expanding height on long titles
         container.innerHTML = `
-            <div class="d-flex align-items-start w-100 position-relative" id="crmTitleEditContainer" onclick="event.stopPropagation()">
-                <textarea id="crmTitleEditInput" rows="1"
-                       style="border: none; background: transparent; outline: none; font-weight: bold; font-size: inherit; color: inherit; width: 100%; resize: none; overflow: hidden; line-height: 1.2;"
-                       autocomplete="off">${currentVal}</textarea>
-                <button class="btn-crm-save ms-2 mt-1" onclick="CRMView.saveTitle('${leadId}')" title="Save" style="font-size: 1rem; padding: 6px; flex-shrink: 0;">
-                    <i class="fas fa-check"></i>
-                </button>
-            </div>
-        `;
-        
-        const input = document.getElementById('crmTitleEditInput');
-        
-        // Auto-resize function
-        const autoResize = () => {
-            input.style.height = 'auto';
-            input.style.height = input.scrollHeight + 'px';
-        };
-
-        // Initialize focus and height
-        input.focus();
-        autoResize();
-
-        // Listeners
-        input.addEventListener('input', autoResize);
-        
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault(); // Prevent new line in textarea
-                this.saveTitle(leadId);
-            }
-            if (e.key === 'Escape') this.cancelEditTitle(leadId);
-        });
-
-        // Click Outside to Cancel
-        const outsideClickHandler = (e) => {
-            if (!e.target.closest('#crmTitleEditContainer')) {
-                this.cancelEditTitle(leadId);
-            }
-        };
-
-        setTimeout(() => document.addEventListener('mousedown', outsideClickHandler), 0);
-        this.currentEditCleanup = () => {
-            document.removeEventListener('mousedown', outsideClickHandler);
-        };
-    },
-
-    async saveTitle(leadId) {
-        if (this.currentEditCleanup) { this.currentEditCleanup(); this.currentEditCleanup = null; }
-
-        const input = document.getElementById('crmTitleEditInput');
-        if (!input) return;
-        
-        // Get value from textarea
-        const newVal = input.value.trim();
-        const currentLead = CRMService.leadsCache.find(l => l.LeadId === leadId);
-
-        if (!newVal || newVal === currentLead?.Title) {
-            this.cancelEditTitle(leadId);
-            return;
-        }
-
-        // Show spinner
-        const container = document.getElementById('crmDetailTitle');
-        container.innerHTML = `<div class="spinner-border spinner-border-sm text-primary"></div>`;
-
-        try {
-            await CRMService.updateLeadFields(leadId, { Title: newVal });
-            this.renderList(); 
-            this.cancelEditTitle(leadId); // Re-renders the static view
-        } catch (e) {
-            alert("Error updating title: " + e.message);
-            this.cancelEditTitle(leadId);
-        }
+            <span class="me-2">${lead.Title}</span>
+            <i class="fas fa-pen text-muted edit-title-icon" 
+               onclick="event.stopPropagation(); CRMView.editTitle('${lead.LeadId}')" 
+               title="Edit Title" 
+               style="cursor: pointer; font-size: 0.85rem; opacity: 0.5; transition: all 0.2s;">
+            </i>`;
     },
 
     renderHeaderActions(lead) {
