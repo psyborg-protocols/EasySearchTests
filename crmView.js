@@ -303,7 +303,7 @@ const CRMView = {
         document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
     },
 
-    async loadLead(leadId) {
+async loadLead(leadId) {
         // 1. Get the lead from cache immediately
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         if(!lead) return;
@@ -320,7 +320,16 @@ const CRMView = {
         const summaryPane = document.getElementById('crmLeadSummary');
         summaryPane.style.display = 'block';
 
-        document.getElementById('crmDetailTitle').textContent = lead.Title;
+        // --- UPDATED: Title with Edit Icon ---
+        const titleContainer = document.getElementById('crmDetailTitle');
+        titleContainer.innerHTML = `
+            <span class="me-2">${lead.Title}</span>
+            <i class="fas fa-pen text-muted edit-title-icon" 
+               onclick="event.stopPropagation(); CRMView.editTitle('${lead.LeadId}')" 
+               title="Edit Title" 
+               style="cursor: pointer; font-size: 0.85rem; opacity: 0.5; transition: all 0.2s;">
+            </i>`;
+        
         document.getElementById('crmDetailCompany').innerHTML = `<i class="far fa-building me-1"></i> ${lead.Company || "No Company"}`;
         
         // Render buttons and summary fields immediately.
@@ -351,6 +360,83 @@ const CRMView = {
         } catch (e) {
             document.getElementById('crmTimeline').innerHTML = `<div class="alert alert-danger m-4">Error loading history: ${e.message}</div>`;
         }
+    },
+
+    // --- Add these helper methods to CRMView to support the edit functionality ---
+
+    editTitle(leadId) {
+        const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+        if (!lead) return;
+
+        const container = document.getElementById('crmDetailTitle');
+        const currentVal = lead.Title;
+
+        container.innerHTML = `
+            <div class="d-flex align-items-center gap-1" onclick="event.stopPropagation()">
+                <input type="text" id="crmTitleEditInput" class="form-control form-control-sm" 
+                       value="${currentVal}" 
+                       style="font-weight:bold; font-size: 1.1rem; min-width: 200px;">
+                <button class="btn btn-sm btn-success py-0 px-2" onclick="CRMView.saveTitle('${leadId}')" title="Save">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="CRMView.cancelEditTitle('${leadId}')" title="Cancel">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        const input = document.getElementById('crmTitleEditInput');
+        input.focus();
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.saveTitle(leadId);
+            if (e.key === 'Escape') this.cancelEditTitle(leadId);
+        });
+    },
+
+    async saveTitle(leadId) {
+        const input = document.getElementById('crmTitleEditInput');
+        if (!input) return;
+        
+        const newVal = input.value.trim();
+        if (!newVal) {
+            alert("Title cannot be empty");
+            return;
+        }
+
+        const container = document.getElementById('crmDetailTitle');
+        container.innerHTML = `<div class="spinner-border spinner-border-sm text-primary"></div>`;
+
+        try {
+            await CRMService.updateLeadFields(leadId, { Title: newVal });
+            this.renderList(); 
+            
+            // Re-render title area manually
+            const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+            container.innerHTML = `
+                <span class="me-2">${lead.Title}</span>
+                <i class="fas fa-pen text-muted edit-title-icon" 
+                   onclick="event.stopPropagation(); CRMView.editTitle('${lead.LeadId}')" 
+                   title="Edit Title" 
+                   style="cursor: pointer; font-size: 0.85rem; opacity: 0.5; transition: all 0.2s;">
+                </i>`;
+        } catch (e) {
+            alert("Error updating title: " + e.message);
+            this.cancelEditTitle(leadId);
+        }
+    },
+
+    cancelEditTitle(leadId) {
+        const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+        if (!lead) return;
+        
+        const container = document.getElementById('crmDetailTitle');
+        container.innerHTML = `
+            <span class="me-2">${lead.Title}</span>
+            <i class="fas fa-pen text-muted edit-title-icon" 
+               onclick="event.stopPropagation(); CRMView.editTitle('${lead.LeadId}')" 
+               title="Edit Title" 
+               style="cursor: pointer; font-size: 0.85rem; opacity: 0.5; transition: all 0.2s;">
+            </i>`;
     },
 
     renderLeadSummary(lead, timelineItems) {
