@@ -304,36 +304,52 @@ const CRMView = {
     },
 
     async loadLead(leadId) {
+        // 1. Get the lead from cache immediately
         const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
         if(!lead) return;
 
+        // 2. Handle UI Selection State
         document.querySelectorAll('.crm-lead-card').forEach(c => c.classList.remove('active-lead'));
         document.querySelectorAll('.crm-lead-card').forEach(c => {
             if (c.getAttribute('onclick')?.includes(leadId)) c.classList.add('active-lead');
         });
 
+        // 3. Show the Pane & Render STATIC data immediately (Instant UX)
+        // We do NOT show a spinner for the whole pane anymore.
         document.getElementById('crmDetailHeader').style.setProperty('display', 'flex', 'important');
         const summaryPane = document.getElementById('crmLeadSummary');
         summaryPane.style.display = 'block';
-        summaryPane.innerHTML = `<div class="p-3 text-center"><div class="spinner-border spinner-border-sm text-primary"></div></div>`;
 
         document.getElementById('crmDetailTitle').textContent = lead.Title;
         document.getElementById('crmDetailCompany').innerHTML = `<i class="far fa-building me-1"></i> ${lead.Company || "No Company"}`;
         
+        // Render buttons and summary fields immediately.
+        // We pass [] as timeline items so it renders "No notes yet" temporarily instead of crashing.
         this.renderHeaderActions(lead);
+        this.renderLeadSummary(lead, []); 
+
+        // 4. Show a Spinner ONLY in the Timeline area (User knows data is loading, but can still see lead info)
+        document.getElementById('crmTimeline').innerHTML = `
+            <div class="text-center mt-5">
+                <div class="spinner-border spinner-border-sm text-primary"></div>
+                <div class="small text-muted mt-2">Loading history...</div>
+            </div>`;
 
         try {
+            // 5. Fetch Heavy Data (Parallelized in CRMService.getFullTimeline)
             const items = await CRMService.getFullTimeline(lead);
             this.currentTimelineItems = items; 
 
-            // 2. Run the smart check
-            // We pass 'items' so it can see if a dismissal event exists
+            // 6. Check for Smart Suggestions (Samples)
             const suggestion = await CRMService.checkSampleSuggestions(lead, items);
 
+            // 7. Render Final Data
             this.renderTimeline(items, suggestion);
-            this.renderLeadSummary(lead, items);
+            
+            // Re-render summary to update the "Most Recent Update" box with the actual latest note/event
+            this.renderLeadSummary(lead, items); 
         } catch (e) {
-            document.getElementById('crmTimeline').innerHTML = `<div class="alert alert-danger m-4">${e.message}</div>`;
+            document.getElementById('crmTimeline').innerHTML = `<div class="alert alert-danger m-4">Error loading history: ${e.message}</div>`;
         }
     },
 
