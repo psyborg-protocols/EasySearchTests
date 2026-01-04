@@ -869,17 +869,12 @@ async loadLead(leadId) {
                 try {
                     let htmlBody = await CRMService.getMessageBody(messageId);
 
-                    // --- SANITIZATION START ---
                     // 1. Strip <style>, <script>, <link>, and <head> to prevent breaking the app layout
                     htmlBody = htmlBody.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
                                        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
                                        .replace(/<link\b[^>]*>/gi, "")
                                        .replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, "");
                     
-                    // 2. Strip Images (existing logic)
-                    htmlBody = htmlBody.replace(/<img\b[^>]*>/gi, '<span class="text-muted fst-italic small">[Image Removed]</span>');
-                    // --- SANITIZATION END ---
-
                     // Render with strict containment
                     el.innerHTML = `
                         <div class="p-3 bg-white border-top" 
