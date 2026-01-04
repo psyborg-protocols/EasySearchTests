@@ -851,12 +851,10 @@ async loadLead(leadId) {
         });
 
         if (isCurrentlyOpen) {
-            // Case: We clicked an already open email, so we just closed it (above).
-            // Result: No emails are open, so bring back the Summary Pane.
+            // Case: We clicked an already open email, so we just closed it.
             if (summaryPane) summaryPane.style.display = 'block';
         } else {
             // Case: We clicked a closed email.
-            // Action: Open the clicked email and hide the Summary Pane.
             el.classList.add('show');
             if (summaryPane) summaryPane.style.display = 'none';
 
@@ -871,11 +869,24 @@ async loadLead(leadId) {
                 try {
                     let htmlBody = await CRMService.getMessageBody(messageId);
 
-                    // Strip Images
+                    // --- SANITIZATION START ---
+                    // 1. Strip <style>, <script>, <link>, and <head> to prevent breaking the app layout
+                    htmlBody = htmlBody.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+                                       .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+                                       .replace(/<link\b[^>]*>/gi, "")
+                                       .replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, "");
+                    
+                    // 2. Strip Images (existing logic)
                     htmlBody = htmlBody.replace(/<img\b[^>]*>/gi, '<span class="text-muted fst-italic small">[Image Removed]</span>');
+                    // --- SANITIZATION END ---
 
-                    // Render with overflow protection
-                    el.innerHTML = `<div class="p-3 bg-white border-top" style="overflow-x: auto; word-wrap: break-word; max-width: 100%; box-sizing: border-box;">${htmlBody}</div>`;
+                    // Render with strict containment
+                    el.innerHTML = `
+                        <div class="p-3 bg-white border-top" 
+                             style="overflow-x: auto; width: 100%; word-wrap: break-word; box-sizing: border-box;">
+                             ${htmlBody}
+                        </div>`;
+                    
                     el.dataset.fullBodyLoaded = "true";
                 } catch (e) {
                     el.innerHTML = `<div class="p-2 text-danger small">Error loading body: ${e.message}</div>`;
