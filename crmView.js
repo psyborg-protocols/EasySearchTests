@@ -838,17 +838,27 @@ async loadLead(leadId) {
     async updateStatus(lId, s) { await CRMService.updateStatus(lId, s); this.loadLead(lId); this.renderList(); },
     async closeLeadConfirm(lId) { if (confirm("Close lead?")) this.updateStatus(lId, 'Closed'); },
 
-    // --- NEW: Toggle Email Body Fetcher ---
     async toggleEmailBody(domId, messageId) {
         const el = document.getElementById(domId);
         if (!el) return;
 
+        const summaryPane = document.getElementById('crmLeadSummary');
         const isShowing = el.classList.contains('show');
         
         if (isShowing) {
             el.classList.remove('show');
+
+            // Logic: If no other emails are currently open, restore the summary pane
+            const anyOpen = document.querySelectorAll('#crmTimeline .collapse.show').length > 0;
+            if (!anyOpen && summaryPane) {
+                summaryPane.style.display = 'block';
+            }
+
         } else {
             el.classList.add('show');
+
+            // Logic: Hide summary pane to maximize horizontal space for the email
+            if (summaryPane) summaryPane.style.display = 'none';
 
             // Only fetch if not already loaded
             if (!el.dataset.fullBodyLoaded) {
