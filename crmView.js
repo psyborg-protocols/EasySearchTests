@@ -875,8 +875,7 @@ async loadLead(leadId) {
                     htmlBody = htmlBody.replace(/<img\b[^>]*>/gi, '<span class="text-muted fst-italic small">[Image Removed]</span>');
 
                     // Render with overflow protection
-                    el.innerHTML = `<div class="p-3 bg-white border-top" style="overflow-x: hidden; word-wrap: break-word; max-width: 100%;">${htmlBody}</div>`;
-                    el.dataset.fullBodyLoaded = "true";
+                    el.innerHTML = `<div class="p-3 bg-white border-top" style="overflow-x: auto; word-wrap: break-word; max-width: 100%; box-sizing: border-box;">${htmlBody}</div>`;                    el.dataset.fullBodyLoaded = "true";
                 } catch (e) {
                     el.innerHTML = `<div class="p-2 text-danger small">Error loading body: ${e.message}</div>`;
                 }
