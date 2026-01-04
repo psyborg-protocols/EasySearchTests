@@ -671,7 +671,7 @@ async loadLead(leadId) {
             <div class="d-flex align-items-center w-100 position-relative" id="crmTitleEditContainer" onclick="event.stopPropagation()">
                 <input type="text" id="crmTitleEditInput" 
                        value="${currentVal}" 
-                       style="border: none; background: transparent; outline: none; font-size: inherit; color: inherit; width: 100%; min-width: 0; padding: 0; margin: 0; box-shadow: none;"
+                       style="border: none; background: transparent; outline: none; font-weight: inherit; font-size: inherit; color: inherit; width: 100%; min-width: 0; padding: 0; margin: 0; box-shadow: none;"
                        autocomplete="off">
                 <button class="btn-crm-save ms-2 flex-shrink-0" onclick="CRMView.saveTitle('${leadId}')" title="Save" style="font-size: 1rem; padding: 6px;">
                     <i class="fas fa-check"></i>
