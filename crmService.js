@@ -53,6 +53,13 @@ const CRMService = {
         return await res.json();
     },
 
+    // --- NEW: Email Body Fetcher ---
+    async getMessageBody(messageId) {
+        // Fetches the HTML content of a specific message
+        const data = await this._graphRequest(`https://graph.microsoft.com/v1.0/me/messages/${messageId}?$select=body`);
+        return data.body?.content || "<p>No content available.</p>";
+    },
+
     // --- Business Logic / Calculations ---
     calculateLeadValue(partNumber, quantity) {
         const pn = (partNumber || "").trim();

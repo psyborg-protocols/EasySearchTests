@@ -387,7 +387,7 @@ async loadLead(leadId) {
                    onclick="event.stopPropagation(); CRMView.editTitle('${lead.LeadId}')" 
                    title="Edit Title" 
                    style="cursor: pointer; font-size: 0.85rem; opacity: 0.5; transition: all 0.2s;">
-                </i>`;
+            </i>`;
         } catch (e) {
             alert("Error updating title: " + e.message);
             this.cancelEditTitle(leadId);
@@ -838,6 +838,41 @@ async loadLead(leadId) {
     async updateStatus(lId, s) { await CRMService.updateStatus(lId, s); this.loadLead(lId); this.renderList(); },
     async closeLeadConfirm(lId) { if (confirm("Close lead?")) this.updateStatus(lId, 'Closed'); },
 
+    // --- NEW: Toggle Email Body Fetcher ---
+    async toggleEmailBody(domId, messageId) {
+        const el = document.getElementById(domId);
+        if (!el) return;
+
+        const isShowing = el.classList.contains('show');
+        
+        if (isShowing) {
+            el.classList.remove('show');
+        } else {
+            el.classList.add('show');
+
+            // Only fetch if not already loaded
+            if (!el.dataset.fullBodyLoaded) {
+                const originalContent = el.innerHTML;
+                
+                // Show Spinner
+                el.innerHTML = `
+                    <div class="p-3 text-center">
+                        <div class="spinner-border spinner-border-sm text-primary"></div>
+                        <div class="small text-muted mt-1">Fetching email body...</div>
+                    </div>`;
+
+                try {
+                    const htmlBody = await CRMService.getMessageBody(messageId);
+                    // Render HTML
+                    el.innerHTML = `<div class="p-3 bg-white border-top">${htmlBody}</div>`;
+                    el.dataset.fullBodyLoaded = "true";
+                } catch (e) {
+                    el.innerHTML = `<div class="p-2 text-danger small">Error loading body: ${e.message}</div>`;
+                }
+            }
+        }
+    },
+
     renderTimeline(items, suggestion = null) {
         const container = document.getElementById('crmTimeline');
         
@@ -901,7 +936,6 @@ async loadLead(leadId) {
             const rel = this.getRelativeTime(item.date);
             
             if (item.type === 'email') {
-                // ... (Email rendering logic remains exactly the same) ...
                 const id = `email-${idx}`;
                 return `
                 <div class="d-flex mb-4 fade-in-up">
@@ -911,7 +945,7 @@ async loadLead(leadId) {
                         </div>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="card border-0 shadow-sm" onclick="CRMView.toggleCollapse('${id}')" style="cursor:pointer;">
+                        <div class="card border-0 shadow-sm" onclick="CRMView.toggleEmailBody('${id}', '${item.id}')" style="cursor:pointer;">
                             <div class="card-body p-3">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="small fw-bold text-primary">${item.from}</span>
