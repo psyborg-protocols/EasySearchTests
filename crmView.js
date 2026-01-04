@@ -843,28 +843,25 @@ async loadLead(leadId) {
         if (!el) return;
 
         const summaryPane = document.getElementById('crmLeadSummary');
-        const isShowing = el.classList.contains('show');
-        
-        if (isShowing) {
-            el.classList.remove('show');
+        const isCurrentlyOpen = el.classList.contains('show');
 
-            // Logic: If no other emails are currently open, restore the summary pane
-            const anyOpen = document.querySelectorAll('#crmTimeline .collapse.show').length > 0;
-            if (!anyOpen && summaryPane) {
-                summaryPane.style.display = 'block';
-            }
+        // 1. Close ALL open emails first
+        document.querySelectorAll('#crmTimeline .collapse.show').forEach(openEmail => {
+            openEmail.classList.remove('show');
+        });
 
+        if (isCurrentlyOpen) {
+            // Case: We clicked an already open email, so we just closed it (above).
+            // Result: No emails are open, so bring back the Summary Pane.
+            if (summaryPane) summaryPane.style.display = 'block';
         } else {
+            // Case: We clicked a closed email.
+            // Action: Open the clicked email and hide the Summary Pane.
             el.classList.add('show');
-
-            // Logic: Hide summary pane to maximize horizontal space for the email
             if (summaryPane) summaryPane.style.display = 'none';
 
-            // Only fetch if not already loaded
+            // Only fetch content if not already loaded
             if (!el.dataset.fullBodyLoaded) {
-                const originalContent = el.innerHTML;
-                
-                // Show Spinner
                 el.innerHTML = `
                     <div class="p-3 text-center">
                         <div class="spinner-border spinner-border-sm text-primary"></div>
@@ -872,9 +869,13 @@ async loadLead(leadId) {
                     </div>`;
 
                 try {
-                    const htmlBody = await CRMService.getMessageBody(messageId);
-                    // Render HTML
-                    el.innerHTML = `<div class="p-3 bg-white border-top">${htmlBody}</div>`;
+                    let htmlBody = await CRMService.getMessageBody(messageId);
+
+                    // Strip Images
+                    htmlBody = htmlBody.replace(/<img\b[^>]*>/gi, '<span class="text-muted fst-italic small">[Image Removed]</span>');
+
+                    // Render with overflow protection
+                    el.innerHTML = `<div class="p-3 bg-white border-top" style="overflow-x: hidden; word-wrap: break-word; max-width: 100%;">${htmlBody}</div>`;
                     el.dataset.fullBodyLoaded = "true";
                 } catch (e) {
                     el.innerHTML = `<div class="p-2 text-danger small">Error loading body: ${e.message}</div>`;
