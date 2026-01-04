@@ -362,37 +362,6 @@ async loadLead(leadId) {
         }
     },
 
-    // --- Add these helper methods to CRMView to support the edit functionality ---
-
-    editTitle(leadId) {
-        const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
-        if (!lead) return;
-
-        const container = document.getElementById('crmDetailTitle');
-        const currentVal = lead.Title;
-
-        container.innerHTML = `
-            <div class="d-flex align-items-center gap-1" onclick="event.stopPropagation()">
-                <input type="text" id="crmTitleEditInput" class="form-control form-control-sm" 
-                       value="${currentVal}" 
-                       style="font-weight:bold; font-size: 1.1rem; min-width: 200px;">
-                <button class="btn btn-sm btn-success py-0 px-2" onclick="CRMView.saveTitle('${leadId}')" title="Save">
-                    <i class="fas fa-check"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="CRMView.cancelEditTitle('${leadId}')" title="Cancel">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-        
-        const input = document.getElementById('crmTitleEditInput');
-        input.focus();
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') this.saveTitle(leadId);
-            if (e.key === 'Escape') this.cancelEditTitle(leadId);
-        });
-    },
-
     async saveTitle(leadId) {
         const input = document.getElementById('crmTitleEditInput');
         if (!input) return;
@@ -702,7 +671,7 @@ async loadLead(leadId) {
             <div class="d-flex align-items-center w-100 position-relative" id="crmTitleEditContainer" onclick="event.stopPropagation()">
                 <input type="text" id="crmTitleEditInput" 
                        value="${currentVal}" 
-                       style="border: none; background: transparent; outline: none; font-weight: bold; font-size: inherit; color: inherit; width: 100%; min-width: 0; padding: 0; margin: 0; box-shadow: none;"
+                       style="border: none; background: transparent; outline: none; font-size: inherit; color: inherit; width: 100%; min-width: 0; padding: 0; margin: 0; box-shadow: none;"
                        autocomplete="off">
                 <button class="btn-crm-save ms-2 flex-shrink-0" onclick="CRMView.saveTitle('${leadId}')" title="Save" style="font-size: 1rem; padding: 6px;">
                     <i class="fas fa-check"></i>
