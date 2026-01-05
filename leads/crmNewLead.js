@@ -69,6 +69,11 @@ const CRMNewLead = {
 
                     <div>
                         <label class="section-label text-uppercase text-muted small fw-bold mb-2">Contact Details</label>
+                        <div class="input-group-custom mb-3 position-relative">
+                            <input id="nlCompany" type="text" class="field-custom with-icon" placeholder="Company Name" autocomplete="off" />
+                            <i class="fas fa-building input-icon"></i>
+                            <div id="nlCompanyDropdown" class="autosuggest-dropdown"></div>
+                        </div>
                         <div class="d-flex gap-3 mb-3">
                             <div class="input-group-custom w-50">
                                 <input id="nlFirstName" type="text" class="field-custom with-icon" placeholder="First Name" />
@@ -81,13 +86,7 @@ const CRMNewLead = {
                         <div class="input-group-custom mb-3">
                             <input id="nlEmail" type="email" class="field-custom with-icon" placeholder="email@address.com" />
                             <i class="fas fa-envelope input-icon"></i>
-                        </div>
-                        <div class="input-group-custom mb-3 position-relative">
-                            <input id="nlCompany" type="text" class="field-custom with-icon" placeholder="Company Name" autocomplete="off" />
-                            <i class="fas fa-building input-icon"></i>
-                            <div id="nlCompanyDropdown" class="autosuggest-dropdown"></div>
-                        </div>
-                        
+                        </div>    
                         <div class="d-flex gap-3">
                             <div class="input-group-custom w-75 position-relative">
                                 <input id="nlPartNumber" type="text" class="field-custom with-icon" placeholder="Part #" autocomplete="off" />
