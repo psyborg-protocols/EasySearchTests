@@ -23,6 +23,7 @@ const CRMService = {
     deltaLink: null,
     anchorsDeltaLink: null,
     currentLead: null,
+    isSyncing: false,
 
     // --- Helpers ---
     async _graphRequest(url, method = "GET", body = null, extraHeaders = null) {
@@ -88,17 +89,32 @@ const CRMService = {
 
     // --- Core Sync Operations ---
     async getLeads() {
-        if (this.leadsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
-        if (this.anchorsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink');
+        // Prevent double-calling
+        if (this.isSyncing) {
+            console.log("[CRM] Sync already in progress, returning current promise.");
+            return this.leadsCache; 
+        }
 
-        await Promise.allSettled([
-            this._syncWithGraph(CRM_CONFIG.LISTS.LEADS, 'leadsCache', 'deltaLink', CRM_CONFIG.KEYS.LEADS),
-            this._syncWithGraph(CRM_CONFIG.LISTS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink', CRM_CONFIG.KEYS.ANCHORS)
-        ]);
+        this.isSyncing = true; // LOCK
 
-        this.runSmartStatusCheck().catch(err => console.error("[SmartStatus] Check failed:", err));
+        try {
+            // 1. Load from IDB if memory is empty
+            if (this.leadsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
+            if (this.anchorsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink');
 
-        return this.leadsCache;
+            // 2. Sync with Graph (Delta)
+            await Promise.allSettled([
+                this._syncWithGraph(CRM_CONFIG.LISTS.LEADS, 'leadsCache', 'deltaLink', CRM_CONFIG.KEYS.LEADS),
+                this._syncWithGraph(CRM_CONFIG.LISTS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink', CRM_CONFIG.KEYS.ANCHORS)
+            ]);
+
+            // 3. Run Smart Check (Async - don't await if you want UI to unblock faster, but usually safer to await)
+            await this.runSmartStatusCheck().catch(err => console.error("[SmartStatus] Check failed:", err));
+
+            return this.leadsCache;
+        } finally {
+            this.isSyncing = false; // UNLOCK
+        }
     },
 
     async _loadFromStorage(key, cacheProp, linkProp) {
@@ -299,6 +315,11 @@ const CRMService = {
                     lead.Status = calculatedStatus; 
                     lead._isCalculated = true; // Mark as auto-updated for the sparkle icon
                     batchUpdates = true;
+                }
+                // If we changed anything in memory, save it to IDB immediately.
+                if (batchUpdates) {
+                    await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
+                    window.dispatchEvent(new Event('crm-smart-status-updated'));
                 }
             }
         }

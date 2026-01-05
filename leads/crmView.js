@@ -67,13 +67,21 @@ const CRMView = {
         const badge = document.getElementById('crmActionBadge');
         if (!badge) return;
 
-        // Check if ANY lead in the cache matches "Action Required"
-        // We use optional chaining (?.) just in case leadsCache is empty/null
-        const hasActionItems = CRMService.leadsCache?.some(l => l.Status === 'Action Required');
+        // OPTIMISTIC CHECK:
+        // 1. Check the active Service cache (most recent)
+        // 2. OR check the raw DataStore loaded by app.js (instant cache)
+        let leads = CRMService.leadsCache;
+        
+        if ((!leads || leads.length === 0) && window.dataStore?.CRMLeadsData?.items) {
+            leads = window.dataStore.CRMLeadsData.items;
+        }
+
+        // Check for "Action Required" in the data we found
+        const hasActionItems = leads?.some(l => l.Status === 'Action Required');
 
         if (hasActionItems) {
             badge.classList.remove('d-none');
-            badge.classList.add('animate__animated', 'animate__pulse'); // Optional: Add a pulse animation
+            badge.classList.add('animate__animated', 'animate__pulse');
         } else {
             badge.classList.add('d-none');
             badge.classList.remove('animate__animated', 'animate__pulse');
@@ -253,15 +261,27 @@ const CRMView = {
 
     async refreshList() {
         const container = document.getElementById('crmLeadList');
-        if (!container) return;
-        container.innerHTML = `<div class="text-center mt-5 text-muted"><div class="spinner-border spinner-border-sm text-primary mb-2"></div><br><small>Syncing My Leads...</small></div>`;
+        
+        // 1. If we already have data in memory, render it IMMEDIATELY.
+        // This makes the tab switch feel instant.
+        if (CRMService.leadsCache.length > 0) {
+            this.renderList();
+        } else {
+            // Only show spinner if we have absolutely nothing (first load ever)
+            if (container) container.innerHTML = `<div class="text-center mt-5 text-muted"><div class="spinner-border spinner-border-sm text-primary mb-2"></div><br><small>Syncing My Leads...</small></div>`;
+        }
+
+        // 2. Trigger a background refresh (safe because we added the isSyncing lock)
         try {
             await CRMService.getLeads();
+            // If the sync brought in new items (not just status updates), re-render.
             this.renderList();
         } catch (e) {
-            container.innerHTML = `<div class="alert alert-danger m-3 small">${e.message}</div>`;
+            if (container && CRMService.leadsCache.length === 0) {
+                container.innerHTML = `<div class="alert alert-danger m-3 small">${e.message}</div>`;
+            }
         }
-    },
+    }
 
     renderList() {
         const search = document.getElementById('crmSearch').value.toLowerCase();
