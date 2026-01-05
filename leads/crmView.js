@@ -281,7 +281,7 @@ const CRMView = {
                 container.innerHTML = `<div class="alert alert-danger m-3 small">${e.message}</div>`;
             }
         }
-    }
+    },
 
     renderList() {
         const search = document.getElementById('crmSearch').value.toLowerCase();
