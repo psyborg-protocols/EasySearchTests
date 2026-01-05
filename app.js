@@ -127,6 +127,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             // This function downloads new files and updates window.dataStore.fileLinks
             await dataLoader.processFiles();
 
+            CRMService.getLeads().catch(err => console.warn("[App] Background CRM sync failed:", err));
+
             // Render links AGAIN to ensure they are up-to-date with fresh metadata
             exposeFileLinks(); 
 

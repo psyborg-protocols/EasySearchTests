@@ -51,11 +51,33 @@ const CRMView = {
         window.addEventListener('crm-smart-status-updated', () => {
             console.log("[View] Refreshing due to smart status update...");
             this.renderList();
+
+            this.updateTabBadge();
+
             if (CRMService.currentLead) {
                 const lead = CRMService.leadsCache.find(l => l.LeadId === CRMService.currentLead.LeadId);
                 if (lead) this.renderHeaderActions(lead);
             }
         });
+        // Check badge immediately on init (in case cache is already loaded)
+        this.updateTabBadge();
+    },
+
+    updateTabBadge() {
+        const badge = document.getElementById('crmActionBadge');
+        if (!badge) return;
+
+        // Check if ANY lead in the cache matches "Action Required"
+        // We use optional chaining (?.) just in case leadsCache is empty/null
+        const hasActionItems = CRMService.leadsCache?.some(l => l.Status === 'Action Required');
+
+        if (hasActionItems) {
+            badge.classList.remove('d-none');
+            badge.classList.add('animate__animated', 'animate__pulse'); // Optional: Add a pulse animation
+        } else {
+            badge.classList.add('d-none');
+            badge.classList.remove('animate__animated', 'animate__pulse');
+        }
     },
 
     injectStyles() {
