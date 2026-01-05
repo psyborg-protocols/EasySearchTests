@@ -426,6 +426,9 @@
               <div class="p-3 border-bottom bg-light">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                   <h5 class="mb-0 fw-bold">My Leads</h5>
+                  <button id="crmAddLeadBtn" class="btn btn-sm btn-primary rounded-circle shadow-sm" style="width: 32px; height: 32px;" title="Add New Lead">
+                      <i class="fas fa-plus"></i>
+                  </button>
                 </div>
                 
                 <!-- Search -->
@@ -675,6 +678,18 @@
       </div>
     </div>
   </div>
+
+  <!-- CRM New Lead Modal -->
+  <div class="modal fade" id="crmNewLeadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+        <div class="modal-body p-0" id="crmNewLeadModalBody">
+          <!-- The form will be rendered here by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade show" id="pricingWarningModal" tabindex="-1" style="display: none;" aria-modal="true" role="dialog">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>

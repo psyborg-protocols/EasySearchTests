@@ -41,6 +41,11 @@ const CRMView = {
             });
         }
 
+        const btnAdd = document.getElementById('crmAddLeadBtn');
+        if (btnAdd) {
+            btnAdd.addEventListener('click', () => this.openNewLeadModal());
+        }
+
         document.addEventListener('mousedown', (e) => {
             const dd = document.getElementById('crmEditPartDropdown');
             if (dd && !e.target.closest('.crm-edit-dropdown') && !e.target.closest('#crmEditPartInput')) {
