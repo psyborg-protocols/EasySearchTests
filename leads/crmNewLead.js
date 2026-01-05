@@ -264,28 +264,48 @@ const CRMNewLead = {
         const input = document.getElementById("nlCompany");
         const dropdown = document.getElementById("nlCompanyDropdown");
         
-        // Combine CompanyInfo keys and OrgContacts keys for source
+        // 1. Get Data Sources
         const contactsMap = window.dataStore?.OrgContacts || new Map();
         const infoMap = window.dataStore?.CompanyInfo?.dataframe || {};
         
-        const companies = new Set([
+        // 2. Gather all unique keys (normalized lowercase)
+        const allKeys = new Set([
             ...contactsMap.keys(),
             ...Object.keys(infoMap)
         ]);
-        const companyList = Array.from(companies).sort();
+
+        // 3. Create a lookup list of objects for display
+        const companyList = Array.from(allKeys).map(key => {
+            // Priority 1: Use the "pretty" casing from your new dataLoader change
+            let display = infoMap[key]?.company;
+            
+            // Priority 2: Fallback for OrgContacts-only companies (Title Case the key)
+            if (!display) {
+                display = key.replace(/\b\w/g, l => l.toUpperCase());
+            }
+
+            return { id: key, display: display };
+        }).sort((a, b) => a.display.localeCompare(b.display));
 
         const doFilter = () => {
             const val = input.value.trim().toLowerCase();
             if (val.length < 2) { dropdown.style.display = 'none'; return; }
 
-            const matches = companyList.filter(c => c.toLowerCase().includes(val)).slice(0, 10);
+            // Filter matches
+            const matches = companyList.filter(item => 
+                item.display.toLowerCase().includes(val)
+            ).slice(0, 10);
             
             if (matches.length > 0) {
-                dropdown.innerHTML = matches.map(c => `
-                    <div class="autosuggest-item text-capitalize" onclick="CRMNewLead.selectCompany('${c.company.replace(/'/g, "\\'")}')">
-                        ${c}
+                dropdown.innerHTML = matches.map(item => {
+                    // Escape quotes for the onclick handler
+                    const safeName = item.display.replace(/'/g, "\\'");
+                    return `
+                    <div class="autosuggest-item" onclick="CRMNewLead.selectCompany('${safeName}')">
+                        ${item.display}
                     </div>
-                `).join('');
+                `;
+                }).join('');
                 dropdown.style.display = 'block';
             } else {
                 dropdown.style.display = 'none';
@@ -293,6 +313,8 @@ const CRMNewLead = {
         };
 
         input.addEventListener('input', doFilter);
+        
+        // UI: Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
             if (!input.contains(e.target) && !dropdown.contains(e.target)) {
                 dropdown.style.display = 'none';
