@@ -38,7 +38,7 @@ const CRMNewLead = {
 
     getFormHTML() {
         return `
-        <div class="d-flex flex-col overflow-hidden" style="background-color: #ffffff;">
+        <div class="flex flex-col overflow-hidden" style="background-color: #ffffff;">
             <!-- HEADER -->
             <div class="px-4 py-3 border-bottom bg-white d-flex justify-content-between items-center">
                 <div class="position-relative">
@@ -117,10 +117,10 @@ const CRMNewLead = {
             <div class="p-4 border-top bg-light">
                 <button id="nlSendBtn" type="button" class="btn btn-primary w-100 py-2 fw-medium shadow-sm d-flex align-items-center justify-content-center gap-2">
                     <span id="nlBtnText">Submit Lead</span>
-                    <i id="nlBtnIcon" class="fas fa-paper-plane"></i>
+                    <i id="nlBtnIcon" class="fa fa-plus"></i>
                     <div id="nlBtnSpinner" class="spinner-border spinner-border-sm text-white d-none" role="status"></div>
                 </button>
-                <div class="text-center mt-3"><span class="small text-muted fw-bold text-uppercase" style="font-size: 0.65rem; letter-spacing: 1px;">Powered by BrandyWise</span></div>
+                <div class="text-center mt-3"><span class="small text-muted fw-bold text-uppercase" style="font-size: 0.65rem; letter-spacing: 1px;">; ) HAVE A GREAT DAY</span></div>
             </div>
         </div>
         `;
