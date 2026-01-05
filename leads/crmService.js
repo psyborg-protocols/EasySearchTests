@@ -352,6 +352,136 @@ const CRMService = {
         await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
     },
 
+    /** Create New Lead logic
+     * Handles both SharePoint record creation and Zapier webhook for "Ready for Quote" status
+     */
+
+    async createNewLead(data) {
+        // Handle "Ready for Quote" via Zapier separately if needed
+        if (data.status === "Ready for Quote") {
+            await this._triggerZapierWorkflow(data);
+            return;
+        }
+
+        await this._createSharePointLead(data);
+    },
+
+    async _createSharePointLead(data) {
+        const token = await getAccessToken();
+        const leadId = crypto.randomUUID(); // Browser native UUID
+        const now = new Date().toISOString();
+        const user = userAccount ? (userAccount.name || userAccount.username) : "Unknown";
+
+        // 1. Prepare Batch Requests
+        const requests = [];
+
+        // A. Create Lead Item
+        requests.push({
+            id: "1",
+            method: "POST",
+            url: `/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items`,
+            headers: { "Content-Type": "application/json" },
+            body: {
+                fields: {
+                    Title: data.subject,
+                    LeadId: leadId,
+                    Owner: user,
+                    Company: data.company,
+                    PartNumber: data.partNum,
+                    Quantity: data.qty,
+                    Status: data.status,
+                    CreatedAt: now,
+                    LastActivityAt: now
+                }
+            }
+        });
+
+        // B. Create Initial Event
+        requests.push({
+            id: "2",
+            method: "POST",
+            url: `/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.EVENTS}/items`,
+            headers: { "Content-Type": "application/json" },
+            body: {
+                fields: {
+                    LeadId: leadId,
+                    EventType: "System",
+                    EventAt: now,
+                    Summary: "Lead Created",
+                    Details: data.message || `Manual Entry via App (Status: ${data.status})`
+                }
+            }
+        });
+
+        // C. Create Anchor (Contact Link) if email provided
+        if (data.email) {
+            requests.push({
+                id: "3",
+                method: "POST",
+                url: `/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.ANCHORS}/items`,
+                headers: { "Content-Type": "application/json" },
+                body: {
+                    fields: {
+                        Title: data.email,
+                        LeadId: leadId,
+                        Email: data.email,
+                        FirstName: data.firstName || "",
+                        LastName: data.lastName || "",
+                        StartTrackingFrom: now
+                    }
+                }
+            });
+        }
+
+        // 2. Execute Batch
+        const response = await fetch("https://graph.microsoft.com/v1.0/$batch", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ requests: requests })
+        });
+        
+        const result = await response.json();
+        const errors = result.responses.filter(r => r.status >= 400);
+        if (errors.length > 0) {
+            console.error("Batch creation failed:", errors);
+            throw new Error("Failed to create lead records.");
+        }
+
+        // 3. Force Sync so it appears immediately
+        await this.getLeads();
+    },
+
+    async _triggerZapierWorkflow(data) {
+        if (!CRM_CONFIG.ZAPIER_WEBHOOK.includes('http')) return;
+        
+        const payload = {
+            subject: `Quote Request: ${data.partNum} for ${data.company}`,
+            company: data.company,
+            partNumber: data.partNum,
+            email: data.email,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            message: data.message,
+            submittedAt: new Date().toISOString(),
+            submittedBy: userAccount ? userAccount.username : "Unknown",
+            status: data.status,
+            source: "BrandyWise App"
+        };
+
+        // Fire and forget (Zapier catch hooks often return 200 immediately)
+        try {
+            await fetch(CRM_CONFIG.ZAPIER_WEBHOOK, {
+                method: "POST",
+                mode: "no-cors", // Likely needed for cross-origin webhooks
+                headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify(payload)
+            });
+            console.log("Zapier webhook triggered.");
+        } catch(e) {
+            console.warn("Zapier trigger failed", e);
+        }
+    },
+
     /**
      * Checks for samples sent to companies with similar names.
      * Filters out any that have already been linked or dismissed in the timeline.
