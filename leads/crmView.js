@@ -50,14 +50,7 @@ const CRMView = {
 
         window.addEventListener('crm-smart-status-updated', () => {
             console.log("[View] Refreshing due to smart status update...");
-            this.renderList();
-
             this.updateTabBadge();
-
-            if (CRMService.currentLead) {
-                const lead = CRMService.leadsCache.find(l => l.LeadId === CRMService.currentLead.LeadId);
-                if (lead) this.renderHeaderActions(lead);
-            }
         });
         // Check badge immediately on init (in case cache is already loaded)
         this.updateTabBadge();
