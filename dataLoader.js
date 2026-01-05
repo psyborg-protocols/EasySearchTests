@@ -567,6 +567,7 @@ function normaliseCompanyInfo(frame) {
 
         // We only map the fields we care about, ignoring sales, contacts, etc.
         map[company] = {
+            company: row.Company,
             location: row.Location || "",
             business: row.Business || "",
             type: row.Type || "",
