@@ -939,20 +939,22 @@ async loadLead(leadId) {
         const container = document.getElementById('crmTimeline');
         
         // --- 1. FILTER: Logic Update ---
-        // Hide ALL "System" events by default, EXCEPT for "Lead Created".
-        // We keep Emails, Notes, and the new 'SampleSent' events.
+        // Hide "System" events by default, EXCEPT for "Lead Created" AND "Lead Closed" (Status Update: Closed)
         const visibleItems = items.filter(item => {
             // Always show non-system events (Emails, Notes, SampleSent)
             if (item.eventType !== 'System') return true;
             
-            // For System events, ONLY show "Lead Created"
-            return item.summary === 'Lead Created';
+            // For System events: Show "Lead Created" OR "Status Update" if it's the closing event
+            // Note: crmService creates a "Status Update" event with details "Status changed to: Closed"
+            return item.summary === 'Lead Created' || 
+                   (item.summary === 'Status Update' && item.details && item.details.includes('Closed'));
         });
 
         let html = '';
 
         // --- 2. Render Smart Suggestion Card (if exists) ---
         if (suggestion) {
+            // ... (keep existing suggestion card code) ...
             const safeComp = suggestion.company.replace(/'/g, "\\'");
             const safeProd = suggestion.latestProduct.replace(/'/g, "\\'");
             const safeDate = suggestion.latestDate;
@@ -998,6 +1000,7 @@ async loadLead(leadId) {
             const rel = this.getRelativeTime(item.date);
             
             if (item.type === 'email') {
+                // ... (keep existing email rendering code) ...
                 const id = `email-${idx}`;
                 return `
                 <div class="d-flex mb-4 fade-in-up">
@@ -1022,9 +1025,12 @@ async loadLead(leadId) {
                     </div>
                 </div>`;
             } else {
-                // Notes, Samples, and 'Lead Created'
+                // Notes, Samples, 'Lead Created', and now 'Status Update' (Closed)
                 const isSys = item.eventType === 'System';
                 const isSample = item.eventType === 'SampleSent';
+                
+                // --- NEW: Check if this is the Closed event to style it differently ---
+                const isClosedEvent = isSys && item.summary === 'Status Update' && item.details.includes('Closed');
 
                 // Default Styling (Notes)
                 let icon = 'fa-sticky-note';
@@ -1032,9 +1038,13 @@ async loadLead(leadId) {
                 let bgClass = 'background:#fffbeb';
 
                 // Styling overrides
-                if (isSys) {
-                    // This will now ONLY apply to 'Lead Created' due to the filter
-                    icon = 'fa-flag'; // Changed to flag to represent "Start"
+                if (isClosedEvent) {
+                    icon = 'fa-lock'; // Lock icon for Closed
+                    colorClass = 'text-secondary';
+                    bgClass = 'background:#f3f4f6; border: 1px solid #e5e7eb;';
+                } else if (isSys) {
+                    // Lead Created
+                    icon = 'fa-flag'; 
                     colorClass = 'text-secondary';
                     bgClass = 'background:#f8fafc; border: 1px solid #e2e8f0;';
                 } else if (isSample) {
@@ -1055,10 +1065,10 @@ async loadLead(leadId) {
                         <div class="card border-0 shadow-sm ${isSys ? 'bg-light' : ''}" style="${bgClass}">
                             <div class="card-body p-3">
                                 <div class="d-flex justify-content-between mb-2">
-                                    <span class="text-uppercase fw-bold text-muted" style="font-size:0.7rem;">${item.eventType}</span>
+                                    <span class="text-uppercase fw-bold text-muted" style="font-size:0.7rem;">${isClosedEvent ? 'Lead Closed' : item.eventType}</span>
                                     <small class="text-muted">${rel}</small>
                                 </div>
-                                <div class="fw-semibold small">${item.summary}</div>
+                                <div class="fw-semibold small">${isClosedEvent ? 'Lead Closed' : item.summary}</div>
                                 ${item.details ? `<div class="small opacity-75 mt-1" style="white-space: pre-wrap;">${item.details}</div>` : ''}
                             </div>
                         </div>
