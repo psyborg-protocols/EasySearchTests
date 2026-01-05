@@ -282,7 +282,7 @@ const CRMNewLead = {
             
             if (matches.length > 0) {
                 dropdown.innerHTML = matches.map(c => `
-                    <div class="autosuggest-item text-capitalize" onclick="CRMNewLead.selectCompany('${c.Company.replace(/'/g, "\\'")}')">
+                    <div class="autosuggest-item text-capitalize" onclick="CRMNewLead.selectCompany('${c.company.replace(/'/g, "\\'")}')">
                         ${c}
                     </div>
                 `).join('');
