@@ -367,7 +367,7 @@ async loadLead(leadId) {
 
         try {
             // 5. Fetch Heavy Data (Parallelized in CRMService.getFullTimeline)
-            const items = await CRMService.getFullTimeline(lead);
+            let items = await CRMService.getFullTimeline(lead);
             this.currentTimelineItems = items; 
 
             // 6. Check for Smart Suggestions (Samples)
@@ -401,7 +401,7 @@ async loadLead(leadId) {
             this.renderTimeline(items, suggestion);
             
             // Re-render summary to update the "Most Recent Update" box with the actual latest note/event
-            this.renderLeadSummary(lead, items); 
+            this.renderLeadSummary(lead, this.currentTimelineItems); // Pass full items to summary so it shows correct "Last Update" text 
         } catch (e) {
             document.getElementById('crmTimeline').innerHTML = `<div class="alert alert-danger m-4">Error loading history: ${e.message}</div>`;
         }
