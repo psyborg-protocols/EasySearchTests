@@ -177,7 +177,7 @@ const CRMService = {
     // --- Smart Status Logic ---
     async runSmartStatusCheck() {
         console.log("[SmartStatus] Starting batch check...");
-        const activeLeads = this.leadsCache.filter(l => l.Status !== 'Closed');
+        const activeLeads = this.leadsCache;
         
         const batches = [];
         for (let i = 0; i < activeLeads.length; i += 20) {

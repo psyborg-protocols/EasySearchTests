@@ -93,6 +93,22 @@ const CRMView = {
                 border-left: 4px solid #3b82f6 !important;
                 background-color: #eff6ff !important;
             }
+            
+            /* --- Closed State Styles --- */
+            .crm-lead-card.closed { 
+                opacity: 0.75; 
+                background-color: #f3f4f6 !important; 
+                border-color: #e5e7eb !important; 
+            }
+            .crm-lead-card.closed .avatar-circle { 
+                filter: grayscale(100%); 
+                opacity: 0.6; 
+                background-color: #e2e8f0;
+            }
+            .crm-lead-card.closed:hover {
+                opacity: 1;
+                border-color: #cbd5e1 !important;
+            }
 
             /* --- Color Coded Statuses --- */
             .crm-badge-new { background-color: #dcfce7 !important; color: #166534 !important; }
@@ -261,11 +277,16 @@ const CRMView = {
             
             // --- STATUS COLOR LOGIC ---
             let badgeClass = 'crm-badge-new';
+            let cardClass = ''; // Added for closed state
+
             if (l.Status === 'Waiting On Contact') badgeClass = 'crm-badge-waiting';
             else if (l.Status === 'Waiting On You') badgeClass = 'crm-badge-waiting-you'; // New Orange Status
             else if (l.Status === 'Action Required') badgeClass = 'crm-badge-action';
             else if (l.Status === 'Sent To Quotes') badgeClass = 'crm-badge-quotes';
-            else if (l.Status === 'Closed') badgeClass = 'crm-badge-closed';
+            else if (l.Status === 'Closed') {
+                badgeClass = 'crm-badge-closed';
+                cardClass = 'closed'; // Mark card as closed
+            }
             
             let statusIcon = '';
             let tooltip = '';
@@ -275,7 +296,7 @@ const CRMView = {
             }
 
             return `
-            <div class="card mb-2 shadow-sm crm-lead-card ${isActive}" onclick="CRMView.loadLead('${l.LeadId}')">
+            <div class="card mb-2 shadow-sm crm-lead-card ${isActive} ${cardClass}" onclick="CRMView.loadLead('${l.LeadId}')">
                 <div class="card-body p-2 px-3">
                     <div class="d-flex justify-content-between align-items-start mb-1">
                         <div class="d-flex align-items-center gap-2 overflow-hidden">
@@ -352,7 +373,31 @@ async loadLead(leadId) {
             // 6. Check for Smart Suggestions (Samples)
             const suggestion = await CRMService.checkSampleSuggestions(lead, items);
 
-            // 7. Render Final Data
+            // 7. Filter Logic for Closed Leads
+            // If Closed, show restricted view: Closed Event + Previous Item + Any messages *since* closing
+            if (lead.Status === 'Closed') {
+                // Find the event where it was closed
+                const closedIdx = items.findIndex(i => 
+                    i.type === 'event' && 
+                    (i.summary === 'Lead Closed' || (i.summary === 'Status Update' && i.details.includes('Closed')))
+                );
+
+                if (closedIdx > -1) {
+                    // Items are sorted Newest -> Oldest (Index 0 is newest)
+                    // We want everything NEWER than closedIdx (messages since close)
+                    // We want closedIdx (The close event)
+                    // We want closedIdx + 1 (The last context before closing)
+                    
+                    const messagesSinceClose = items.slice(0, closedIdx);
+                    const closeEventAndContext = items.slice(closedIdx, closedIdx + 2);
+                    items = [...messagesSinceClose, ...closeEventAndContext];
+                } else {
+                    // Fallback if no specific event found: just show the single most recent item
+                    items = items.slice(0, 1);
+                }
+            }
+
+            // 8. Render Final Data
             this.renderTimeline(items, suggestion);
             
             // Re-render summary to update the "Most Recent Update" box with the actual latest note/event
