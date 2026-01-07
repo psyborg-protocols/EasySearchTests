@@ -42,13 +42,17 @@ const CRMService = {
         await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
         await this._loadFromStorage(CRM_CONFIG.KEYS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink');
         
-        // Notify View that cached data is ready to render
+        // Notify View that cached data is ready to render (Badge check 1: Stale Data)
         window.dispatchEvent(new Event('crm-data-loaded'));
 
         // B. Trigger Background Sync (Fresh Data)
-        // We do NOT await this here, because we don't want to block the main app startup.
-        // The View will update automatically via 'crm-smart-status-updated' or by calling getLeads() later.
-        this.getLeads().catch(err => console.warn("[CRM] Background sync failed:", err));
+        this.getLeads()
+            .then(() => {
+                // SUCCESS: Fire event again so View updates badge with FRESH data (Badge check 2: Fresh Data)
+                console.log("[CRM] Background sync complete. Refreshing UI.");
+                window.dispatchEvent(new Event('crm-data-loaded'));
+            })
+            .catch(err => console.warn("[CRM] Background sync failed:", err));
     },
 
     // --- Helpers ---
