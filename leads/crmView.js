@@ -91,9 +91,12 @@ const CRMView = {
         const leads = CRMService.leadsCache;
         
         // 2. Check for "Action Required"
-        // Use optional chaining (?.) in case leads is still initializing (null/undefined)
-        const hasActionItems = leads?.some(l => l.Status === 'Action Required' && l.Owner === CRMService.currentUserEmail);
-
+        const myEmail = (CRMService.currentUserEmail || "").toLowerCase();
+        const hasActionItems = leads?.some(l => 
+                l.Status === 'Action Required' && 
+                (l.Owner || "").toLowerCase() === myEmail
+            );
+            
         if (hasActionItems) {
             badge.classList.remove('d-none');
             badge.classList.add('animate__animated', 'animate__pulse');
