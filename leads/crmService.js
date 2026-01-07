@@ -507,7 +507,7 @@ const CRMService = {
      * Checks for samples sent to companies with similar names.
      * Filters out any that have already been linked or dismissed in the timeline.
      */
-async checkSampleSuggestions(lead, currentTimelineEvents) {
+    async checkSampleSuggestions(lead, currentTimelineEvents) {
         if (!lead || !lead.Company) return null;
 
         // 1. Get Samples from the data store defined in recentActivity.js
@@ -649,5 +649,13 @@ async checkSampleSuggestions(lead, currentTimelineEvents) {
             }
         };
         await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.EVENTS}/items`, "POST", payload);
-    }
+    },
+    async loadCache() {
+        // 1. Try to load from IDB
+        await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
+        await this._loadFromStorage(CRM_CONFIG.KEYS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink');
+
+        // 2. Announce we are ready (View listens for this)
+        window.dispatchEvent(new Event('crm-data-loaded'));
+    },
 };

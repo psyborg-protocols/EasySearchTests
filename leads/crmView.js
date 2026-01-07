@@ -13,6 +13,22 @@ const CRMView = {
     init() {
         this.injectStyles();
 
+        // --- 1. Data Loading Listeners ---
+        
+        // Listener A: Fires when CRMService finishes its independent load (Fast)
+        window.addEventListener('crm-data-loaded', () => {
+            console.log("[View] CRM Data loaded, checking badge...");
+            this.updateTabBadge();
+        });
+
+        // Listener B: Fires when background automation updates a status (Slow/Async)
+        window.addEventListener('crm-smart-status-updated', () => {
+            console.log("[View] Refreshing due to smart status update...");
+            this.updateTabBadge();
+        });
+
+        // --- 2. Standard UI Listeners ---
+
         const crmTab = document.getElementById('crm-tab');
         if (crmTab) {
             crmTab.addEventListener('shown.bs.tab', () => this.refreshList());
@@ -48,12 +64,11 @@ const CRMView = {
             }
         });
 
-        window.addEventListener('crm-smart-status-updated', () => {
-            console.log("[View] Refreshing due to smart status update...");
-            this.updateTabBadge();
-        });
-        // Check badge immediately on init (in case cache is already loaded)
-        this.updateTabBadge();
+        // --- 3. Trigger Independent Load ---
+        // This ensures the badge appears immediately without waiting for 'app.js'
+        if (window.CRMService && typeof CRMService.loadCache === 'function') {
+            CRMService.loadCache();
+        }
     },
 
     updateTabBadge() {
@@ -915,7 +930,7 @@ async loadLead(leadId) {
         }
     },
 
-    async updateStatus(lId, s) { await CRMService.updateStatus(lId, s); this.loadLead(lId); this.renderList(); },
+    async updateStatus(lId, s) { await CRMService.updateStatus(lId, s); this.loadLead(lId); this.renderList(); this.updateTabBadge() },
     async closeLeadConfirm(lId) { if (confirm("Close lead?")) this.updateStatus(lId, 'Closed'); },
 
     async toggleEmailBody(domId, messageId) {
