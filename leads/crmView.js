@@ -75,16 +75,12 @@ const CRMView = {
         const badge = document.getElementById('crmActionBadge');
         if (!badge) return;
 
-        // OPTIMISTIC CHECK:
-        // 1. Check the active Service cache (most recent)
-        // 2. OR check the raw DataStore loaded by app.js (instant cache)
-        let leads = CRMService.leadsCache;
+        // 1. Check the active Service cache directly
+        // In the new architecture, this is the ONLY source of truth.
+        const leads = CRMService.leadsCache;
         
-        if ((!leads || leads.length === 0) && window.dataStore?.CRMLeadsData?.items) {
-            leads = window.dataStore.CRMLeadsData.items;
-        }
-
-        // Check for "Action Required" in the data we found
+        // 2. Check for "Action Required"
+        // Use optional chaining (?.) in case leads is still initializing (null/undefined)
         const hasActionItems = leads?.some(l => l.Status === 'Action Required');
 
         if (hasActionItems) {
