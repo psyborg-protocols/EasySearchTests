@@ -14,16 +14,42 @@ const CRM_CONFIG = {
     KEYS: {
         LEADS: "CRMLeadsData",
         ANCHORS: "CRMAnchorsData"
-    }
+    },
+    ZAPIER_WEBHOOK: "" // Add webhook URL here if needed
 };
 
 const CRMService = {
+    // State
     leadsCache: [],
     anchorsCache: [], 
     deltaLink: null,
     anchorsDeltaLink: null,
     currentLead: null,
-    isSyncing: false,
+
+    // Synchronization Locks
+    isInitialized: false,
+    syncPromise: null,
+
+    // --- 1. Centralized Initialization ---
+    // Called by app.js on startup. Handles the "Cache First, Network Second" pattern.
+    async init() {
+        if (this.isInitialized) return;
+        this.isInitialized = true;
+
+        console.log("[CRM] Service initializing...");
+
+        // A. Load Cache Immediately (Instant UI)
+        await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
+        await this._loadFromStorage(CRM_CONFIG.KEYS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink');
+        
+        // Notify View that cached data is ready to render
+        window.dispatchEvent(new Event('crm-data-loaded'));
+
+        // B. Trigger Background Sync (Fresh Data)
+        // We do NOT await this here, because we don't want to block the main app startup.
+        // The View will update automatically via 'crm-smart-status-updated' or by calling getLeads() later.
+        this.getLeads().catch(err => console.warn("[CRM] Background sync failed:", err));
+    },
 
     // --- Helpers ---
     async _graphRequest(url, method = "GET", body = null, extraHeaders = null) {
@@ -54,7 +80,7 @@ const CRMService = {
         return await res.json();
     },
 
-    // --- NEW: Email Body Fetcher ---
+    // --- Email Body Fetcher ---
     async getMessageBody(messageId) {
         // Fetches the HTML content of a specific message
         const data = await this._graphRequest(`https://graph.microsoft.com/v1.0/me/messages/${messageId}?$select=body`);
@@ -87,34 +113,39 @@ const CRMService = {
         return unitPrice * qty;
     },
 
-    // --- Core Sync Operations ---
+    // --- Core Sync Operations with Promise Locking ---
     async getLeads() {
-        // Prevent double-calling
-        if (this.isSyncing) {
-            console.log("[CRM] Sync already in progress, returning current promise.");
-            return this.leadsCache; 
+        // CASE 1: Sync is already running (e.g., triggered by init() or another tab click)
+        // Return the EXISTING promise so the caller waits for the fresh result.
+        if (this.syncPromise) {
+            console.log("[CRM] Sync in progress... joining existing request.");
+            return this.syncPromise; 
         }
 
-        this.isSyncing = true; // LOCK
+        // CASE 2: Start new sync and save the promise (The Lock)
+        this.syncPromise = (async () => {
+            try {
+                // Safety: Ensure cache is loaded if memory is empty
+                if (this.leadsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
+                if (this.anchorsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink');
 
-        try {
-            // 1. Load from IDB if memory is empty
-            if (this.leadsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
-            if (this.anchorsCache.length === 0) await this._loadFromStorage(CRM_CONFIG.KEYS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink');
+                // 2. Sync with Graph (Delta)
+                await Promise.allSettled([
+                    this._syncWithGraph(CRM_CONFIG.LISTS.LEADS, 'leadsCache', 'deltaLink', CRM_CONFIG.KEYS.LEADS),
+                    this._syncWithGraph(CRM_CONFIG.LISTS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink', CRM_CONFIG.KEYS.ANCHORS)
+                ]);
 
-            // 2. Sync with Graph (Delta)
-            await Promise.allSettled([
-                this._syncWithGraph(CRM_CONFIG.LISTS.LEADS, 'leadsCache', 'deltaLink', CRM_CONFIG.KEYS.LEADS),
-                this._syncWithGraph(CRM_CONFIG.LISTS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink', CRM_CONFIG.KEYS.ANCHORS)
-            ]);
+                // 3. Run Smart Check (Status updates based on emails)
+                await this.runSmartStatusCheck().catch(err => console.error("[SmartStatus] Check failed:", err));
 
-            // 3. Run Smart Check (Async - don't await if you want UI to unblock faster, but usually safer to await)
-            await this.runSmartStatusCheck().catch(err => console.error("[SmartStatus] Check failed:", err));
+                return this.leadsCache;
+            } finally {
+                // UNLOCK: Clear the promise so next call can trigger a new sync
+                this.syncPromise = null;
+            }
+        })();
 
-            return this.leadsCache;
-        } finally {
-            this.isSyncing = false; // UNLOCK
-        }
+        return this.syncPromise;
     },
 
     async _loadFromStorage(key, cacheProp, linkProp) {
@@ -376,7 +407,6 @@ const CRMService = {
     /** Create New Lead logic
      * Handles both SharePoint record creation and Zapier webhook for "Ready for Quote" status
      */
-
     async createNewLead(data) {
         // Handle "Ready for Quote" via Zapier separately if needed
         if (data.status === "Ready for Quote") {
@@ -649,13 +679,5 @@ const CRMService = {
             }
         };
         await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.EVENTS}/items`, "POST", payload);
-    },
-    async loadCache() {
-        // 1. Try to load from IDB
-        await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
-        await this._loadFromStorage(CRM_CONFIG.KEYS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink');
-
-        // 2. Announce we are ready (View listens for this)
-        window.dispatchEvent(new Event('crm-data-loaded'));
-    },
+    }
 };

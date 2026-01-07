@@ -13,24 +13,40 @@ const CRMView = {
     init() {
         this.injectStyles();
 
-        // --- 1. Data Loading Listeners ---
+        // --- 1. Data Loading Listeners (Reactive) ---
         
-        // Listener A: Fires when CRMService finishes its independent load (Fast)
+        // Listener A: Fires when CRMService finishes ANY load (Cache or Network)
+        // This allows the View to react whenever the Service says "I have data"
         window.addEventListener('crm-data-loaded', () => {
-            console.log("[View] CRM Data loaded, checking badge...");
+            console.log("[View] CRM Data loaded event received.");
             this.updateTabBadge();
+
+            // NEW: If the tab is currently active, re-render immediately.
+            // This ensures that if the user opens the tab while data is "Stale Cache",
+            // they get a live update the moment "Fresh Network" data arrives.
+            const crmTab = document.getElementById('crm-tab');
+            if (crmTab && crmTab.classList.contains('active')) {
+                this.renderList();
+            }
         });
 
         // Listener B: Fires when background automation updates a status (Slow/Async)
         window.addEventListener('crm-smart-status-updated', () => {
             console.log("[View] Refreshing due to smart status update...");
             this.updateTabBadge();
+            
+            // Also refresh list if active to show the new status colors/sparkles
+            const crmTab = document.getElementById('crm-tab');
+            if (crmTab && crmTab.classList.contains('active')) {
+                this.renderList();
+            }
         });
 
         // --- 2. Standard UI Listeners ---
 
         const crmTab = document.getElementById('crm-tab');
         if (crmTab) {
+            // When user clicks tab, render whatever we have in memory right now.
             crmTab.addEventListener('shown.bs.tab', () => this.refreshList());
         }
         
@@ -64,11 +80,6 @@ const CRMView = {
             }
         });
 
-        // --- 3. Trigger Independent Load ---
-        // This ensures the badge appears immediately without waiting for 'app.js'
-        if (window.CRMService && typeof CRMService.loadCache === 'function') {
-            CRMService.loadCache();
-        }
     },
 
     updateTabBadge() {
