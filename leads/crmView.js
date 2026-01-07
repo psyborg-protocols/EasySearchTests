@@ -92,7 +92,7 @@ const CRMView = {
         
         // 2. Check for "Action Required"
         // Use optional chaining (?.) in case leads is still initializing (null/undefined)
-        const hasActionItems = leads?.some(l => l.Status === 'Action Required');
+        const hasActionItems = leads?.some(l => l.Status === 'Action Required' && l.Owner === CRMService.currentUserEmail);
 
         if (hasActionItems) {
             badge.classList.remove('d-none');
