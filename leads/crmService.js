@@ -38,6 +38,12 @@ const CRMService = {
 
         console.log("[CRM] Service initializing...");
 
+        // Ensure msalInstance is available (it should be global from index.html)
+        const account = msalInstance ? msalInstance.getActiveAccount() : null;
+        
+        // Store it on the service for easy access later
+        this.currentUserEmail = account ? account.username : "";
+
         // A. Load Cache Immediately (Instant UI)
         await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
         await this._loadFromStorage(CRM_CONFIG.KEYS.ANCHORS, 'anchorsCache', 'anchorsDeltaLink');
