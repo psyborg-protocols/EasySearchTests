@@ -641,7 +641,7 @@ input, textarea, [contenteditable] {
 
 /* Toggle Switch Customization for History Card */
 .history-toggle-label {
-    width: 90px !important; /* Compact width */
+    width: 105px !important; /* Compact width */
     flex: none !important;
     justify-content: space-between !important;
     padding: 0 5px !important;
@@ -650,7 +650,7 @@ input, textarea, [contenteditable] {
 /* UNCHECKED (Left) - "Purchases" active */
 /* Switch is wider to fit "Purchases" */
 .history-toggle-label .toggle-switch {
-    width: 50px !important; 
+    width: 64px !important; 
     left: 2px !important;
     transition: all 0.3s ease !important; /* Smoothly animate width and position */
 }
@@ -658,8 +658,8 @@ input, textarea, [contenteditable] {
 /* CHECKED (Right) - "Sales" active */
 /* Switch shrinks and moves right */
 #historyToggle:checked + .history-toggle-label .toggle-switch {
-    width: 28px !important; 
-    left: 60px !important;
+    width: 38px !important; 
+    left: 66px !important;
 }
 
 /* Font size adjustment for the toggle text */
