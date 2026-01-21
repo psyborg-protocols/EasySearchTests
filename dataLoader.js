@@ -15,7 +15,22 @@ async function loadConfig() {
     if (!response.ok) {
       throw new Error(`Failed to load config.json: ${response.status} ${response.statusText}`);
     }
-    return response.json();
+    
+    const config = await response.json();
+    const currentYear = new Date().getFullYear().toString();
+
+    // Iterate through config and replace [YEAR] with the actual current year
+    if (Array.isArray(config)) {
+      return config.map(entry => {
+        if (entry.directory && typeof entry.directory === 'string') {
+          // Replace all instances of [YEAR] with the current year value
+          entry.directory = entry.directory.replace(/\[YEAR\]/g, currentYear);
+        }
+        return entry;
+      });
+    }
+
+    return config;
   } catch (error) {
     console.error("Error loading config:", error);
     throw error;

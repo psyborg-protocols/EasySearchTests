@@ -7,7 +7,7 @@
     "dataKey": "DB"
   },
   {
-    "directory": "Brandywine Collaborate Team Site Folder/Customers, Orders/Collaborate sales Reports/2026",
+    "directory": "Brandywine Collaborate Team Site Folder/Customers, Orders/Collaborate sales Reports/[YEAR]",
     "filenamePrefix": "Sales",
     "columns": ["Customer", "Date", "Transaction Type", "Num", "Product_Service", "Memo_Description", "Quantity", "Sales_Price", "Total_Amount"],
     "skipRows": 5,
