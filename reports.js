@@ -1,11 +1,10 @@
 const ReportManager = {
-  intervals: {
+intervals: {
     none: { label: "Manual Only", ms: 0 },
-    daily: { label: "Daily", ms: 24 * 60 * 60 * 1000 },
-    weekly: { label: "Weekly", ms: 7 * 24 * 60 * 60 * 1000 },
-    biweekly: { label: "Bi-Weekly", ms: 14 * 24 * 60 * 60 * 1000 },
     monthly: { label: "Monthly", ms: 30 * 24 * 60 * 60 * 1000 },
-    quarterly: { label: "Quarterly", ms: 90 * 24 * 60 * 60 * 1000 }
+    quarterly: { label: "Quarterly", ms: 90 * 24 * 60 * 60 * 1000 },
+    semiannual: { label: "2/Year", ms: 182 * 24 * 60 * 60 * 1000 }, // ~6 months
+    yearly: { label: "Yearly", ms: 365 * 24 * 60 * 60 * 1000 }
   },
 
   modules: [
