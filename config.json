@@ -14,7 +14,7 @@
     "dataKey": "Sales"
   },
   {
-    "directory": "Brandywine Collaborate Team Site Folder/PO history to our vendors",
+    "directory": "Brandywine Collaborate Team Site Folder/PO history to our Vendors",
     "filenamePrefix": "Brandywine Materials",
     "columns": ["Vendor", "Date", "Transaction Type", "Num", "Product_Service", "Memo_Description", "Quantity", "Cost", "Total_Amount"],
     "skipRows": 5,
