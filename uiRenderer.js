@@ -421,7 +421,7 @@ async function handleContactMerge(buttonElement, correctCompanyName, mismatchedC
     orgContacts.set(correctKey, correctContactsList);
     orgContacts.delete(mismatchedCompanyName);
 
-    console.log(`In-memory store updated. Moved ${contactsToUpdate.length} contacts from "${mismatchedName}" to "${correctCompanyName}".`);
+    console.log(`In-memory store updated. Moved ${contactsToUpdate.length} contacts from "${mismatchedCompanyName}" to "${correctCompanyName}".`);
 
     // c. After a delay, refresh the whole view to reflect the changes cleanly
     setTimeout(() => {
