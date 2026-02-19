@@ -17,7 +17,7 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
 
     setTimeout(() => {
       try {
-        const rawSalesData = window.dataStore.Sales.dataframe;
+        const rawSalesData = window.dataStore.Sales?.dataframe;
         if (!rawSalesData || rawSalesData.length === 0) {
           item.querySelector('.spinner-border')?.remove();
           item.innerHTML += ' <small class="text-muted">(No sales data available)</small>';
@@ -98,32 +98,55 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
         // Sort descending by past 3 years revenue
         lapsedCustomersReportData.sort((a, b) => b._rawRev3Yr - a._rawRev3Yr);
 
-        // Format the currency and clean up the hidden sorting property
         const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+        const finalReportData = [];
+        const orgContacts = window.dataStore.OrgContacts || new Map();
+
+        // Second pass: Format the currency, drop hidden column, and inject contact rows
         lapsedCustomersReportData.forEach(row => {
             row['Total Revenue (Past 3 Years)'] = currencyFormatter.format(row._rawRev3Yr);
             delete row._rawRev3Yr;
+            
+            // Push the main company row
+            finalReportData.push(row);
+
+            // Fetch and insert up to 3 contacts
+            const companyKey = row['Customer Name'].trim().toLowerCase();
+            const contacts = orgContacts.get(companyKey) || [];
+            
+            contacts.slice(0, 3).forEach(contact => {
+                finalReportData.push({
+                    'Customer Name': '', // Empty to shift data to Column B visually
+                    'Avg Sales Freq (orders/6mo)': contact.Name || '',
+                    'Date of Last Sale': contact.Title || '',
+                    'Total Revenue (Past 3 Years)': contact.Email || ''
+                });
+            });
         });
 
         item.querySelector('.spinner-border')?.remove();
 
-        if (lapsedCustomersReportData.length > 0) {
-          const toCSV = rows => { /* ... (toCSV logic remains the same) ... */ 
+        if (finalReportData.length > 0) {
+          const toCSV = rows => { 
             if (!rows.length) return "";
             const cols = Object.keys(rows[0]);
-            const esc = v => `"${String(v).replace(/"/g, '""')}"`;
+            
+            // Ensure null/undefined print as empty strings instead of "undefined"
+            const esc = v => `"${String(v != null ? v : '').replace(/"/g, '""')}"`;
+            
             return [cols.join(",")]
               .concat(rows.map(r => cols.map(c => esc(r[c])).join(",")))
               .join("\n");
           };
           
-          const csv = toCSV(lapsedCustomersReportData);
+          const csv = toCSV(finalReportData);
           const iconBtn = document.createElement('button');
           iconBtn.className = 'report-download-btn';
           iconBtn.title = 'Download Lapsed Customers Report';
           iconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>`;
           iconBtn.onclick = () => saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8' }), 'lapsed_customers_report.csv');
           item.appendChild(iconBtn);
+          
           resolve({ reportId: reportId, status: 'success', count: lapsedCustomersReportData.length });
         } else {
           item.innerHTML += ' <small class="text-muted">(No customers matching criteria)</small>';
