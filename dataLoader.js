@@ -1,4 +1,4 @@
-//This will be injected by the build process with the actual backend URL
+//This will be injected by the build process
 const BW_BACKEND_URL = "__BW_BACKEND_URL__";
 
 const DISALLOWED_PRODUCTS = [
