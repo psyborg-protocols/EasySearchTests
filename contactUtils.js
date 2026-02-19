@@ -9,7 +9,7 @@ const ContactUtils = {
      * @param {number} [limit=3] - The maximum number of matches to return.
      * @returns {Array} An array of match objects from Fuse.js.
      */
-    findPotentialMatches: function(customerName, orgContacts, limit = 3) {
+    findPotentialMatches: function(customerName, orgContacts=window.dataStore.orgContacts, limit = 3) {
         if (!orgContacts || orgContacts.size === 0) {
             return [];
         }
