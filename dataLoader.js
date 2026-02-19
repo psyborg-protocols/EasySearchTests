@@ -1,5 +1,5 @@
-// --- AWS API Endpoint ---
-const apiUrl = 'https://0bzlvszjzl.execute-api.us-east-1.amazonaws.com';
+//This will be injected by the build process with the actual backend URL
+const BW_BACKEND_URL = "__BW_BACKEND_URL__";
 
 const DISALLOWED_PRODUCTS = [
   "", "Credit Card Fees", "Cost of Goods Sold", "Freight", "Health Insurance", "Amazon Fees", "Bank Fees", "Bad Debit", "PmntDiscount_Customer Discounts",
@@ -15,7 +15,7 @@ async function loadConfig() {
     if (!response.ok) {
       throw new Error(`Failed to load config.json: ${response.status} ${response.statusText}`);
     }
-    
+
     const config = await response.json();
     const currentYear = new Date().getFullYear().toString();
 
@@ -105,8 +105,8 @@ function parseExcelData(arrayBuffer, skipRows = 0, columns = null, sheetName = n
  * 864e5 is milliseconds in a day.
  */
 function excelSerialDateToJSDate(serial) {
-   // Math.round fixes minor floating point errors common in Excel dates
-   return new Date(Math.round((serial - 25569) * 864e5));
+  // Math.round fixes minor floating point errors common in Excel dates
+  return new Date(Math.round((serial - 25569) * 864e5));
 }
 
 /**
@@ -119,48 +119,48 @@ async function fetchLastNRows(driveId, itemId, sheetName, columns, nRows, token)
 
   // 1. Get the "UsedRange" address to find total rows (Metadata only, very fast)
   const rangeResp = await fetch(
-    `${workbookBase}/worksheets('${encodeURIComponent(sheetName)}')/usedRange?$select=address`, 
+    `${workbookBase}/worksheets('${encodeURIComponent(sheetName)}')/usedRange?$select=address`,
     { headers }
   );
-  
+
   if (!rangeResp.ok) throw new Error(`Failed to fetch usedRange for ${sheetName}: ${rangeResp.statusText}`);
   const rangeData = await rangeResp.json();
-  
-  const rangeAddress = rangeData.address; 
+
+  const rangeAddress = rangeData.address;
   const match = rangeAddress.match(/!([A-Za-z]+)(\d+):([A-Za-z]+)(\d+)/);
-  
+
   if (!match) throw new Error("Could not parse Excel range address: " + rangeAddress);
-  
+
   const totalRows = parseInt(match[4], 10);
-  const totalCols = columns.length; 
+  const totalCols = columns.length;
 
   // 2. Calculate the Start Row
   const startRow = Math.max(2, totalRows - nRows + 1);
-  
+
   // 3. Calculate the Column Letter
   const getColLetter = (idx) => {
-      let letter = '';
-      while (idx >= 0) {
-          letter = String.fromCharCode((idx % 26) + 65) + letter;
-          idx = Math.floor(idx / 26) - 1;
-      }
-      return letter;
+    let letter = '';
+    while (idx >= 0) {
+      letter = String.fromCharCode((idx % 26) + 65) + letter;
+      idx = Math.floor(idx / 26) - 1;
+    }
+    return letter;
   };
   const endColLetter = getColLetter(totalCols - 1);
 
   // 4. Fetch the Data Range (Requesting VALUES to get raw data/serial dates)
   const fetchAddress = `A${startRow}:${endColLetter}${totalRows}`;
   console.log(`[Partial Load] Fetching range ${fetchAddress} for ${sheetName} (Last ${nRows} rows)`);
-  
+
   // Reverted to 'values' to get raw numbers for dates
   const dataResp = await fetch(
-    `${workbookBase}/worksheets('${encodeURIComponent(sheetName)}')/range(address='${fetchAddress}')?$select=values`, 
+    `${workbookBase}/worksheets('${encodeURIComponent(sheetName)}')/range(address='${fetchAddress}')?$select=values`,
     { headers }
   );
-  
+
   if (!dataResp.ok) throw new Error(`Failed to fetch range: ${dataResp.statusText}`);
   const dataJson = await dataResp.json();
-  const rows = dataJson.values; 
+  const rows = dataJson.values;
 
   // 5. Map Array-of-Arrays to Array-of-Objects using specific Columns
   return rows.map(rowValues => {
@@ -171,15 +171,15 @@ async function fetchLastNRows(driveId, itemId, sheetName, columns, nRows, token)
 
       // --- DATE FIX: Convert serial numbers to Date Strings ---
       // We assume any column with "Date" or "date" in the name AND a numeric value is an Excel date.
-if (typeof val === 'number' && /date/i.test(colName)) {
-          const dateObj = excelSerialDateToJSDate(val);
-          if (!isNaN(dateObj.getTime())) {
-              // Use UTC methods to prevent timezone shifting (e.g. 1/1 becoming 12/31)
-              const month = dateObj.getUTCMonth() + 1;
-              const day = dateObj.getUTCDate();
-              const year = dateObj.getUTCFullYear();
-              val = `${month}/${day}/${year}`;
-          }
+      if (typeof val === 'number' && /date/i.test(colName)) {
+        const dateObj = excelSerialDateToJSDate(val);
+        if (!isNaN(dateObj.getTime())) {
+          // Use UTC methods to prevent timezone shifting (e.g. 1/1 becoming 12/31)
+          const month = dateObj.getUTCMonth() + 1;
+          const day = dateObj.getUTCDate();
+          const year = dateObj.getUTCFullYear();
+          val = `${month}/${day}/${year}`;
+        }
       }
 
       rowObj[colName] = val;
@@ -192,83 +192,83 @@ if (typeof val === 'number' && /date/i.test(colName)) {
  * Fetches organizational contacts using a delta query for efficiency.
  */
 async function fetchAndProcessOrgContacts(token) {
-    let cachedContactsMap = window.dataStore.OrgContacts || new Map();
-    const metadata = await idbUtil.getDataset("OrgContactsMetadata") || {};
-    let nextLink = metadata.deltaLink;
+  let cachedContactsMap = window.dataStore.OrgContacts || new Map();
+  const metadata = await idbUtil.getDataset("OrgContactsMetadata") || {};
+  let nextLink = metadata.deltaLink;
 
-    if (nextLink) {
-        console.log("Found deltaLink. Fetching changes for organizational contacts...");
-    } else {
-        console.log("No deltaLink found. Performing full sync for organizational contacts...");
-        nextLink = 'https://graph.microsoft.com/v1.0/contacts/delta?$select=displayName,companyName,jobTitle,mail';
+  if (nextLink) {
+    console.log("Found deltaLink. Fetching changes for organizational contacts...");
+  } else {
+    console.log("No deltaLink found. Performing full sync for organizational contacts...");
+    nextLink = 'https://graph.microsoft.com/v1.0/contacts/delta?$select=displayName,companyName,jobTitle,mail';
+  }
+
+  try {
+    let changes = [];
+    while (nextLink) {
+      const response = await fetch(nextLink, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error(`Graph API request failed: ${response.statusText}`);
+      const data = await response.json();
+      changes = changes.concat(data.value);
+
+      if (data['@odata.deltaLink']) {
+        metadata.deltaLink = data['@odata.deltaLink'];
+        nextLink = null;
+      } else {
+        nextLink = data['@odata.nextLink'];
+      }
     }
 
-    try {
-        let changes = [];
-        while (nextLink) {
-            const response = await fetch(nextLink, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) throw new Error(`Graph API request failed: ${response.statusText}`);
-            const data = await response.json();
-            changes = changes.concat(data.value);
-            
-            if (data['@odata.deltaLink']) {
-                metadata.deltaLink = data['@odata.deltaLink'];
-                nextLink = null;
+    console.log(`Successfully fetched ${changes.length} changes for contacts.`);
+
+    if (changes.length > 0) {
+      for (const contact of changes) {
+        const company = (contact.companyName || 'Unknown').trim().toLowerCase();
+
+        if (contact['@removed']) {
+          if (cachedContactsMap.has(company)) {
+            const companyContacts = cachedContactsMap.get(company).filter(c => c.id !== contact.id);
+            if (companyContacts.length > 0) {
+              cachedContactsMap.set(company, companyContacts);
             } else {
-                nextLink = data['@odata.nextLink'];
+              cachedContactsMap.delete(company);
             }
+          }
+        } else {
+          const newContact = {
+            id: contact.id,
+            Name: contact.displayName,
+            Title: contact.jobTitle,
+            Email: contact.mail
+          };
+          if (!cachedContactsMap.has(company)) {
+            cachedContactsMap.set(company, []);
+          }
+          const existingContacts = cachedContactsMap.get(company);
+          const index = existingContacts.findIndex(c => c.id === newContact.id);
+          if (index > -1) {
+            existingContacts[index] = newContact;
+          } else {
+            existingContacts.push(newContact);
+          }
         }
-        
-        console.log(`Successfully fetched ${changes.length} changes for contacts.`);
+      }
+      console.log("Applied changes to in-memory contact list.");
+    }
 
-        if (changes.length > 0) {
-            for (const contact of changes) {
-                const company = (contact.companyName || 'Unknown').trim().toLowerCase();
-                
-                if (contact['@removed']) {
-                    if (cachedContactsMap.has(company)) {
-                        const companyContacts = cachedContactsMap.get(company).filter(c => c.id !== contact.id);
-                        if (companyContacts.length > 0) {
-                            cachedContactsMap.set(company, companyContacts);
-                        } else {
-                            cachedContactsMap.delete(company);
-                        }
-                    }
-                } else {
-                    const newContact = {
-                        id: contact.id, 
-                        Name: contact.displayName,
-                        Title: contact.jobTitle,
-                        Email: contact.mail
-                    };
-                    if (!cachedContactsMap.has(company)) {
-                        cachedContactsMap.set(company, []);
-                    }
-                    const existingContacts = cachedContactsMap.get(company);
-                    const index = existingContacts.findIndex(c => c.id === newContact.id);
-                    if (index > -1) {
-                        existingContacts[index] = newContact;
-                    } else {
-                        existingContacts.push(newContact);
-                    }
-                }
-            }
-            console.log("Applied changes to in-memory contact list.");
-        }
-        
-        await idbUtil.setDataset("OrgContactsData", Object.fromEntries(cachedContactsMap));
-        await idbUtil.setDataset("OrgContactsMetadata", metadata);
+    await idbUtil.setDataset("OrgContactsData", Object.fromEntries(cachedContactsMap));
+    await idbUtil.setDataset("OrgContactsMetadata", metadata);
 
-        return cachedContactsMap;
+    return cachedContactsMap;
 
   } catch (error) {
     console.error("Error fetching or processing organizational contacts:", error);
     if (metadata.deltaLink) {
-        metadata.deltaLink = null;
-        await idbUtil.setDataset("OrgContactsMetadata", metadata);
-        console.warn("DeltaLink expired; cleared to force full sync.");
+      metadata.deltaLink = null;
+      await idbUtil.setDataset("OrgContactsMetadata", metadata);
+      console.warn("DeltaLink expired; cleared to force full sync.");
     }
     return cachedContactsMap;
   }
@@ -327,63 +327,63 @@ async function processFiles() {
       // Check if we need to download the full buffer.
       // If ALL rows in this workbook are flagged as "partialLoad", we skip full download.
       const allPartial = rows.every(r => r.partialLoad === true);
-      
+
       let buf = null;
       if (!allPartial) {
-          buf = bufferCache.get(fileId);
-          if (!buf) {
-            // Only download if we haven't already and we actually need it for some sheets
-            buf = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
-            bufferCache.set(fileId, buf);
-          }
+        buf = bufferCache.get(fileId);
+        if (!buf) {
+          // Only download if we haven't already and we actually need it for some sheets
+          buf = await downloadExcelFile(md['@microsoft.graph.downloadUrl']);
+          bufferCache.set(fileId, buf);
+        }
       }
 
       for (const row of rows) {
         const key = row.dataKey || row.filenamePrefix;
         const storageKey = `${key}Data`;
-        
+
         // --- START NEW LOGIC: PARTIAL FETCH FROM CONFIG ---
         if (row.partialLoad) {
-            const cached = await idbUtil.getDataset(storageKey);
-            
-            // Check cache validity
-            if (cached?.metadata?.lastModifiedDateTime === lastMod) {
-                console.log(`[processFiles] Cache hit for ${key}. Skipping fetch.`);
-                ds[key] = cached;
-                continue;
+          const cached = await idbUtil.getDataset(storageKey);
+
+          // Check cache validity
+          if (cached?.metadata?.lastModifiedDateTime === lastMod) {
+            console.log(`[processFiles] Cache hit for ${key}. Skipping fetch.`);
+            ds[key] = cached;
+            continue;
+          }
+
+          // Defaults: 2000 rows if not specified
+          const nRowsToFetch = row.nRows || 2000;
+          const columnsToMap = row.columns || [];
+          const sheetToFetch = row.sheetName || "";
+
+          console.log(`[processFiles] Fetching fresh partial data for ${key} (Last ${nRowsToFetch} rows) from sheet "${sheetToFetch}"...`);
+
+          try {
+            if (!sheetToFetch || columnsToMap.length === 0) {
+              throw new Error(`Missing sheetName or columns in config for partial load key: ${key}`);
             }
 
-            // Defaults: 2000 rows if not specified
-            const nRowsToFetch = row.nRows || 2000;
-            const columnsToMap = row.columns || [];
-            const sheetToFetch = row.sheetName || "";
+            const partialData = await fetchLastNRows(
+              md.parentReference.driveId,
+              md.id,
+              sheetToFetch,
+              columnsToMap,
+              nRowsToFetch,
+              token
+            );
 
-            console.log(`[processFiles] Fetching fresh partial data for ${key} (Last ${nRowsToFetch} rows) from sheet "${sheetToFetch}"...`);
-            
-            try {
-                if (!sheetToFetch || columnsToMap.length === 0) {
-                    throw new Error(`Missing sheetName or columns in config for partial load key: ${key}`);
-                }
+            const stored = { dataframe: partialData, metadata: md };
+            ds[key] = stored;
+            await idbUtil.setDataset(storageKey, stored);
 
-                const partialData = await fetchLastNRows(
-                    md.parentReference.driveId,
-                    md.id,
-                    sheetToFetch,
-                    columnsToMap,
-                    nRowsToFetch,
-                    token
-                );
-                
-                const stored = { dataframe: partialData, metadata: md };
-                ds[key] = stored;
-                await idbUtil.setDataset(storageKey, stored);
-                
-                continue; // Skip standard parsing logic
-            } catch (err) {
-                console.error(`[processFiles] Partial fetch failed for ${key}`, err);
-                // We do NOT fallback to full download because we likely didn't download the buffer above
-                continue; 
-            }
+            continue; // Skip standard parsing logic
+          } catch (err) {
+            console.error(`[processFiles] Partial fetch failed for ${key}`, err);
+            // We do NOT fallback to full download because we likely didn't download the buffer above
+            continue;
+          }
         }
         // --- END NEW LOGIC ---
 
@@ -399,8 +399,8 @@ async function processFiles() {
 
         // Standard Full Parsing
         if (!buf) {
-             console.warn(`[processFiles] Unexpected missing buffer for ${key}. Skipping.`);
-             continue;
+          console.warn(`[processFiles] Unexpected missing buffer for ${key}. Skipping.`);
+          continue;
         }
         const frame = parseExcelData(buf, row.skipRows, row.columns, row.sheetName);
 
@@ -443,13 +443,13 @@ async function processFiles() {
           console.log(`[CompanyInfo] ${Object.keys(map).length} companies loaded with core info.`);
           continue;
         }
-        
+
         // Clean Sales and Purchases using the same logic (fill down entity, filter bad products)
         let cleaned = frame;
         if (key === "Sales") {
-            cleaned = filterOutValues(fillDownColumn(frame, "Customer"), "Product_Service", DISALLOWED_PRODUCTS);
+          cleaned = filterOutValues(fillDownColumn(frame, "Customer"), "Product_Service", DISALLOWED_PRODUCTS);
         } else if (key === "Purchases") {
-            cleaned = filterOutValues(fillDownColumn(frame, "Vendor"), "Product_Service", DISALLOWED_PRODUCTS);
+          cleaned = filterOutValues(fillDownColumn(frame, "Vendor"), "Product_Service", DISALLOWED_PRODUCTS);
         }
         const stored = { dataframe: cleaned, metadata: md };
         ds[key] = stored;
@@ -471,7 +471,7 @@ async function processFiles() {
     }
 
     ds["OrgContacts"] = await fetchAndProcessOrgContacts(token);
-    
+
     document.dispatchEvent(new Event("reports-ready"));
 
   } catch (err) {
@@ -575,51 +575,46 @@ function toNumber(val) {
 }
 
 function normaliseCompanyInfo(frame) {
-    const map = {};
-    for (const row of frame) {
-        const company = String(row.Company || "").trim().replace(/\s+/g, " ").toLowerCase();
-        if (!company) continue;
+  const map = {};
+  for (const row of frame) {
+    const company = String(row.Company || "").trim().replace(/\s+/g, " ").toLowerCase();
+    if (!company) continue;
 
-        // We only map the fields we care about, ignoring sales, contacts, etc.
-        map[company] = {
-            company: row.Company,
-            location: row.Location || "",
-            business: row.Business || "",
-            type: row.Type || "",
-            remarks: row.Remarks || "",
-            website: row.Website || ""
-        };
-    }
-    return map;
+    // We only map the fields we care about, ignoring sales, contacts, etc.
+    map[company] = {
+      company: row.Company,
+      location: row.Location || "",
+      business: row.Business || "",
+      type: row.Type || "",
+      remarks: row.Remarks || "",
+      website: row.Website || ""
+    };
+  }
+  return map;
 }
 
 function getCustomerDetails(company) {
-    const key = company.trim().replace(/\s+/g, " ").toLowerCase();
-    // Read from the new, leaner data store key
-    return (window.dataStore.CompanyInfo?.dataframe || {})[key] || null;
+  const key = company.trim().replace(/\s+/g, " ").toLowerCase();
+  // Read from the new, leaner data store key
+  return (window.dataStore.CompanyInfo?.dataframe || {})[key] || null;
 }
 
 
-/**
- * Calls the AWS Lambda endpoint to update a contact's company name.
- */
 async function updateContactCompany(email, newCompanyName) {
   try {
-    const accessToken = await getApiAccessToken();
-
     const payload = {
       action: 'updateCompany',
       email: email,
       companyName: newCompanyName
     };
 
-    const contactUrl = `${apiUrl}/updateContact`;
-    
+
+    const contactUrl = BW_BACKEND_URL
+
     const response = await fetch(contactUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
     });
@@ -695,131 +690,131 @@ async function getCompanyResearch(companyName) {
  * Updates a customer's details in the in-memory dataStore and attempts a write-back.
  */
 async function updateCustomerDetails(customerName, updatedDetails) {
-    const key = customerName.trim().replace(/\s+/g, " ").toLowerCase();
-    
-    // 1. Update in-memory dataStore
-    if (window.dataStore.CompanyInfo && window.dataStore.CompanyInfo.dataframe) {
-        window.dataStore.CompanyInfo.dataframe[key] = updatedDetails;
-        console.log(`[updateCustomerDetails] In-memory datastore updated for "${customerName}".`);
-    } else {
-        console.error("[updateCustomerDetails] CompanyInfo dataframe not found in dataStore.");
-        return; // Can't proceed
-    }
+  const key = customerName.trim().replace(/\s+/g, " ").toLowerCase();
 
-    // 2. Write back to the Excel file on SharePoint
-    await writeCustomerDetailsToSharePoint(customerName, updatedDetails);
+  // 1. Update in-memory dataStore
+  if (window.dataStore.CompanyInfo && window.dataStore.CompanyInfo.dataframe) {
+    window.dataStore.CompanyInfo.dataframe[key] = updatedDetails;
+    console.log(`[updateCustomerDetails] In-memory datastore updated for "${customerName}".`);
+  } else {
+    console.error("[updateCustomerDetails] CompanyInfo dataframe not found in dataStore.");
+    return; // Can't proceed
+  }
+
+  // 2. Write back to the Excel file on SharePoint
+  await writeCustomerDetailsToSharePoint(customerName, updatedDetails);
 }
 
 /**
  * Writes updated customer details back to the source Excel file on SharePoint.
  */
 async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
-    console.log(`[Write-Back] Initiating update for "${customerName}"...`);
-    try {
-        const config = (await loadConfig()).find(c => c.dataKey === 'CompanyInfo');
-        if (!config) throw new Error("CompanyInfo configuration not found.");
+  console.log(`[Write-Back] Initiating update for "${customerName}"...`);
+  try {
+    const config = (await loadConfig()).find(c => c.dataKey === 'CompanyInfo');
+    if (!config) throw new Error("CompanyInfo configuration not found.");
 
-        const metadata = window.dataStore.CompanyInfo?.metadata;
-        if (!metadata || !metadata.parentReference?.driveId || !metadata.id) {
-            throw new Error("File metadata for CompanyInfo is missing.");
-        }
-        const { driveId } = metadata.parentReference;
-        const itemId = metadata.id;
-        const { sheetName, columns, skipRows } = config;
-
-        const token = await getAccessToken();
-        const authHeader = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-
-        const rangeUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${sheetName}')/usedRange(valuesOnly=true)`;
-        const rangeResponse = await fetch(rangeUrl, { headers: authHeader });
-        if (!rangeResponse.ok) throw new Error(`Failed to get worksheet data: ${await rangeResponse.text()}`);
-        const rangeData = await rangeResponse.json();
-        const allRows = rangeData.values || [];
-
-        if (allRows.length === 0) {
-            throw new Error(`Worksheet "${sheetName}" appears to be empty.`);
-        }
-
-        const companyColumnIndex = columns.indexOf("Company");
-        if (companyColumnIndex === -1) {
-            throw new Error("'Company' column not defined in config.json.");
-        }
-
-        let rowIndex = -1;
-        for (let i = skipRows; i < allRows.length; i++) {
-            if (allRows[i][companyColumnIndex]?.toString().trim().toLowerCase() === customerName.trim().toLowerCase()) {
-                rowIndex = i;
-                break;
-            }
-        }
-        
-        const columnMap = columns.reduce((acc, col, i) => ({ ...acc, [col]: i }), {});
-        const numColumns = columns.length;
-        const endColumn = XLSX.utils.encode_col(numColumns - 1);
-        let targetExcelRow;
-        let originalValues;
-
-        if (rowIndex !== -1) { 
-            targetExcelRow = rowIndex + 1;
-            originalValues = allRows[rowIndex];
-            console.log(`[Write-Back] Found "${customerName}" at Excel row ${targetExcelRow}. Merging changes.`);
-        } else { 
-            targetExcelRow = allRows.length + 1;
-            originalValues = [];
-            console.log(`[Write-Back] Customer "${customerName}" not found. Adding as new Excel row ${targetExcelRow}.`);
-        }
-        
-        const newValues = new Array(numColumns).fill("");
-        for (let i = 0; i < numColumns; i++) {
-            const colName = columns[i];
-            const originalValue = originalValues[i] || "";
-
-            switch (colName) {
-                case "Company":
-                    newValues[i] = customerName;
-                    break;
-                case "Location":
-                    newValues[i] = updatedDetails.location ?? originalValue;
-                    break;
-                case "Business":
-                    newValues[i] = updatedDetails.business ?? originalValue;
-                    break;
-                case "Type":
-                    newValues[i] = updatedDetails.type ?? originalValue;
-                    break;
-                case "Remarks":
-                    newValues[i] = updatedDetails.remarks ?? originalValue;
-                    break;
-                case "Website":
-                    newValues[i] = updatedDetails.website ?? originalValue;
-                    break;
-                default:
-                    newValues[i] = originalValue;
-                    break;
-            }
-        }
-
-        const updateAddress = `A${targetExcelRow}:${endColumn}${targetExcelRow}`;
-        const updateUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${sheetName}')/range(address='${updateAddress}')`;
-        const updateResponse = await fetch(updateUrl, {
-            method: 'PATCH',
-            headers: authHeader,
-            body: JSON.stringify({ values: [newValues] })
-        });
-
-        if (!updateResponse.ok) {
-            const errorBody = await updateResponse.text();
-            console.error("[Write-Back] API Error Body:", errorBody);
-            throw new Error(`API Error during sheet update: ${errorBody}`);
-        }
-
-        console.log(`[Write-Back] Successfully updated sheet for "${customerName}" at range ${updateAddress}.`);
-        return await updateResponse.json();
-
-    } catch (error) {
-        console.error("[Write-Back] Failed to write customer details to SharePoint:", error);
-        throw error;
+    const metadata = window.dataStore.CompanyInfo?.metadata;
+    if (!metadata || !metadata.parentReference?.driveId || !metadata.id) {
+      throw new Error("File metadata for CompanyInfo is missing.");
     }
+    const { driveId } = metadata.parentReference;
+    const itemId = metadata.id;
+    const { sheetName, columns, skipRows } = config;
+
+    const token = await getAccessToken();
+    const authHeader = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+    const rangeUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${sheetName}')/usedRange(valuesOnly=true)`;
+    const rangeResponse = await fetch(rangeUrl, { headers: authHeader });
+    if (!rangeResponse.ok) throw new Error(`Failed to get worksheet data: ${await rangeResponse.text()}`);
+    const rangeData = await rangeResponse.json();
+    const allRows = rangeData.values || [];
+
+    if (allRows.length === 0) {
+      throw new Error(`Worksheet "${sheetName}" appears to be empty.`);
+    }
+
+    const companyColumnIndex = columns.indexOf("Company");
+    if (companyColumnIndex === -1) {
+      throw new Error("'Company' column not defined in config.json.");
+    }
+
+    let rowIndex = -1;
+    for (let i = skipRows; i < allRows.length; i++) {
+      if (allRows[i][companyColumnIndex]?.toString().trim().toLowerCase() === customerName.trim().toLowerCase()) {
+        rowIndex = i;
+        break;
+      }
+    }
+
+    const columnMap = columns.reduce((acc, col, i) => ({ ...acc, [col]: i }), {});
+    const numColumns = columns.length;
+    const endColumn = XLSX.utils.encode_col(numColumns - 1);
+    let targetExcelRow;
+    let originalValues;
+
+    if (rowIndex !== -1) {
+      targetExcelRow = rowIndex + 1;
+      originalValues = allRows[rowIndex];
+      console.log(`[Write-Back] Found "${customerName}" at Excel row ${targetExcelRow}. Merging changes.`);
+    } else {
+      targetExcelRow = allRows.length + 1;
+      originalValues = [];
+      console.log(`[Write-Back] Customer "${customerName}" not found. Adding as new Excel row ${targetExcelRow}.`);
+    }
+
+    const newValues = new Array(numColumns).fill("");
+    for (let i = 0; i < numColumns; i++) {
+      const colName = columns[i];
+      const originalValue = originalValues[i] || "";
+
+      switch (colName) {
+        case "Company":
+          newValues[i] = customerName;
+          break;
+        case "Location":
+          newValues[i] = updatedDetails.location ?? originalValue;
+          break;
+        case "Business":
+          newValues[i] = updatedDetails.business ?? originalValue;
+          break;
+        case "Type":
+          newValues[i] = updatedDetails.type ?? originalValue;
+          break;
+        case "Remarks":
+          newValues[i] = updatedDetails.remarks ?? originalValue;
+          break;
+        case "Website":
+          newValues[i] = updatedDetails.website ?? originalValue;
+          break;
+        default:
+          newValues[i] = originalValue;
+          break;
+      }
+    }
+
+    const updateAddress = `A${targetExcelRow}:${endColumn}${targetExcelRow}`;
+    const updateUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${sheetName}')/range(address='${updateAddress}')`;
+    const updateResponse = await fetch(updateUrl, {
+      method: 'PATCH',
+      headers: authHeader,
+      body: JSON.stringify({ values: [newValues] })
+    });
+
+    if (!updateResponse.ok) {
+      const errorBody = await updateResponse.text();
+      console.error("[Write-Back] API Error Body:", errorBody);
+      throw new Error(`API Error during sheet update: ${errorBody}`);
+    }
+
+    console.log(`[Write-Back] Successfully updated sheet for "${customerName}" at range ${updateAddress}.`);
+    return await updateResponse.json();
+
+  } catch (error) {
+    console.error("[Write-Back] Failed to write customer details to SharePoint:", error);
+    throw error;
+  }
 }
 
 /**
@@ -829,8 +824,8 @@ function getColumnLetter(colIndex) {
   let letter = '';
   let idx = colIndex;
   while (idx >= 0) {
-      letter = String.fromCharCode((idx % 26) + 65) + letter;
-      idx = Math.floor(idx / 26) - 1;
+    letter = String.fromCharCode((idx % 26) + 65) + letter;
+    idx = Math.floor(idx / 26) - 1;
   }
   return letter;
 }
@@ -855,10 +850,10 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
       throw new Error(`Metadata missing for ${dataKey}. Ensure app is fully loaded.`);
     }
 
-    const driveId  = storedData.metadata.parentReference.driveId;
-    const itemId   = storedData.metadata.id;
+    const driveId = storedData.metadata.parentReference.driveId;
+    const itemId = storedData.metadata.id;
     const sheetName = config.sheetName;
-    const columns   = config.columns;
+    const columns = config.columns;
 
     // Determine which column letter to search in (e.g., "Order No." might be Column A)
     const colIndex = columns.indexOf(searchColName);
@@ -868,7 +863,7 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
 
     const colLetter = getColumnLetter(colIndex); // e.g., "A"
 
-    const token   = await getAccessToken();
+    const token = await getAccessToken();
     const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
     console.log(
@@ -893,7 +888,7 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
     }
 
     const usedStartRow = parseInt(match[2], 10);
-    const usedEndRow   = parseInt(match[4], 10);
+    const usedEndRow = parseInt(match[4], 10);
 
     // Assume first row is header -> start searching from the next row
     const dataStartRow = Math.max(usedStartRow + 1, 2);
@@ -919,7 +914,7 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
       throw new Error(`Failed to fetch column range ${searchAddress}: ${colResp.statusText}`);
     }
 
-    const colJson   = await colResp.json();
+    const colJson = await colResp.json();
     const colValues = colJson.values || []; // array of [ [value], [value], ... ]
 
     // 3. Search locally in JS
@@ -950,7 +945,7 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
     );
 
     // 4. Fetch that specific row
-    const lastColLetter   = getColumnLetter(columns.length - 1);
+    const lastColLetter = getColumnLetter(columns.length - 1);
     const rowRangeAddress = `A${foundRowIndex}:${lastColLetter}${foundRowIndex}`;
 
     const rowUrl =
@@ -960,7 +955,7 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
     const rowResp = await fetch(rowUrl, { headers });
     if (!rowResp.ok) throw new Error("Failed to fetch row data");
 
-    const rowJson   = await rowResp.json();
+    const rowJson = await rowResp.json();
     const rowValues = rowJson.values[0];
 
     // 5. Map to object (preserving your date-serial conversion logic)
@@ -990,7 +985,7 @@ async function findRecordInRemoteSheet(dataKey, searchColName, searchValue) {
 }
 
 
-window.dataStore = window.dataStore || {}; 
+window.dataStore = window.dataStore || {};
 window.dataStore.fileLinks = window.dataStore.fileLinks || {};
 
 window.dataLoader = {
