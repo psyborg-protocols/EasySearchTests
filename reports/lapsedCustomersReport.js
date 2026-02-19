@@ -28,6 +28,10 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
         const today = new Date();
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(today.getMonth() - 6);
+        
+        // 3-year cutoff for revenue calculation
+        const threeYearsAgo = new Date();
+        threeYearsAgo.setFullYear(today.getFullYear() - 3);
 
         const parseDate = ReportUtils.parseDate;
 
@@ -51,10 +55,13 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
         for (const customerName in salesByCustomer) {
           const customerSales = salesByCustomer[customerName].sort((a, b) => b.date - a.date);
           if (customerSales.length === 0) continue;
+          
           const lastSaleDate = customerSales[0].date;
+          
           // Skip if last sale is within 6 months
           if (lastSaleDate >= sixMonthsAgo) continue;
           if (customerSales.length < 2) continue;
+          
           const firstSaleDate = customerSales[customerSales.length - 1].date;
           const timespanInDays = (lastSaleDate - firstSaleDate) / (1000 * 60 * 60 * 24);
           // Skip if they were a customer for less than six months
@@ -62,21 +69,41 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
           if (timespanInDays < MIN_PERIOD_DAYS) {
             continue;
           }
+          
           let averageSalesPer180Days;
           if (timespanInDays <= 0) {
             averageSalesPer180Days = (customerSales.length > 1) ? customerSales.length : 0;
           } else {
             averageSalesPer180Days = (customerSales.length / timespanInDays) * 180;
           }
+          
           if (averageSalesPer180Days > 1) {
+            // Calculate total revenue from the past three years
+            let revenuePast3Years = 0;
+            for (const sale of customerSales) {
+                if (sale.date >= threeYearsAgo) {
+                    revenuePast3Years += sale.totalAmount;
+                }
+            }
+
             lapsedCustomersReportData.push({
               'Customer Name': customerName,
               'Avg Sales Freq (orders/6mo)': averageSalesPer180Days.toFixed(2),
-              'Date of Last Sale': lastSaleDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+              'Date of Last Sale': lastSaleDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+              '_rawRev3Yr': revenuePast3Years // Hidden property for sorting
             });
           }
         }
-        lapsedCustomersReportData.sort((a, b) => new Date(b['Date of Last Sale']) - new Date(a['Date of Last Sale']));
+        
+        // Sort descending by past 3 years revenue
+        lapsedCustomersReportData.sort((a, b) => b._rawRev3Yr - a._rawRev3Yr);
+
+        // Format the currency and clean up the hidden sorting property
+        const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+        lapsedCustomersReportData.forEach(row => {
+            row['Total Revenue (Past 3 Years)'] = currencyFormatter.format(row._rawRev3Yr);
+            delete row._rawRev3Yr;
+        });
 
         item.querySelector('.spinner-border')?.remove();
 
@@ -89,6 +116,7 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
               .concat(rows.map(r => cols.map(c => esc(r[c])).join(",")))
               .join("\n");
           };
+          
           const csv = toCSV(lapsedCustomersReportData);
           const iconBtn = document.createElement('button');
           iconBtn.className = 'report-download-btn';
