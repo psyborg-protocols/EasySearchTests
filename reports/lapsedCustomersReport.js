@@ -144,7 +144,7 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
                     // Inject the dummy row explaining that a fuzzy match exists
                     finalReportData.push({
                         'Customer Name': '', 
-                        'Avg Sales Freq (orders/6mo)': `* Contacts with potential company match found. Search "${row['Customer Name']}" in the [Customer Info] tab in BrandyWise for more info.`,
+                        'Avg Sales Freq (orders/6mo)': `* Potential contact matches found.`,
                         'Date of Last Sale': '',
                         'Total Revenue (Past 3 Years)': ''
                     });
