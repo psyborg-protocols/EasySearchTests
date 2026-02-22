@@ -408,10 +408,6 @@ async function handleContactMerge(buttonElement, correctCompanyName, mismatchedC
       headerButton.innerHTML += ` <span class="badge bg-success ms-auto">Updated</span>`;
     }
 
-    // Refresh the view to reflect changes cleanly
-    setTimeout(() => {
-      selectCustomerInfo(correctCompanyName);
-    }, 2000);
 
   } catch (error) {
     // 4. Handle Error UI
