@@ -206,7 +206,11 @@ document.getElementById("customerInfoSearch").addEventListener("input", async (e
 
     if (uniqueResults.length > 0) {
       dropdown.innerHTML = uniqueResults
-        .map(name => `<li><a class="dropdown-item" href="#" onclick="selectCustomerInfo('${name}')">${name}</a></li>`)
+        .map(name => {
+          // Escape single quotes in the company name to prevent Syntax Errors
+          const safeName = name.replace(/'/g, "\\'");
+          return `<li><a class="dropdown-item" href="#" onclick="selectCustomerInfo('${safeName}')">${name}</a></li>`;
+        })
         .join("");
 
       dropdown.classList.add('show');
