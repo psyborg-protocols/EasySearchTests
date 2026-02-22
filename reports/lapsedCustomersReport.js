@@ -110,18 +110,33 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
             // Push the main company row
             finalReportData.push(row);
 
-            // Fetch and insert up to 3 contacts
+            // Fetch and insert up to 3 exact contacts
             const companyKey = row['Customer Name'].trim().toLowerCase();
             const contacts = orgContacts.get(companyKey) || [];
             
-            contacts.slice(0, 3).forEach(contact => {
-                finalReportData.push({
-                    'Customer Name': '', // Empty to shift data to Column B visually
-                    'Avg Sales Freq (orders/6mo)': contact.Name || '',
-                    'Date of Last Sale': contact.Title || '',
-                    'Total Revenue (Past 3 Years)': contact.Email || ''
+            if (contacts.length > 0) {
+                contacts.slice(0, 3).forEach(contact => {
+                    finalReportData.push({
+                        'Customer Name': '', // Empty to shift data to Column B visually
+                        'Avg Sales Freq (orders/6mo)': contact.Name || '',
+                        'Date of Last Sale': contact.Title || '',
+                        'Total Revenue (Past 3 Years)': contact.Email || ''
+                    });
                 });
-            });
+            } else if (window.ContactUtils) {
+                // If no exact contacts, perform a fuzzy search
+                const fuzzyMatches = window.ContactUtils.findPotentialMatches(row['Customer Name'], orgContacts);
+                
+                if (fuzzyMatches.length > 0) {
+                    // Inject the dummy row explaining that a fuzzy match exists
+                    finalReportData.push({
+                        'Customer Name': '', 
+                        'Avg Sales Freq (orders/6mo)': `* Contacts with potential company match found. Search "${row['Customer Name']}" in the [Customer Info] tab in BrandyWise for more info.`,
+                        'Date of Last Sale': '',
+                        'Total Revenue (Past 3 Years)': ''
+                    });
+                }
+            }
         });
 
         item.querySelector('.spinner-border')?.remove();
