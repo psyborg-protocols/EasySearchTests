@@ -109,7 +109,12 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
         lapsedCustomersReportData.forEach(row => {
             row['Total Revenue (Past 3 Years)'] = currencyFormatter.format(row._rawRev3Yr);
             delete row._rawRev3Yr;
-            
+            row['Emailed again? When?'] = '';
+            row['Received Response?'] = '';
+            row['New Quote?'] = '';
+            row['Followed up?'] = '';
+            row['New Order?'] = '';
+
             // Push the main company row
             finalReportData.push(row);
 
@@ -123,7 +128,12 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
                         'Customer Name': '', // Empty to shift data to Column B visually
                         'Avg Sales Freq (orders/6mo)': contact.Name || '',
                         'Date of Last Sale': contact.Title || '',
-                        'Total Revenue (Past 3 Years)': contact.Email || ''
+                        'Total Revenue (Past 3 Years)': contact.Email || '',
+                        'Emailed again? When?': '',
+                        'Received Response?': '',
+                        'New Quote?': '',
+                        'Followed up?': '',
+                        'New Order?': ''
                     });
                 });
             } else if (window.ContactUtils) {
@@ -140,6 +150,19 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
                     });
                 }
             }
+            
+            // Add an empty row for better visual separation between companies
+            finalReportData.push({
+              'Customer Name': '',
+              'Avg Sales Freq (orders/6mo)': '',
+              'Date of Last Sale': '',
+              'Total Revenue (Past 3 Years)': '',
+              'Emailed again? When?': '',
+              'Received Response?': '',
+              'New Quote?': '',
+              'Followed up?': '',
+              'New Order?': ''
+              });
         });
 
         item.querySelector('.spinner-border')?.remove();
