@@ -86,12 +86,15 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
                 }
             }
 
-            lapsedCustomersReportData.push({
-              'Customer Name': customerName,
-              'Avg Sales Freq (orders/6mo)': averageSalesPer180Days.toFixed(2),
-              'Date of Last Sale': lastSaleDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }),
-              '_rawRev3Yr': revenuePast3Years // Hidden property for sorting
-            });
+            // Only include customers with > $1000 in revenue over the past 3 years
+            if (revenuePast3Years > 1000) {
+              lapsedCustomersReportData.push({
+                'Customer Name': customerName,
+                'Avg Sales Freq (orders/6mo)': averageSalesPer180Days.toFixed(2),
+                'Date of Last Sale': lastSaleDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+                '_rawRev3Yr': revenuePast3Years // Hidden property for sorting
+              });
+            }
           }
         }
         
