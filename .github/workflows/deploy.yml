@@ -26,7 +26,7 @@ jobs:
 
       - name: Inject Backend URL
         run: |
-          sed -i 's|__BW_BACKEND_URL__|${{ secrets.BW_BACKEND_URL }}|g' dataLoader.js
+          sed -i 's|__BW_BACKEND_CODE__|${{ secrets.BW_BACKEND_CODE }}|g' dataLoader.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

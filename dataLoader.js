@@ -1,5 +1,8 @@
-//This will be injected by the build inject
-const BW_BACKEND_URL = "__BW_BACKEND_URL__";
+// base URL for Azure Functions
+const BW_BACKEND_BASE_URL = "https://bwbackend-cahmavhhgjcaa3be.canadaeast-01.azurewebsites.net/api";
+
+// This will be injected by the GitHub Actions build step
+const BW_BACKEND_CODE = "__BW_BACKEND_CODE__";
 
 const DISALLOWED_PRODUCTS = [
   "", "Credit Card Fees", "Cost of Goods Sold", "Freight", "Health Insurance", "Amazon Fees", "Bank Fees", "Bad Debit", "PmntDiscount_Customer Discounts",
@@ -642,7 +645,7 @@ async function updateContactCompany(email, newCompanyName) {
     };
 
 
-    const contactUrl = BW_BACKEND_URL
+    const contactUrl = `${BW_BACKEND_BASE_URL}/ContactSync?code=${BW_BACKEND_CODE}`;
 
     const response = await fetch(contactUrl, {
       method: 'POST',
@@ -671,11 +674,10 @@ async function updateContactCompany(email, newCompanyName) {
  * Gets structured company information from the backend research agent.
  */
 async function getCompanyResearch(companyName) {
-  const llmProxyUrl = `${apiUrl}/llm-proxy`;
+  // Construct the full URL for the llm-proxy endpoint
+  const llmProxyUrl = `${BW_BACKEND_BASE_URL}/llm-proxy?code=${BW_BACKEND_CODE}`;
 
   try {
-    const accessToken = await getLLMAccessToken(); // from auth.js
-
     const payload = {
       action: 'llmProxy',
       companyName: companyName
@@ -684,8 +686,8 @@ async function getCompanyResearch(companyName) {
     const response = await fetch(llmProxyUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
+        'Content-Type': 'application/json'
+        // 'Authorization': `Bearer ${accessToken}` <--- Removed
       },
       body: JSON.stringify(payload)
     });
@@ -697,7 +699,7 @@ async function getCompanyResearch(companyName) {
 
     const { model_data, citations } = await response.json();
 
-    let note = "These results are retrieved by Perplexity AI and could contain errors.";
+    let note = "These results are retrieved by AI and could contain errors.";
 
     const modelWebsite = model_data.website;
     const citationUrls = (citations || []).map(citation => citation.url);
@@ -711,7 +713,6 @@ async function getCompanyResearch(companyName) {
       ...model_data,
       note: note
     };
-
 
   } catch (error) {
     console.error('Error getting company research:', error);
