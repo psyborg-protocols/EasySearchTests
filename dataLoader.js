@@ -274,6 +274,39 @@ async function fetchAndProcessOrgContacts(token) {
   }
 }
 
+/**
+ * Merges contacts from a mismatched company into the correct company and updates the backend.
+ */
+async function mergeOrganizationContacts(correctCompanyName, mismatchedCompanyName) {
+    const orgContacts = window.dataStore.OrgContacts;
+    const contactsToUpdate = orgContacts.get(mismatchedCompanyName) || [];
+
+    if (contactsToUpdate.length === 0) return;
+
+    // 1. Call the backend API for each contact
+    const updatePromises = contactsToUpdate.map(contact =>
+        updateContactCompany(contact.Email, correctCompanyName) 
+    );
+    await Promise.all(updatePromises);
+
+    // 2. Update in-memory data store
+    const correctKey = correctCompanyName.trim().toLowerCase();
+    const correctContactsList = orgContacts.get(correctKey) || [];
+
+    contactsToUpdate.forEach(contact => {
+      if (!correctContactsList.some(c => c.Email.toLowerCase() === contact.Email.toLowerCase())) {
+        correctContactsList.push(contact);
+      }
+    });
+
+    orgContacts.set(correctKey, correctContactsList);
+    orgContacts.delete(mismatchedCompanyName);
+
+    // 3. Write through to IndexedDB
+    if (window.idbUtil) {
+        await idbUtil.setDataset("OrgContactsData", Object.fromEntries(orgContacts));
+    }
+}
 
 /**
  * Main data processing function.
@@ -998,5 +1031,6 @@ window.dataLoader = {
   updateContactCompany,
   getCompanyResearch,
   updateCustomerDetails,
-  findRecordInRemoteSheet
+  findRecordInRemoteSheet,
+  mergeOrganizationContacts
 };

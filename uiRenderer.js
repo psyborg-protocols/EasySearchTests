@@ -384,26 +384,18 @@ async function handleContactMerge(buttonElement, correctCompanyName, mismatchedC
   const actionDiv = buttonElement.parentElement;
   if (!actionDiv) return;
 
-  // 1. Show spinner
+  // 1. Show spinner UI
   actionDiv.innerHTML = `
           <div class="d-flex align-items-center text-primary">
               <div class="spinner-border spinner-border-sm me-2" role="status"></div>
               <span>Updating contacts...</span>
           </div>`;
 
-  const orgContacts = window.dataStore.OrgContacts;
-  const contactsToUpdate = orgContacts.get(mismatchedCompanyName) || [];
-
   try {
-    // 2. Call the backend for each contact
-    const updatePromises = contactsToUpdate.map(contact =>
-      dataLoader.updateContactCompany(contact.Email, correctCompanyName)
-    );
-    await Promise.all(updatePromises);
+    // 2. Delegate data logic to dataLoader
+    await dataLoader.mergeOrganizationContacts(correctCompanyName, mismatchedCompanyName);
 
-    // --- 3. Handle Success ---
-
-    // a. Update UI to show success
+    // 3. Handle Success UI
     actionDiv.innerHTML = `<div class="text-success fw-bold"><i class="fas fa-check-circle me-2"></i>Contacts updated successfully!</div>`;
     const accordionItem = actionDiv.closest('.accordion-item');
     if (accordionItem) {
@@ -412,28 +404,13 @@ async function handleContactMerge(buttonElement, correctCompanyName, mismatchedC
       headerButton.innerHTML += ` <span class="badge bg-success ms-auto">Updated</span>`;
     }
 
-    // b. Update in-memory data store to prevent re-suggestion
-    const correctKey = correctCompanyName.trim().toLowerCase();
-    const correctContactsList = orgContacts.get(correctKey) || [];
-
-    contactsToUpdate.forEach(contact => {
-      if (!correctContactsList.some(c => c.Email.toLowerCase() === contact.Email.toLowerCase())) {
-        correctContactsList.push(contact);
-      }
-    });
-
-    orgContacts.set(correctKey, correctContactsList);
-    orgContacts.delete(mismatchedCompanyName);
-
-    console.log(`In-memory store updated. Moved ${contactsToUpdate.length} contacts from "${mismatchedCompanyName}" to "${correctCompanyName}".`);
-
-    // c. After a delay, refresh the whole view to reflect the changes cleanly
+    // Refresh the view to reflect changes cleanly
     setTimeout(() => {
       selectCustomerInfo(correctCompanyName);
     }, 2000);
 
   } catch (error) {
-    // --- 4. Handle Error ---
+    // 4. Handle Error UI
     console.error("Failed to update contacts:", error);
     const safeCorrectName = correctCompanyName.replace(/'/g, "\\'");
     const safeMismatchedName = mismatchedCompanyName.replace(/'/g, "\\'");
