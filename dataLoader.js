@@ -721,7 +721,8 @@ async function getCompanyResearch(companyName) {
 }
 
 /**
- * Updates a customer's details in the in-memory dataStore and attempts a write-back.
+ * Updates a customer's details in the in-memory dataStore,
+ * WRITES to IndexedDB (The Fix), and attempts a write-back to SharePoint.
  */
 async function updateCustomerDetails(customerName, updatedDetails) {
   const key = customerName.trim().replace(/\s+/g, " ").toLowerCase();
@@ -730,6 +731,19 @@ async function updateCustomerDetails(customerName, updatedDetails) {
   if (window.dataStore.CompanyInfo && window.dataStore.CompanyInfo.dataframe) {
     window.dataStore.CompanyInfo.dataframe[key] = updatedDetails;
     console.log(`[updateCustomerDetails] In-memory datastore updated for "${customerName}".`);
+
+    // This ensures changes persist if the user refreshes before a full network sync occurs.
+    if (window.idbUtil) {
+        try {
+            // We use "CompanyInfoData" because that is the key used in processFiles() 
+            // when initially loading/saving this specific dataset.
+            await window.idbUtil.setDataset("CompanyInfoData", window.dataStore.CompanyInfo);
+            console.log(`[updateCustomerDetails] IndexedDB updated for "${customerName}".`);
+        } catch (err) {
+            console.error("[updateCustomerDetails] Failed to write to IndexedDB:", err);
+        }
+    }
+
   } else {
     console.error("[updateCustomerDetails] CompanyInfo dataframe not found in dataStore.");
     return; // Can't proceed
