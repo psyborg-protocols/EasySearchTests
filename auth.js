@@ -41,36 +41,37 @@ let msalInstance = null;
 let userAccount = null;
 let authReady = false;
 
-// One-per-tab guards to prevent redirect loops
-const AUTOLOGIN_ATTEMPTED_KEY = "msal_autologin_attempted_v1";
+// Guards to prevent infinite redirect loops
+const AUTOLOGIN_TIMESTAMP_KEY = "msal_autologin_timestamp_v2"; // Renamed for clarity
 const REDIRECT_IN_PROGRESS_KEY = "msal_redirect_in_progress_v1";
+
+// How long (in ms) to block a retry after an attempt. 
+// 30 seconds is enough to detect a tight loop, but short enough to allow 
+// legitimate re-tries after a failed attempt settled.
+const LOOP_PROTECTION_WINDOW = 30000; 
 
 // ------------------------------
 // Small helpers
 // ------------------------------
 
 function isRedirectCallbackUrl() {
-    // If the URL has an auth response in the hash, we're in the middle of the redirect round-trip.
     const h = window.location.hash || "";
     return h.includes("code=") || h.includes("state=") || h.includes("error=");
 }
 
 function setActiveAccount(account) {
     userAccount = account || null;
-
     if (msalInstance && userAccount && typeof msalInstance.setActiveAccount === "function") {
         msalInstance.setActiveAccount(userAccount);
     }
-
-    if (userAccount && window.UIrenderer &&
-        typeof UIrenderer.updateUIForLoggedInUser === "function") {
+    if (userAccount && window.UIrenderer && typeof UIrenderer.updateUIForLoggedInUser === "function") {
         UIrenderer.updateUIForLoggedInUser();
     }
 }
 
 function clearAutoLoginGuardsOnSuccess() {
     try {
-        sessionStorage.removeItem(AUTOLOGIN_ATTEMPTED_KEY);
+        sessionStorage.removeItem(AUTOLOGIN_TIMESTAMP_KEY);
         sessionStorage.removeItem(REDIRECT_IN_PROGRESS_KEY);
     } catch (_) {}
 }
@@ -87,9 +88,24 @@ function clearRedirectInProgress() {
     } catch (_) {}
 }
 
-function hasTriedAutoLogin() {
+/**
+ * Checks if we recently tried to auto-redirect.
+ * Returns TRUE if we are in a tight loop (attempted < 30s ago).
+ * Returns FALSE if it's been a while (e.g., overnight), allowing the retry.
+ */
+function hasTriedAutoLoginRecently() {
     try {
-        return sessionStorage.getItem(AUTOLOGIN_ATTEMPTED_KEY) === "1";
+        const lastAttempt = sessionStorage.getItem(AUTOLOGIN_TIMESTAMP_KEY);
+        if (!lastAttempt) return false;
+        
+        const now = Date.now();
+        const diff = now - parseInt(lastAttempt, 10);
+        
+        // If diff is NaN or negative (clock skew), allow retry
+        if (isNaN(diff) || diff < 0) return false;
+
+        // If attempted recently (within window), BLOCK it.
+        return diff < LOOP_PROTECTION_WINDOW; 
     } catch (_) {
         return false;
     }
@@ -97,7 +113,8 @@ function hasTriedAutoLogin() {
 
 function markTriedAutoLogin() {
     try {
-        sessionStorage.setItem(AUTOLOGIN_ATTEMPTED_KEY, "1");
+        // Store the current timestamp
+        sessionStorage.setItem(AUTOLOGIN_TIMESTAMP_KEY, Date.now().toString());
     } catch (_) {}
 }
 
@@ -204,16 +221,14 @@ function signOut() {
 }
 
 // ------------------------------
-// Token acquisition
-//  - By default, will auto-redirect ONCE per tab session if interaction is required.
-//  - This prevents the "stuck" state without causing infinite loops.
+// Token acquisition (Updated to use new time-based guard)
 // ------------------------------
 
 async function getScopedAccessToken(scopes, options = {}) {
     const {
-        autoRedirectOnce = true,       // minimal interaction
-        redirectScopes = scopes,       // what to request interactively
-        reason = "token"               // for logging
+        autoRedirectOnce = true,       
+        redirectScopes = scopes,       
+        reason = "token"               
     } = options;
 
     if (!msalInstance || !authReady) {
@@ -221,41 +236,44 @@ async function getScopedAccessToken(scopes, options = {}) {
         await initializeAuth();
     }
 
-    if (!msalInstance) {
-        console.warn("[Token] msalInstance not initialized.");
-        return null;
-    }
+    if (!msalInstance) return null;
 
-    // Determine account
-    let account =
-        (typeof msalInstance.getActiveAccount === "function" ? msalInstance.getActiveAccount() : null) ||
-        userAccount ||
-        (msalInstance.getAllAccounts()[0] || null);
+    let account = (typeof msalInstance.getActiveAccount === "function" ? msalInstance.getActiveAccount() : null) 
+                  || userAccount 
+                  || (msalInstance.getAllAccounts()[0] || null);
 
+    // If no account, we MUST interact.
     if (!account) {
-        console.log("[Token] No logged-in user.");
+        console.log("[Token] No logged-in user found.");
         if (autoRedirectOnce) {
             await maybeAutoRedirect(redirectScopes, reason);
         }
         return null;
     }
 
-    // Keep active account aligned
     if (!userAccount || (userAccount.homeAccountId !== account.homeAccountId)) {
         setActiveAccount(account);
     }
 
     try {
+        // Force refresh if we suspect the token is stale? 
+        // MSAL usually handles this, but with the 24h limit, silent fails hard.
         const tokenResponse = await msalInstance.acquireTokenSilent({
             scopes,
             account
         });
         return tokenResponse.accessToken;
     } catch (error) {
-        console.warn("[Token] Silent acquisition failed.", error);
+        console.warn(`[Token] Silent acquisition failed (${reason}).`, error);
 
-        if (error instanceof msal.InteractionRequiredAuthError) {
-            console.log("[Token] Interaction required.");
+        // Check for specific InteractionRequired errors OR the invalid_grant 24h issue
+        if (error instanceof msal.InteractionRequiredAuthError || 
+            error.message.includes("interaction_required") ||
+            error.message.includes("invalid_grant") || 
+            error.message.includes("AADSTS700084")) {
+            
+            console.log("[Token] Interaction required (Session expired or invalid).");
+            
             if (autoRedirectOnce) {
                 await maybeAutoRedirect(redirectScopes, reason);
             }
@@ -267,30 +285,33 @@ async function getScopedAccessToken(scopes, options = {}) {
 }
 
 async function maybeAutoRedirect(scopesForRedirect, reason) {
-    // Never redirect if we are already in the callback hash or a redirect is already underway.
     if (isRedirectCallbackUrl() || isRedirectInProgress()) {
         console.log(`[Token] Suppressing auto-redirect (${reason}): redirect callback/in-progress.`);
         return;
     }
 
-    // Only once per tab session, to prevent loops.
-    if (hasTriedAutoLogin()) {
-        console.log(`[Token] Suppressing auto-redirect (${reason}): already attempted once this session.`);
+    if (hasTriedAutoLoginRecently()) {
+        console.warn(`[Token] Suppressing auto-redirect (${reason}): detected tight loop (attempted recently).`);
         return;
     }
 
     markTriedAutoLogin();
 
-    // Save deep link and redirect
     try {
         sessionStorage.setItem("postLoginUrl", window.location.href);
-    } catch (e) {
-        console.warn("[Auth] Could not persist post-login URL:", e);
-    }
+    } catch (e) {}
 
     console.log(`[Token] Auto-redirecting to sign-in (${reason})...`);
     markRedirectInProgress();
-    await msalInstance.loginRedirect({ scopes: scopesForRedirect });
+    
+    // Use the active account's login hint to make the redirect smoother
+    const account = msalInstance.getActiveAccount();
+    const request = {
+        scopes: scopesForRedirect,
+        loginHint: account ? account.username : undefined
+    };
+
+    await msalInstance.loginRedirect(request);
 }
 
 // Convenience wrappers
