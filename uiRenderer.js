@@ -432,6 +432,7 @@ async function confirmAndSaveChanges(customerName, finalDetails) {
   if (!confirmationBox) return;
 
   // 1. Show a saving state
+  // (Static HTML is safe to set via innerHTML)
   confirmationBox.innerHTML = `
           <div class="d-flex align-items-center text-primary">
               <div class="spinner-border spinner-border-sm me-2" role="status"></div>
@@ -456,21 +457,35 @@ async function confirmAndSaveChanges(customerName, finalDetails) {
       setTimeout(() => {
         confirmationBox.style.display = 'none';
         confirmationBox.innerHTML = ''; // Clear content
-      }, 300); // Wait for fade out transition
-    }, 2000); // Show success for 2 seconds
+      }, 300); 
+    }, 2000); 
 
   } catch (error) {
     console.error("Failed to save customer details:", error);
-    // 5. Show an error state
-    const safeCustomerName = customerName.replace(/'/g, "\\'");
-    confirmationBox.innerHTML = `
-              <div class="text-danger">
-                  <i class="fas fa-times-circle me-2"></i>Save Failed.
-                  <button class="btn btn-sm btn-outline-secondary ms-2" 
-                          onclick='UIrenderer.confirmAndSaveChanges("${safeCustomerName}", ${JSON.stringify(finalDetails)})'>
-                      Retry
-                  </button>
-              </div>`;
+
+    // 5. Show an error state (Refactored for Best Practice)
+    
+    // Create the container div
+    const errorContainer = document.createElement('div');
+    errorContainer.className = 'text-danger';
+    
+    // Add the static text and icon
+    errorContainer.innerHTML = '<i class="fas fa-times-circle me-2"></i>Save Failed.';
+
+    // Create the button programmatically
+    const retryBtn = document.createElement('button');
+    retryBtn.className = 'btn btn-sm btn-outline-secondary ms-2';
+    retryBtn.textContent = 'Retry';
+
+    // Attach the event listener directly. 
+    // This safely uses the variables from the outer scope without string escaping.
+    retryBtn.onclick = function() {
+        UIrenderer.confirmAndSaveChanges(customerName, finalDetails);
+    };
+
+    // Assemble and render
+    errorContainer.appendChild(retryBtn);
+    confirmationBox.replaceChildren(errorContainer);
   }
 }
 
