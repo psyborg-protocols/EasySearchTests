@@ -593,7 +593,7 @@ async function selectCustomerInfo(customerName) {
         if (!customerDetails.location && researchResults.country) { updatedFields.location = researchResults.country; updated = true; }
         if (!customerDetails.type && researchResults.industry) { updatedFields.type = researchResults.industry; updated = true; }
 
-        if (updated) {
+      if (updated) {
           const disclaimer = "AI-suggested data may be inaccurate.";
           updatedFields.remarks = customerDetails.remarks ? `${customerDetails.remarks}\n${disclaimer}` : disclaimer;
 
@@ -607,19 +607,27 @@ async function selectCustomerInfo(customerName) {
           document.getElementById("customerRemarks").textContent = finalDetails.remarks || "N/A";
           document.getElementById("customerWebsite").innerHTML = asLink(finalDetails.website);
 
-          // Show the confirmation box
-          const safeCustomerName = customerName.replace(/'/g, "\\'");
-          confirmationBox.innerHTML = `
-                      <div class="d-flex justify-content-between align-items-center">
-                          <div>
-                              <i class="fas fa-robot me-2 text-primary"></i>
-                              <span class="fw-bold">AI found new details. Are they correct?</span>
-                          </div>
-                          <button class="btn btn-sm btn-primary" 
-                                  onclick='UIrenderer.confirmAndSaveChanges("${safeCustomerName}", ${JSON.stringify(finalDetails)})'>
-                              <i class="fas fa-save me-1"></i> Save
-                          </button>
-                      </div>`;
+          confirmationBox.innerHTML = ''; // Clear previous content
+          
+          const wrapper = document.createElement('div');
+          wrapper.className = 'd-flex justify-content-between align-items-center';
+          
+          const textDiv = document.createElement('div');
+          textDiv.innerHTML = '<i class="fas fa-robot me-2 text-primary"></i><span class="fw-bold">AI found new details. Are they correct?</span>';
+          
+          const saveBtn = document.createElement('button');
+          saveBtn.className = 'btn btn-sm btn-primary';
+          saveBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save';
+          
+          // Directly attach the event listener. 
+          // 'customerName' and 'finalDetails' are captured from the closure safely.
+          saveBtn.onclick = () => UIrenderer.confirmAndSaveChanges(customerName, finalDetails);
+          
+          wrapper.appendChild(textDiv);
+          wrapper.appendChild(saveBtn);
+          confirmationBox.appendChild(wrapper);
+
+
           confirmationBox.style.display = 'block';
           confirmationBox.style.opacity = '1';
         } else {
