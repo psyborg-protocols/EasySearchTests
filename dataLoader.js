@@ -635,6 +635,34 @@ function getCustomerDetails(company) {
   return (window.dataStore.CompanyInfo?.dataframe || {})[key] || null;
 }
 
+/**
+ * Calculates the unit cost based on the most recent purchase history.
+ * Falls back to the static DB cost if no history exists.
+ */
+function getProductUnitCost(partNumber, fallbackCost) {
+  const purchasesData = window.dataStore["Purchases"]?.dataframe || [];
+  
+  // Filter for this product
+  const productPurchases = purchasesData.filter(p => 
+      String(p["Product_Service"]).trim() === partNumber
+  );
+
+  if (productPurchases.length > 0) {
+      // Sort by Date Descending (Newest first)
+      productPurchases.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+      
+      // Clean and parse the cost from the most recent record
+      let rawCost = productPurchases[0]["Cost"];
+      if (typeof rawCost === 'string') {
+          rawCost = parseFloat(rawCost.replace(/[^0-9.-]/g, ''));
+      }
+      return isFinite(rawCost) ? rawCost : 0;
+  }
+
+  // Fallback if no purchase history
+  let dbCost = parseFloat(String(fallbackCost).replace(/[^0-9.-]/g, ''));
+  return isFinite(dbCost) ? dbCost : 0;
+}
 
 async function updateContactCompany(email, newCompanyName) {
   try {
@@ -1043,6 +1071,7 @@ window.dataLoader = {
   parseExcelData,
   processFiles,
   getCustomerDetails,
+  getProductUnitCost,
   updateContactCompany,
   getCompanyResearch,
   updateCustomerDetails,

@@ -1210,8 +1210,11 @@ async function selectProduct(encodedPartNumber, options = {}) {
             title="Qty On Order: ${qtyOnOrder}">
           </i>`;
 
-      // Prepare Unit Cost with a tooltip for price raises
-      const baseUnitCost = toNumber(selectedProduct["UnitCost"]);
+      // Prepare Unit Cost + tooltip for price raises
+      const baseUnitCost = dataLoader.getProductUnitCost(
+          selectedProduct["PartNumber"], 
+          selectedProduct["UnitCost"]
+      );
       const raiseInfo = window.dataStore["PriceRaise"]?.dataframe[partNumber];
 
       let unitCostCellContent = baseUnitCost ? `$${baseUnitCost.toFixed(2)}` : "N/A";
