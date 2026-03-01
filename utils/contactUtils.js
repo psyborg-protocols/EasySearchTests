@@ -46,7 +46,7 @@ const ContactUtils = {
         const fuse = new Fuse(allCompanyNames, options);
         let rawResults = fuse.search(searchKey);
 
-        // --- NEW: Substring Priority Boost ---
+        // Substring Priority Boost
         rawResults.forEach(result => {
             const targetRaw = result.item.original.toLowerCase();
             const targetNorm = result.item.searchable;
