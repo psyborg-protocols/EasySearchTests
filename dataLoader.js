@@ -4,6 +4,11 @@ const BW_BACKEND_BASE_URL = "https://bwbackend-cahmavhhgjcaa3be.canadaeast-01.az
 // This will be injected by the GitHub Actions build step
 const BW_BACKEND_CODE = "__BW_BACKEND_CODE__";
 
+window.BW_CONFIG = {
+    BW_BACKEND_BASE_URL,
+    BW_BACKEND_CODE
+};
+
 const DISALLOWED_PRODUCTS = [
   "", "Credit Card Fees", "Cost of Goods Sold", "Freight", "Health Insurance", "Amazon Fees", "Bank Fees", "Bad Debit", "PmntDiscount_Customer Discounts",
   "Misc", "PmntDiscount_Bank Service Charges", "Testing", "Restock", "Testing-Bio", "Testing-Endo", "Services", "Sales"
@@ -191,125 +196,7 @@ async function fetchLastNRows(driveId, itemId, sheetName, columns, nRows, token)
   });
 }
 
-/**
- * Fetches organizational contacts using a delta query for efficiency.
- */
-async function fetchAndProcessOrgContacts(token) {
-  let cachedContactsMap = window.dataStore.OrgContacts || new Map();
-  const metadata = await idbUtil.getDataset("OrgContactsMetadata") || {};
-  let nextLink = metadata.deltaLink;
 
-  if (nextLink) {
-    console.log("Found deltaLink. Fetching changes for organizational contacts...");
-  } else {
-    console.log("No deltaLink found. Performing full sync for organizational contacts...");
-    nextLink = 'https://graph.microsoft.com/v1.0/contacts/delta?$select=displayName,companyName,jobTitle,mail';
-  }
-
-  try {
-    let changes = [];
-    while (nextLink) {
-      const response = await fetch(nextLink, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error(`Graph API request failed: ${response.statusText}`);
-      const data = await response.json();
-      changes = changes.concat(data.value);
-
-      if (data['@odata.deltaLink']) {
-        metadata.deltaLink = data['@odata.deltaLink'];
-        nextLink = null;
-      } else {
-        nextLink = data['@odata.nextLink'];
-      }
-    }
-
-    console.log(`Successfully fetched ${changes.length} changes for contacts.`);
-
-    if (changes.length > 0) {
-      for (const contact of changes) {
-        const company = (contact.companyName || 'Unknown').trim().toLowerCase();
-
-        if (contact['@removed']) {
-          if (cachedContactsMap.has(company)) {
-            const companyContacts = cachedContactsMap.get(company).filter(c => c.id !== contact.id);
-            if (companyContacts.length > 0) {
-              cachedContactsMap.set(company, companyContacts);
-            } else {
-              cachedContactsMap.delete(company);
-            }
-          }
-        } else {
-          const newContact = {
-            id: contact.id,
-            Name: contact.displayName,
-            Title: contact.jobTitle,
-            Email: contact.mail
-          };
-          if (!cachedContactsMap.has(company)) {
-            cachedContactsMap.set(company, []);
-          }
-          const existingContacts = cachedContactsMap.get(company);
-          const index = existingContacts.findIndex(c => c.id === newContact.id);
-          if (index > -1) {
-            existingContacts[index] = newContact;
-          } else {
-            existingContacts.push(newContact);
-          }
-        }
-      }
-      console.log("Applied changes to in-memory contact list.");
-    }
-
-    await idbUtil.setDataset("OrgContactsData", Object.fromEntries(cachedContactsMap));
-    await idbUtil.setDataset("OrgContactsMetadata", metadata);
-
-    return cachedContactsMap;
-
-  } catch (error) {
-    console.error("Error fetching or processing organizational contacts:", error);
-    if (metadata.deltaLink) {
-      metadata.deltaLink = null;
-      await idbUtil.setDataset("OrgContactsMetadata", metadata);
-      console.warn("DeltaLink expired; cleared to force full sync.");
-    }
-    return cachedContactsMap;
-  }
-}
-
-/**
- * Merges contacts from a mismatched company into the correct company and updates the backend.
- */
-async function mergeOrganizationContacts(correctCompanyName, mismatchedCompanyName) {
-    const orgContacts = window.dataStore.OrgContacts;
-    const contactsToUpdate = orgContacts.get(mismatchedCompanyName) || [];
-
-    if (contactsToUpdate.length === 0) return;
-
-    // 1. Call the backend API for each contact
-    const updatePromises = contactsToUpdate.map(contact =>
-        updateContactCompany(contact.Email, correctCompanyName) 
-    );
-    await Promise.all(updatePromises);
-
-    // 2. Update in-memory data store
-    const correctKey = correctCompanyName.trim().toLowerCase();
-    const correctContactsList = orgContacts.get(correctKey) || [];
-
-    contactsToUpdate.forEach(contact => {
-      if (!correctContactsList.some(c => c.Email.toLowerCase() === contact.Email.toLowerCase())) {
-        correctContactsList.push(contact);
-      }
-    });
-
-    orgContacts.set(correctKey, correctContactsList);
-    orgContacts.delete(mismatchedCompanyName);
-
-    // 3. Write through to IndexedDB
-    if (window.idbUtil) {
-        await idbUtil.setDataset("OrgContactsData", Object.fromEntries(orgContacts));
-    }
-}
 
 /**
  * Main data processing function.
