@@ -364,7 +364,7 @@ async function selectCustomer(customerName) {
   // Render orders (this will apply filtering if the toggle is on)
   updateOrderTable("orderHistoryTable");
 
-  const details = await getCustomerDetails(customerName);
+  const details = await contactUtils.getCustomerDetails(customerName);
   if (details) {
     const toggle = document.getElementById("pricingToggle");
     const isDistributor = String(details.business).trim().toLowerCase() === "distributor";
@@ -397,7 +397,7 @@ async function handleContactMerge(buttonElement, correctCompanyName, mismatchedC
 
   try {
     // 2. Delegate data logic to dataLoader
-    await dataLoader.mergeOrganizationContacts(correctCompanyName, mismatchedCompanyName);
+    await contactUtils.mergeOrganizationContacts(correctCompanyName, mismatchedCompanyName);
 
     // 3. Handle Success UI
     actionDiv.innerHTML = `<div class="text-success fw-bold"><i class="fas fa-check-circle me-2"></i>Contacts updated successfully!</div>`;
@@ -440,8 +440,8 @@ async function confirmAndSaveChanges(customerName, finalDetails) {
           </div>`;
 
   try {
-    // 2. Call the dataLoader function to perform the update
-    await dataLoader.updateCustomerDetails(customerName, finalDetails);
+    // 2. Call the contactUtils function to perform the update
+    await contactUtils.updateCustomerDetails(customerName, finalDetails);
 
     // 3. Update the global state
     window.currentCustomerInfo = finalDetails;
@@ -515,7 +515,7 @@ async function selectCustomerInfo(customerName) {
   updateOrderTable("customerInfoOrderHistoryTable");
 
   // 2. Fetch existing details and display them immediately
-  let customerDetails = (await getCustomerDetails(customerName)) || {};
+  let customerDetails = (await contactUtils.getCustomerDetails(customerName)) || {};
   window.currentCustomerInfo = customerDetails;
 
   document.getElementById("customerLocation").textContent = customerDetails.location || "N/A";
@@ -572,7 +572,7 @@ async function selectCustomerInfo(customerName) {
     (async () => {
       try {
         console.log(`[selectCustomerInfo] Missing info for ${customerName}. Starting background research.`);
-        const researchResults = await dataLoader.getCompanyResearch(customerName);
+        const researchResults = await contactUtils.getCompanyResearch(customerName);
 
         // If research fails or returns nothing, just reset the UI to original state (remove spinners).
         if (!researchResults) {
@@ -1588,11 +1588,6 @@ document.getElementById('customer-info-tab').addEventListener('click', () => {
   }
 });
 
-
-async function getCustomerDetails(customerName) {
-  // thin wrapper around dataLoader => keeps rest of code unchanged
-  return window.dataLoader.getCustomerDetails(customerName);
-}
 
 // --- Quote Calculator Object ---
 const quoteCalculator = {

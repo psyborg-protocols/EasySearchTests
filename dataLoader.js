@@ -704,13 +704,5 @@ window.dataLoader = {
   parseExcelData,
   processFiles,
   getProductUnitCost,
-  findRecordInRemoteSheet,  
-  // --- Backward Compatibility Shims ---
-  // We export these through dataLoader so existing UI calls (e.g., in uiRenderer.js) don't break.
-  getCustomerDetails: window.contactUtils.getCustomerDetails,
-  updateContactCompany: window.contactUtils.updateContactCompany,
-  getCompanyResearch: window.contactUtils.getCompanyResearch,
-  updateCustomerDetails: window.contactUtils.updateCustomerDetails,
-  mergeOrganizationContacts: window.contactUtils.mergeOrganizationContacts,
-  fetchAndProcessOrgContacts: window.contactUtils.fetchAndProcessOrgContacts
+  findRecordInRemoteSheet
 };
