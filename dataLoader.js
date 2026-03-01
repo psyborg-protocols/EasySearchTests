@@ -359,7 +359,7 @@ async function processFiles() {
         }
 
         if (key === "CompanyInfo") {
-          const map = normaliseCompanyInfo(frame);
+          const map = window.contactUtils.normaliseCompanyInfo(frame);
           const stored = { dataframe: map, metadata: md };
           ds[key] = stored;
           await idbUtil.setDataset(storageKey, stored);
@@ -393,7 +393,7 @@ async function processFiles() {
       console.log("[Pricing] cache valid – no parsing needed.");
     }
 
-    ds["OrgContacts"] = await fetchAndProcessOrgContacts(token);
+    ds["OrgContacts"] = await window.contactUtils.fetchAndProcessOrgContacts(token);
 
     document.dispatchEvent(new Event("reports-ready"));
 
@@ -497,31 +497,6 @@ function toNumber(val) {
   return isFinite(num) ? num : null;
 }
 
-function normaliseCompanyInfo(frame) {
-  const map = {};
-  for (const row of frame) {
-    const company = String(row.Company || "").trim().replace(/\s+/g, " ").toLowerCase();
-    if (!company) continue;
-
-    // We only map the fields we care about, ignoring sales, contacts, etc.
-    map[company] = {
-      company: row.Company,
-      location: row.Location || "",
-      business: row.Business || "",
-      type: row.Type || "",
-      remarks: row.Remarks || "",
-      website: row.Website || ""
-    };
-  }
-  return map;
-}
-
-function getCustomerDetails(company) {
-  const key = company.trim().replace(/\s+/g, " ").toLowerCase();
-  // Read from the new, leaner data store key
-  return (window.dataStore.CompanyInfo?.dataframe || {})[key] || null;
-}
-
 /**
  * Calculates the unit cost based on the most recent purchase history.
  * Falls back to the static DB cost if no history exists.
@@ -549,235 +524,6 @@ function getProductUnitCost(partNumber, fallbackCost) {
   // Fallback if no purchase history
   let dbCost = parseFloat(String(fallbackCost).replace(/[^0-9.-]/g, ''));
   return isFinite(dbCost) ? dbCost : 0;
-}
-
-async function updateContactCompany(email, newCompanyName) {
-  try {
-    const payload = {
-      action: 'updateCompany',
-      email: email,
-      companyName: newCompanyName
-    };
-
-
-    const contactUrl = `${BW_BACKEND_BASE_URL}/ContactSync?code=${BW_BACKEND_CODE}`;
-
-    const response = await fetch(contactUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API Error: ${response.status} - ${errorText}`);
-    }
-
-    const result = await response.text();
-    console.log('Successfully sent update request:', result);
-    return result;
-
-  } catch (error) {
-    console.error('Error in updateContactCompany:', error);
-    throw error;
-  }
-}
-
-/**
- * Gets structured company information from the backend research agent.
- */
-async function getCompanyResearch(companyName) {
-  // Construct the full URL for the llm-proxy endpoint
-  const llmProxyUrl = `${BW_BACKEND_BASE_URL}/llm-proxy?code=${BW_BACKEND_CODE}`;
-
-  try {
-    const payload = {
-      action: 'llmProxy',
-      companyName: companyName
-    };
-
-    const response = await fetch(llmProxyUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-        // 'Authorization': `Bearer ${accessToken}` <--- Removed
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Company research failed: ${errorText}`);
-    }
-
-    const { model_data, citations } = await response.json();
-
-    let note = "These results are retrieved by AI and could contain errors.";
-
-    const modelWebsite = model_data.website;
-    const citationUrls = (citations || []).map(citation => citation.url);
-    const isUrlVerified = citationUrls.includes(modelWebsite);
-
-    if (!isUrlVerified) {
-      note = "Unable to verify URL. " + note;
-    }
-
-    return {
-      ...model_data,
-      note: note
-    };
-
-  } catch (error) {
-    console.error('Error getting company research:', error);
-    throw error;
-  }
-}
-
-/**
- * Updates a customer's details in the in-memory dataStore,
- * WRITES to IndexedDB (The Fix), and attempts a write-back to SharePoint.
- */
-async function updateCustomerDetails(customerName, updatedDetails) {
-  const key = customerName.trim().replace(/\s+/g, " ").toLowerCase();
-
-  // 1. Update in-memory dataStore
-  if (window.dataStore.CompanyInfo && window.dataStore.CompanyInfo.dataframe) {
-    window.dataStore.CompanyInfo.dataframe[key] = updatedDetails;
-    console.log(`[updateCustomerDetails] In-memory datastore updated for "${customerName}".`);
-
-    // This ensures changes persist if the user refreshes before a full network sync occurs.
-    if (window.idbUtil) {
-        try {
-            // We use "CompanyInfoData" because that is the key used in processFiles() 
-            // when initially loading/saving this specific dataset.
-            await window.idbUtil.setDataset("CompanyInfoData", window.dataStore.CompanyInfo);
-            console.log(`[updateCustomerDetails] IndexedDB updated for "${customerName}".`);
-        } catch (err) {
-            console.error("[updateCustomerDetails] Failed to write to IndexedDB:", err);
-        }
-    }
-
-  } else {
-    console.error("[updateCustomerDetails] CompanyInfo dataframe not found in dataStore.");
-    return; // Can't proceed
-  }
-
-  // 2. Write back to the Excel file on SharePoint
-  await writeCustomerDetailsToSharePoint(customerName, updatedDetails);
-}
-
-/**
- * Writes updated customer details back to the source Excel file on SharePoint.
- */
-async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
-  console.log(`[Write-Back] Initiating update for "${customerName}"...`);
-  try {
-    const config = (await loadConfig()).find(c => c.dataKey === 'CompanyInfo');
-    if (!config) throw new Error("CompanyInfo configuration not found.");
-
-    const metadata = window.dataStore.CompanyInfo?.metadata;
-    if (!metadata || !metadata.parentReference?.driveId || !metadata.id) {
-      throw new Error("File metadata for CompanyInfo is missing.");
-    }
-    const { driveId } = metadata.parentReference;
-    const itemId = metadata.id;
-    const { sheetName, columns, skipRows } = config;
-
-    const token = await getAccessToken();
-    const authHeader = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-
-    const rangeUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${sheetName}')/usedRange(valuesOnly=true)`;
-    const rangeResponse = await fetch(rangeUrl, { headers: authHeader });
-    if (!rangeResponse.ok) throw new Error(`Failed to get worksheet data: ${await rangeResponse.text()}`);
-    const rangeData = await rangeResponse.json();
-    const allRows = rangeData.values || [];
-
-    if (allRows.length === 0) {
-      throw new Error(`Worksheet "${sheetName}" appears to be empty.`);
-    }
-
-    const companyColumnIndex = columns.indexOf("Company");
-    if (companyColumnIndex === -1) {
-      throw new Error("'Company' column not defined in config.json.");
-    }
-
-    let rowIndex = -1;
-    for (let i = skipRows; i < allRows.length; i++) {
-      if (allRows[i][companyColumnIndex]?.toString().trim().toLowerCase() === customerName.trim().toLowerCase()) {
-        rowIndex = i;
-        break;
-      }
-    }
-
-    const columnMap = columns.reduce((acc, col, i) => ({ ...acc, [col]: i }), {});
-    const numColumns = columns.length;
-    const endColumn = XLSX.utils.encode_col(numColumns - 1);
-    let targetExcelRow;
-    let originalValues;
-
-    if (rowIndex !== -1) {
-      targetExcelRow = rowIndex + 1;
-      originalValues = allRows[rowIndex];
-      console.log(`[Write-Back] Found "${customerName}" at Excel row ${targetExcelRow}. Merging changes.`);
-    } else {
-      targetExcelRow = allRows.length + 1;
-      originalValues = [];
-      console.log(`[Write-Back] Customer "${customerName}" not found. Adding as new Excel row ${targetExcelRow}.`);
-    }
-
-    const newValues = new Array(numColumns).fill("");
-    for (let i = 0; i < numColumns; i++) {
-      const colName = columns[i];
-      const originalValue = originalValues[i] || "";
-
-      switch (colName) {
-        case "Company":
-          newValues[i] = customerName;
-          break;
-        case "Location":
-          newValues[i] = updatedDetails.location ?? originalValue;
-          break;
-        case "Business":
-          newValues[i] = updatedDetails.business ?? originalValue;
-          break;
-        case "Type":
-          newValues[i] = updatedDetails.type ?? originalValue;
-          break;
-        case "Remarks":
-          newValues[i] = updatedDetails.remarks ?? originalValue;
-          break;
-        case "Website":
-          newValues[i] = updatedDetails.website ?? originalValue;
-          break;
-        default:
-          newValues[i] = originalValue;
-          break;
-      }
-    }
-
-    const updateAddress = `A${targetExcelRow}:${endColumn}${targetExcelRow}`;
-    const updateUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${sheetName}')/range(address='${updateAddress}')`;
-    const updateResponse = await fetch(updateUrl, {
-      method: 'PATCH',
-      headers: authHeader,
-      body: JSON.stringify({ values: [newValues] })
-    });
-
-    if (!updateResponse.ok) {
-      const errorBody = await updateResponse.text();
-      console.error("[Write-Back] API Error Body:", errorBody);
-      throw new Error(`API Error during sheet update: ${errorBody}`);
-    }
-
-    console.log(`[Write-Back] Successfully updated sheet for "${customerName}" at range ${updateAddress}.`);
-    return await updateResponse.json();
-
-  } catch (error) {
-    console.error("[Write-Back] Failed to write customer details to SharePoint:", error);
-    throw error;
-  }
 }
 
 /**
@@ -957,11 +703,14 @@ window.dataLoader = {
   downloadExcelFile,
   parseExcelData,
   processFiles,
-  getCustomerDetails,
   getProductUnitCost,
-  updateContactCompany,
-  getCompanyResearch,
-  updateCustomerDetails,
-  findRecordInRemoteSheet,
-  mergeOrganizationContacts
+  findRecordInRemoteSheet,  
+  // --- Backward Compatibility Shims ---
+  // We export these through dataLoader so existing UI calls (e.g., in uiRenderer.js) don't break.
+  getCustomerDetails: window.ContactUtils.getCustomerDetails,
+  updateContactCompany: window.ContactUtils.updateContactCompany,
+  getCompanyResearch: window.ContactUtils.getCompanyResearch,
+  updateCustomerDetails: window.ContactUtils.updateCustomerDetails,
+  mergeOrganizationContacts: window.ContactUtils.mergeOrganizationContacts,
+  fetchAndProcessOrgContacts: window.ContactUtils.fetchAndProcessOrgContacts
 };
