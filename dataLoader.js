@@ -707,10 +707,10 @@ window.dataLoader = {
   findRecordInRemoteSheet,  
   // --- Backward Compatibility Shims ---
   // We export these through dataLoader so existing UI calls (e.g., in uiRenderer.js) don't break.
-  getCustomerDetails: window.ContactUtils.getCustomerDetails,
-  updateContactCompany: window.ContactUtils.updateContactCompany,
-  getCompanyResearch: window.ContactUtils.getCompanyResearch,
-  updateCustomerDetails: window.ContactUtils.updateCustomerDetails,
-  mergeOrganizationContacts: window.ContactUtils.mergeOrganizationContacts,
-  fetchAndProcessOrgContacts: window.ContactUtils.fetchAndProcessOrgContacts
+  getCustomerDetails: window.contactUtils.getCustomerDetails,
+  updateContactCompany: window.contactUtils.updateContactCompany,
+  getCompanyResearch: window.contactUtils.getCompanyResearch,
+  updateCustomerDetails: window.contactUtils.updateCustomerDetails,
+  mergeOrganizationContacts: window.contactUtils.mergeOrganizationContacts,
+  fetchAndProcessOrgContacts: window.contactUtils.fetchAndProcessOrgContacts
 };

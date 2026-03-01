@@ -136,9 +136,9 @@ window.buildLapsedCustomersReport = function buildLapsedCustomersReport(modalEl,
                         'New Order?': ''
                     });
                 });
-            } else if (window.ContactUtils) {
+            } else if (window.contactUtils) {
                 // If no exact contacts, perform a fuzzy search
-                const fuzzyMatches = window.ContactUtils.findPotentialMatches(row['Customer Name'], orgContacts);
+                const fuzzyMatches = window.contactUtils.findPotentialMatches(row['Customer Name'], orgContacts);
                 
                 if (fuzzyMatches.length > 0) {
                     // Inject the dummy row explaining that a fuzzy match exists

@@ -406,7 +406,7 @@ async function writeCustomerDetailsToSharePoint(customerName, updatedDetails) {
 }
 
 // Export mapping
-window.ContactUtils = {
+window.contactUtils = {
     findPotentialMatches,
     normaliseCompanyInfo,
     getCustomerDetails,

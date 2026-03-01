@@ -672,7 +672,7 @@ function renderContactCards(customerName) {
   } else {
     // Fuzzy search for potential mismatches
     if (orgContacts && orgContacts.size > 0) {
-      const matches = ContactUtils.findPotentialMatches(customerName, orgContacts);
+      const matches = contactUtils.findPotentialMatches(customerName, orgContacts);
 
       if (matches.length > 0) {
         const safeCorrectName = customerName.replace(/'/g, "\\'");
