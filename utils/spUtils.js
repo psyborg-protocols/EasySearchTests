@@ -8,7 +8,11 @@
  * that starts with the provided filename prefix.
  */
 async function fetchLatestFileMetadata(directory, filenamePrefix, token) {
-    const siteId = "brandywinematerialsllc.sharepoint.com,07a1465e-a31a-4437-aca2-0efe61b7f2c6,4b1abd1c-08c6-4574-b350-654376a1e954";
+    // Falls back to BW_CONFIG injected by dataLoader, otherwise defaults
+    const siteId = (window.BW_CONFIG && window.BW_CONFIG.BW_SITE_ID) 
+        ? window.BW_CONFIG.BW_SITE_ID 
+        : "brandywinematerialsllc.sharepoint.com,07a1465e-a31a-4437-aca2-0efe61b7f2c6,4b1abd1c-08c6-4574-b350-654376a1e954";
+        
     const driveId = "b!XkahBxqjN0Ssog7-Ybfyxhy9GkvGCHRFs1BlQ3ah6VTHnmI16yPPQofBa949Ai-j";
     const encodedDirectory = encodeURIComponent(directory);
     const encodedPrefix = encodeURIComponent(filenamePrefix);
@@ -265,6 +269,60 @@ async function fetchLatestFileMetadata(directory, filenamePrefix, token) {
       throw error;
     }
   }
+
+  // ==========================================
+  // SHAREPOINT LIST FUNCTIONS
+  // ==========================================
+  
+  /**
+   * Fetches metadata for a SharePoint List (used for caching logic)
+   */
+  async function fetchListMetadata(siteId, listId, token) {
+    const endpoint = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}?$select=lastModifiedDateTime,webUrl`;
+    const response = await fetch(endpoint, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) throw new Error(`Failed to fetch list metadata: ${response.statusText}`);
+    return response.json();
+  }
+  
+  /**
+   * Fetches all items from a SharePoint List, handling pagination
+   */
+  async function fetchListItems(siteId, listId, columns, token) {
+    let items = [];
+    let nextUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items?$expand=fields`;
+  
+    while (nextUrl) {
+      const response = await fetch(nextUrl, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) throw new Error(`Failed to fetch list items: ${response.statusText}`);
+      const data = await response.json();
+  
+      const mapped = data.value.map(item => {
+        const rowObj = {};
+        const fields = item.fields || {};
+        
+        // If specific columns are requested, map only those. Otherwise, grab everything.
+        if (columns && columns.length > 0) {
+          columns.forEach(col => {
+            rowObj[col] = fields[col] !== undefined ? fields[col] : "";
+          });
+        } else {
+          Object.assign(rowObj, fields);
+        }
+        return rowObj;
+      });
+  
+      items = items.concat(mapped);
+      nextUrl = data['@odata.nextLink'] || null; // Handle pagination
+    }
+    
+    console.debug(`[fetchListItems] Fetched ${items.length} items from list ${listId}`);
+    return items;
+  }
   
   // Attach to window
   window.spUtils = {
@@ -274,5 +332,7 @@ async function fetchLatestFileMetadata(directory, filenamePrefix, token) {
     excelSerialDateToJSDate,
     getColumnLetter,
     fetchLastNRows,
-    findRecordInRemoteSheet
+    findRecordInRemoteSheet,
+    fetchListMetadata,
+    fetchListItems
   };

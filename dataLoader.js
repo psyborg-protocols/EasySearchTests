@@ -4,9 +4,13 @@ const BW_BACKEND_BASE_URL = "https://bwbackend-cahmavhhgjcaa3be.canadaeast-01.az
 // This will be injected by the GitHub Actions build step
 const BW_BACKEND_CODE = "__BW_BACKEND_CODE__";
 
+// Centralized Site ID for SharePoint
+const BW_SITE_ID = "brandywinematerialsllc.sharepoint.com,07a1465e-a31a-4437-aca2-0efe61b7f2c6,4b1abd1c-08c6-4574-b350-654376a1e954";
+
 window.BW_CONFIG = {
     BW_BACKEND_BASE_URL,
-    BW_BACKEND_CODE
+    BW_BACKEND_CODE,
+    BW_SITE_ID
 };
 
 const DISALLOWED_PRODUCTS = [
@@ -46,7 +50,7 @@ async function loadConfig() {
 }
 
 /**
- * Main data processing function. Orchestrates downloading and parsing files.
+ * Main data processing function. Orchestrates downloading and parsing files and lists.
  */
 async function processFiles() {
   try {
@@ -59,7 +63,8 @@ async function processFiles() {
     }
 
     const byWorkbook = new Map();
-    const sigOf = r => `${r.directory}|${r.filenamePrefix}`;
+    // MODIFIED: Group lists by listId, Excel files by directory/prefix
+    const sigOf = r => r.sourceType === 'list' ? `list|${r.listId}` : `${r.directory}|${r.filenamePrefix}`;
     cfg.forEach(r => (byWorkbook.get(sigOf(r)) ?? byWorkbook.set(sigOf(r), []).get(sigOf(r))).push(r));
 
     const cachedPricing = await idbUtil.getDataset("PricingData") || null;
@@ -70,7 +75,53 @@ async function processFiles() {
     const ds = window.dataStore;
 
     for (const rows of byWorkbook.values()) {
-      const { directory, filenamePrefix } = rows[0];
+      const firstRow = rows[0];
+
+      // ==========================================
+      // HANDLE SHAREPOINT LISTS
+      // ==========================================
+      if (firstRow.sourceType === 'list') {
+        for (const row of rows) {
+          const key = row.dataKey || row.listId;
+          const storageKey = `${key}Data`;
+          
+          try {
+            const siteId = row.siteId || window.BW_CONFIG.BW_SITE_ID;
+            // 1. Get metadata to check for cache validity
+            const listMeta = await window.spUtils.fetchListMetadata(siteId, row.listId, token);
+            const lastMod = listMeta.lastModifiedDateTime;
+
+            if (listMeta.webUrl && !window.dataStore.fileLinks[key]) {
+              window.dataStore.fileLinks[key] = listMeta.webUrl;
+            }
+
+            // 2. Check Cache
+            const cached = await idbUtil.getDataset(storageKey);
+            if (cached?.metadata?.lastModifiedDateTime === lastMod) {
+              console.log(`[processFiles] Cache hit for List: ${key}. Skipping fetch.`);
+              ds[key] = cached;
+              continue;
+            }
+
+            // 3. Fetch fresh data if cache is missing/stale
+            console.log(`[processFiles] Fetching fresh data for List: ${key}...`);
+            const listData = await window.spUtils.fetchListItems(siteId, row.listId, row.columns, token);
+            
+            const stored = { dataframe: listData, metadata: listMeta };
+            ds[key] = stored;
+            await idbUtil.setDataset(storageKey, stored);
+            
+          } catch (err) {
+            console.error(`[processFiles] Failed to process list ${key}:`, err);
+          }
+        }
+        continue; // Skip the Excel logic below for this group
+      }
+
+      // ==========================================
+      // HANDLE EXCEL FILES
+      // ==========================================
+      const { directory, filenamePrefix } = firstRow;
       const metaResp = await window.spUtils.fetchLatestFileMetadata(directory, filenamePrefix, token);
       const md = metaResp.value?.[0];
       if (!md) continue;

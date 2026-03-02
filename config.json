@@ -97,5 +97,11 @@
     "nRows": 200,
     "columns": ["Order", "Customer", "Customer order(date)", "Supplier", "Ship To Customer(date)", "Track", "Remarks"], 
     "dataKey": "Samples"
+  },
+  {
+    "sourceType": "list",
+    "listId": "YOUR-LIST-GUID-HERE",
+    "columns": ["Title", "Status"],
+    "dataKey": "MyListData"
   }
 ]
