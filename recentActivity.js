@@ -194,17 +194,17 @@ const OrderSampleSearch = {
           // Search logic based on context
           if (contextType === 'Order') {
               // 1. Try Order No.
-              result = await dataLoader.findRecordInRemoteSheet("Orders", "Order No.", term);
+              result = await spUtils.findRecordInRemoteSheet("Orders", "Order No.", term);
               if (result) resultType = 'Order';
               
               // 2. Try Cust PO if not found
               if (!result) {
-                   result = await dataLoader.findRecordInRemoteSheet("Orders", "Cust PO", term);
+                   result = await spUtils.findRecordInRemoteSheet("Orders", "Cust PO", term);
                    if (result) resultType = 'Order';
               }
           } 
           else if (contextType === 'Sample') {
-              result = await dataLoader.findRecordInRemoteSheet("Samples", "Order", term);
+              result = await spUtils.findRecordInRemoteSheet("Samples", "Order", term);
               if (result) resultType = 'Sample';
           }
 
