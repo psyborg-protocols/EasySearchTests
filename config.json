@@ -100,8 +100,15 @@
   },
   {
     "sourceType": "list",
-    "listId": "YOUR-LIST-GUID-HERE",
-    "columns": ["Title", "Status"],
-    "dataKey": "MyListData"
+    "listId": "F8D77713-736A-4FB9-A752-B928C187C9FD",
+    "columns": [
+      "Title", "PartID", "PartNumber", "KeyCustomers", "FullBoxQty", 
+      "UnitCost", "QtyOnHand", "QtyOnOrder", "QtyCommitted", "ReOrderLevel", 
+      "Usage_1month", "Usage_6month", "Usage_12month", "Usage_2014", 
+      "Comments", "Description", "UnitsPerBox", "BoxWeight", "BoxSize", 
+      "TariffNo", "TariffDesc", "Category", "Manufacturer", "Brand", 
+      "IsActive", "ExternalID", "Modified", "Created", "Author", "Editor"
+    ],
+    "dataKey": "TestInventoryList"
   }
 ]
