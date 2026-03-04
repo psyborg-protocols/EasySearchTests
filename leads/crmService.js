@@ -365,7 +365,7 @@ const CRMService = {
             await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
             window.dispatchEvent(new Event('crm-smart-status-updated'));
         }
-    }
+    },
 
     // --- Updates (Write Operations) ---
     async updateLeadActivity(leadId) {
