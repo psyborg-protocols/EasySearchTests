@@ -357,19 +357,15 @@ const CRMService = {
                     lead._isCalculated = true; // Mark as auto-updated for the sparkle icon
                     batchUpdates = true;
                 }
-                // If we changed anything in memory, save it to IDB immediately.
-                if (batchUpdates) {
-                    await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
-                    window.dispatchEvent(new Event('crm-smart-status-updated'));
-                }
-            }
+            } // <-- END OF FOR LOOP
         }
 
-        // 4. Trigger UI Update
+        // 4. Trigger UI Update and Save to Database ONCE per batch
         if (batchUpdates) {
+            await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
             window.dispatchEvent(new Event('crm-smart-status-updated'));
         }
-    },
+    }
 
     // --- Updates (Write Operations) ---
     async updateLeadActivity(leadId) {
