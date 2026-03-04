@@ -338,8 +338,8 @@ const CRMService = {
                 const diffHours = (now - effectiveActivityDate) / (1000 * 60 * 60);
                 const diffDays = diffHours / 24;
 
-                // Rule 1: "Waiting On You" escalates to "Action Required" after ~2 days (48h)
-                if (calculatedStatus === 'Waiting On You' && diffDays > 2) {
+                // Rule 1: "Waiting On You" escalates to "Action Required" after ~7 days (48h)
+                if (calculatedStatus === 'Waiting On You' && diffDays > 7) {
                     if (calculatedStatus !== 'Action Required') {
                         calculatedStatus = 'Action Required';
                         needsUpdate = true;
