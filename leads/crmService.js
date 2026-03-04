@@ -253,6 +253,10 @@ const CRMService = {
 
         // 1. Build Batch Requests
         leads.forEach((lead) => {
+
+            // Skip smart status checks for leads that are already closed
+            if (lead.Status === 'Closed') return;
+
             const anchors = this.anchorsCache.filter(a => a.LeadId === lead.LeadId);
             const emails = anchors
                 .map(a => a.Email)
@@ -623,31 +627,35 @@ const CRMService = {
         const eventsUrl = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.EVENTS}/items?expand=fields&$filter=fields/LeadId eq '${leadId}'`;
         const eventsPromise = this._graphRequest(eventsUrl);
 
-        // 2. Start the Email Search Requests immediately (don't wait for events first)
-        const anchors = this.anchorsCache.filter(a => a.LeadId === leadId);
+        // 2. Start the Email Search Requests ONLY if the lead is active
+        let emailPromises = [];
         
-        const emailPromises = anchors.map(async (a) => {
-            if (!a.Email) return [];
-            const email = a.Email.toLowerCase();
-            const search = `participants:${email}`;
-            const url = `https://graph.microsoft.com/v1.0/me/messages?$search="${search}"&$top=20&$select=id,subject,receivedDateTime,bodyPreview,from,isRead,conversationId,isDraft`;
+        if (lead.Status !== 'Closed') {
+            const anchors = this.anchorsCache.filter(a => a.LeadId === leadId);
             
-            try {
-                const res = await this._graphRequest(url);
-                return res.value
-                    .filter(m => m.isDraft !== true)
-                    .map(m => ({
-                        type: "email",
-                        date: new Date(m.receivedDateTime),
-                        subject: m.subject,
-                        preview: m.bodyPreview,
-                        from: m.from?.emailAddress?.name || m.from?.emailAddress?.address || "Unknown",
-                        isRead: m.isRead,
-                        id: m.id,
-                        conversationId: m.conversationId
-                    }));
-            } catch(e) { return []; }
-        });
+            emailPromises = anchors.map(async (a) => {
+                if (!a.Email) return [];
+                const email = a.Email.toLowerCase();
+                const search = `participants:${email}`;
+                const url = `https://graph.microsoft.com/v1.0/me/messages?$search="${search}"&$top=20&$select=id,subject,receivedDateTime,bodyPreview,from,isRead,conversationId,isDraft`;
+                
+                try {
+                    const res = await this._graphRequest(url);
+                    return res.value
+                        .filter(m => m.isDraft !== true)
+                        .map(m => ({
+                            type: "email",
+                            date: new Date(m.receivedDateTime),
+                            subject: m.subject,
+                            preview: m.bodyPreview,
+                            from: m.from?.emailAddress?.name || m.from?.emailAddress?.address || "Unknown",
+                            isRead: m.isRead,
+                            id: m.id,
+                            conversationId: m.conversationId
+                        }));
+                } catch(e) { return []; }
+            });
+        }
 
         // 3. Await EVERYTHING together
         // We combine the events promise and the array of email promises

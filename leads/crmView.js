@@ -433,29 +433,7 @@ async loadLead(leadId) {
             // 6. Check for Smart Suggestions (Samples)
             const suggestion = await CRMService.checkSampleSuggestions(lead, items);
 
-            // 7. Filter Logic for Closed Leads
-            // If Closed, show restricted view: Closed Event + Previous Item + Any messages *since* closing
-            if (lead.Status === 'Closed') {
-                // Find the event where it was closed
-                const closedIdx = items.findIndex(i => 
-                    i.type === 'event' && 
-                    (i.summary === 'Lead Closed' || (i.summary === 'Status Update' && i.details.includes('Closed')))
-                );
-
-                if (closedIdx > -1) {
-                    // Items are sorted Newest -> Oldest (Index 0 is newest)
-                    // We want everything NEWER than closedIdx (messages since close)
-                    // We want closedIdx (The close event)
-                    // We want closedIdx + 1 (The last context before closing)
-                    
-                    const messagesSinceClose = items.slice(0, closedIdx);
-                    const closeEventAndContext = items.slice(closedIdx, closedIdx + 2);
-                    items = [...messagesSinceClose, ...closeEventAndContext];
-                } else {
-                    // Fallback if no specific event found: just show the single most recent item
-                    items = items.slice(0, 1);
-                }
-            }
+            // 7. Filter no longer necessary for closed leads since email fetching is skipped.
 
             // 8. Render Final Data
             this.renderTimeline(items, suggestion);
