@@ -251,9 +251,8 @@ const CRMService = {
         const batchRequests = [];
         let batchUpdates = false; 
 
-        // 1. Build Batch Requests
+        // 1. Build Batch Requests to fetch emails
         leads.forEach((lead) => {
-
             // Skip smart status checks for leads that are already closed
             if (lead.Status === 'Closed') return;
 
@@ -277,7 +276,7 @@ const CRMService = {
 
         if (batchRequests.length === 0) return;
 
-        // 2. Execute Batch
+        // 2. Execute Graph API Batch Request (Fetch latest emails)
         const response = await fetch("https://graph.microsoft.com/v1.0/$batch", {
             method: "POST",
             headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
@@ -296,7 +295,7 @@ const CRMService = {
                 const messages = res.body.value;
                 if (!messages || messages.length === 0) continue;
 
-                // Filter drafts
+                // Filter out draft emails
                 const validMessages = messages.filter(m => m.isDraft !== true);
                 if (validMessages.length === 0) continue;
 
@@ -305,67 +304,88 @@ const CRMService = {
                 // Use existing Lead Date (fallback to 0 if null)
                 const leadDate = new Date(lead.LastActivityAt || 0);
 
-                const myEmail = userAccount?.username?.toLowerCase() || "";
-                const sender = (latestMsg.from?.emailAddress?.address || "").toLowerCase();
-                const isMyEmail = sender === myEmail;
-
                 // --- LOGIC START ---
+                const myEmail = userAccount?.username?.toLowerCase() || "";
+                const isMyEmail = (latestMsg.from?.emailAddress?.address || "").toLowerCase() === myEmail;
+
                 let calculatedStatus = lead.Status; 
-                let needsUpdate = false;
+                let statusChanged = false;
+                let dateChanged = false;
                 
                 // A) Did a NEW message arrive since last activity?
-                // If YES, we update the Base Status.
                 if (msgDate > leadDate) {
-                    // Update Last Activity Time to this new message
                     lead.LastActivityAt = msgDate.toISOString(); 
+                    dateChanged = true;
                     
-                    if (isMyEmail) {
-                        // I sent the last email -> They need to reply
-                        calculatedStatus = 'Waiting On Contact';
+                    // Set the base status based on who sent the latest email
+                    calculatedStatus = isMyEmail ? 'Waiting On Contact' : 'Waiting On You'; 
+                }
+
+                // B) Escalation Logic (Streak-based)
+                // Look back through the recent emails to find when the current sender's streak began
+                let streakStartDate = msgDate;
+                for (let i = 1; i < validMessages.length; i++) {
+                    const msgSenderIsMe = (validMessages[i].from?.emailAddress?.address || "").toLowerCase() === myEmail;
+                    if (msgSenderIsMe === isMyEmail) {
+                        // Still the same sender, push the streak date further back
+                        streakStartDate = new Date(validMessages[i].receivedDateTime);
                     } else {
-                        // They sent the last email -> I need to reply
-                        // Initially "Waiting On You" (Orange), escalates to Action Required (Red) later
-                        calculatedStatus = 'Waiting On You'; 
+                        // The other party replied, the streak ends here
+                        break;
                     }
-                    needsUpdate = true;
                 }
 
-                // B) Escalation Logic (Time-based check)
-                // We check how much time has passed since the *Effective Last Activity*
-                // Note: If we just updated lead.LastActivityAt above, we use that. 
-                const effectiveActivityDate = new Date(lead.LastActivityAt);
                 const now = new Date();
-                const diffHours = (now - effectiveActivityDate) / (1000 * 60 * 60);
-                const diffDays = diffHours / 24;
+                const diffDays = (now - streakStartDate) / (1000 * 60 * 60 * 24);
 
-                // Rule 1: "Waiting On You" escalates to "Action Required" after ~7 days (48h)
-                if (calculatedStatus === 'Waiting On You' && diffDays > 7) {
-                    if (calculatedStatus !== 'Action Required') {
-                        calculatedStatus = 'Action Required';
-                        needsUpdate = true;
-                    }
-                }
-                
-                // Rule 2: "Waiting On Contact" escalates to "Action Required" after 7 days
-                else if (calculatedStatus === 'Waiting On Contact' && diffDays > 7) {
-                    if (calculatedStatus !== 'Action Required') {
-                        calculatedStatus = 'Action Required';
-                        needsUpdate = true;
-                    }
+                // Apply Escalation if the base status has been waiting longer than 7 days
+                if ((calculatedStatus === 'Waiting On You' || calculatedStatus === 'Waiting On Contact') && diffDays > 7) {
+                    calculatedStatus = 'Action Required';
                 }
 
-                // C) Apply Changes
-                if (needsUpdate && lead.Status !== calculatedStatus) {
-                    console.log(`[SmartStatus] Update for ${lead.Title}: ${lead.Status} -> ${calculatedStatus}`);
-                    lead.Status = calculatedStatus; 
-                    lead._isCalculated = true; // Mark as auto-updated for the sparkle icon
+                // C) Apply Changes & Queue SharePoint Updates
+                statusChanged = (lead.Status !== calculatedStatus);
+
+                if (statusChanged || dateChanged) {
+                    const spUpdates = {};
+
+                    if (statusChanged) {
+                        console.log(`[SmartStatus] Update for ${lead.Title}: ${lead.Status} -> ${calculatedStatus}`);
+                        lead.Status = calculatedStatus; 
+                        lead._isCalculated = true; // Sparkle icon applied ONLY on actual status change
+                        spUpdates.Status = calculatedStatus;
+                    }
+
+                    if (dateChanged) {
+                        spUpdates.LastActivityAt = lead.LastActivityAt;
+                    }
+
+                    // Queue the changes to push to SharePoint
+                    batchRequests.push({
+                        id: `update_${lead.LeadId}`,
+                        method: "PATCH",
+                        url: `/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`,
+                        headers: { "Content-Type": "application/json" },
+                        body: { fields: spUpdates }
+                    });
+
                     batchUpdates = true;
                 }
-            } // <-- END OF FOR LOOP
+            } 
         }
 
-        // 4. Trigger UI Update and Save to Database ONCE per batch
+        // 4. Trigger UI Update, execute SharePoint PATCH batch, and Save to Database ONCE
         if (batchUpdates) {
+            // Execute the pending SharePoint updates
+            const updateBatch = batchRequests.filter(req => req.id && String(req.id).startsWith('update_'));
+            if (updateBatch.length > 0) {
+                await fetch("https://graph.microsoft.com/v1.0/$batch", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ requests: updateBatch })
+                }).catch(err => console.error("[SmartStatus] Failed to push batch to SharePoint:", err));
+            }
+
             await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
             window.dispatchEvent(new Event('crm-smart-status-updated'));
         }
@@ -402,11 +422,21 @@ const CRMService = {
         if (!lead) return;
         const now = new Date().toISOString();
 
+        // Check if we are re-opening a closed lead
+        let eventType = "System";
+        let summary = "Status Update";
+        let details = `Status changed to: ${newStatus}`;
+
+        if (lead.Status === 'Closed' && newStatus !== 'Closed') {
+            summary = "Lead Re-opened";
+            details = `Lead was re-opened and status set to: ${newStatus}`;
+        }
+
         await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`, "PATCH", {
             fields: { Status: newStatus, LastActivityAt: now }
         });
 
-        await this.addEvent(leadId, "System", "Status Update", `Status changed to: ${newStatus}`);
+        await this.addEvent(leadId, eventType, summary, details);
 
         lead.Status = newStatus;
         lead.LastActivityAt = now;

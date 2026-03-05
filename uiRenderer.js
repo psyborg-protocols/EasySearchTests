@@ -1163,7 +1163,7 @@ document.getElementById("productSearch").addEventListener("input", async (e) => 
           return `
             <li>
               <a class="dropdown-item ${isExact ? 'fw-bold' : ''}" href="#"
-                onclick="event.stopPropagation(); selectProduct('${encodeURIComponent(product["PartNumber"])}');">
+                onclick="event.preventDefault(); event.stopPropagation(); selectProduct('${encodeURIComponent(product["PartNumber"])}');">
                 ${product["PartNumber"]} - ${product["Description"]}
               </a>
             </li>`;

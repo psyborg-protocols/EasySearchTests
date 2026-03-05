@@ -982,10 +982,11 @@ async loadLead(leadId) {
             // Always show non-system events (Emails, Notes, SampleSent)
             if (item.eventType !== 'System') return true;
             
-            // For System events: Show "Lead Created" OR "Status Update" if it's the closing event
+            // For System events: Show "Lead Created" OR "Status Update" if it's the closing event or re-opening event
             // Note: crmService creates a "Status Update" event with details "Status changed to: Closed"
             return item.summary === 'Lead Created' || 
-                   (item.summary === 'Status Update' && item.details && item.details.includes('Closed'));
+                   (item.summary === 'Status Update' && item.details && item.details.includes('Closed')) ||
+                   item.summary === 'Lead Re-opened';
         });
 
         let html = '';
@@ -1067,8 +1068,9 @@ async loadLead(leadId) {
                 const isSys = item.eventType === 'System';
                 const isSample = item.eventType === 'SampleSent';
                 
-                // --- NEW: Check if this is the Closed event to style it differently ---
+                // Check if this is the Closed  or Re-opening event to style it differently
                 const isClosedEvent = isSys && item.summary === 'Status Update' && item.details.includes('Closed');
+                const isReopenedEvent = isSys && item.summary === 'Lead Re-opened';
 
                 // Default Styling (Notes)
                 let icon = 'fa-sticky-note';
@@ -1080,6 +1082,10 @@ async loadLead(leadId) {
                     icon = 'fa-lock'; // Lock icon for Closed
                     colorClass = 'text-secondary';
                     bgClass = 'background:#f3f4f6; border: 1px solid #e5e7eb;';
+                } else if (isReopenedEvent) {
+                    icon = 'fa-unlock'; 
+                    colorClass = 'text-success';
+                    bgClass = 'background:#ecfdf5; border: 1px solid #d1fae5;';                
                 } else if (isSys) {
                     // Lead Created
                     icon = 'fa-flag'; 
