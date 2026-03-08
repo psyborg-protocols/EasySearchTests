@@ -405,5 +405,8 @@ async function fetchLatestFileMetadata(directory, filenamePrefix, token) {
     fetchLastNRows,
     findRecordInRemoteSheet,
     fetchListMetadata,
-    fetchListItems
+    fetchListItems,
+    graphRequest,
+    fetchListDelta,
+    executeGraphBatch
   };
