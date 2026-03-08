@@ -61,39 +61,11 @@ const CRMService = {
             .catch(err => console.warn("[CRM] Background sync failed:", err));
     },
 
-    // --- Helpers ---
-    async _graphRequest(url, method = "GET", body = null, extraHeaders = null) {
-        const token = await getAccessToken(); 
-        const headers = {
-            "Authorization": `Bearer ${token}`,
-            "Accept": "application/json",
-        };
-
-        if (body != null) headers["Content-Type"] = "application/json";
-        if (extraHeaders) Object.assign(headers, extraHeaders);
-
-        const res = await fetch(url, {
-            method,
-            headers,
-            body: body != null ? JSON.stringify(body) : undefined
-        });
-
-        if (res.status === 410) {
-            console.warn("[CRM] Delta token expired. Forcing full resync.");
-            throw new Error("DELTA_EXPIRED");
-        }
-
-        if (!res.ok) {
-            const text = await res.text().catch(() => "");
-            throw new Error(`[Graph] ${res.status} ${res.statusText} :: ${text}`);
-        }
-        return await res.json();
-    },
-
     // --- Email Body Fetcher ---
     async getMessageBody(messageId) {
         // Fetches the HTML content of a specific message
-        const data = await this._graphRequest(`https://graph.microsoft.com/v1.0/me/messages/${messageId}?$select=body`);
+        const token = await getAccessToken();
+        const data = await spUtils.graphRequest(`https://graph.microsoft.com/v1.0/me/messages/${messageId}?$select=body`, "GET", null, token);
         return data.body?.content || "<p>No content available.</p>";
     },
 
@@ -169,26 +141,14 @@ const CRMService = {
     },
 
     async _syncWithGraph(listId, cacheProp, linkProp, storageKey) {
-        let nextUrl = this[linkProp];
-        if (!nextUrl) nextUrl = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${listId}/items/delta?expand=fields`;
-
-        let changes = [];
-        let newDeltaLink = null;
-        let hasMore = true;
-
+        const token = await getAccessToken();
         try {
-            while (hasMore) {
-                const data = await this._graphRequest(nextUrl);
-                changes.push(...data.value);
+            const { changes, deltaLink } = await spUtils.fetchListDelta(CRM_CONFIG.SITE_ID, listId, this[linkProp], token);
 
-                if (data["@odata.deltaLink"]) {
-                    newDeltaLink = data["@odata.deltaLink"];
-                    hasMore = false;
-                } else if (data["@odata.nextLink"]) {
-                    nextUrl = data["@odata.nextLink"];
-                } else {
-                    hasMore = false;
-                }
+            if (changes.length > 0) {
+                this._applyChanges(changes, cacheProp);
+                if (deltaLink) this[linkProp] = deltaLink;
+                await this._persistToStorage(storageKey, cacheProp, linkProp);
             }
         } catch (e) {
             if (e.message === "DELTA_EXPIRED") {
@@ -197,12 +157,6 @@ const CRMService = {
                 return this._syncWithGraph(listId, cacheProp, linkProp, storageKey);
             }
             throw e;
-        }
-
-        if (changes.length > 0) {
-            this._applyChanges(changes, cacheProp);
-            if (newDeltaLink) this[linkProp] = newDeltaLink;
-            await this._persistToStorage(storageKey, cacheProp, linkProp);
         }
     },
 
@@ -277,12 +231,7 @@ const CRMService = {
         if (batchRequests.length === 0) return;
 
         // 2. Execute Graph API Batch Request (Fetch latest emails)
-        const response = await fetch("https://graph.microsoft.com/v1.0/$batch", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ requests: batchRequests })
-        });
-        const result = await response.json();
+        const result = await spUtils.executeGraphBatch(batchRequests, token);
 
         // 3. Process Responses
         if (result.responses) {
@@ -379,11 +328,7 @@ const CRMService = {
             // Execute the pending SharePoint updates
             const updateBatch = batchRequests.filter(req => req.id && String(req.id).startsWith('update_'));
             if (updateBatch.length > 0) {
-                await fetch("https://graph.microsoft.com/v1.0/$batch", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ requests: updateBatch })
-                }).catch(err => console.error("[SmartStatus] Failed to push batch to SharePoint:", err));
+                await spUtils.executeGraphBatch(updateBatch, token).catch(err => console.error("[SmartStatus] Failed to push batch to SharePoint:", err));
             }
 
             await this._persistToStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');
@@ -396,9 +341,10 @@ const CRMService = {
         const lead = this.leadsCache.find(l => l.LeadId === leadId);
         if(!lead) return;
         const now = new Date().toISOString();
-        await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`, "PATCH", {
+        const token = await getAccessToken();
+        await spUtils.graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`, "PATCH", {
             fields: { LastActivityAt: now }
-        });
+        }, token);
         lead.LastActivityAt = now;
     },
 
@@ -407,8 +353,9 @@ const CRMService = {
         if (!lead) return;
 
         const fieldsToUpdate = { ...updatedFields }; 
+        const token = await getAccessToken();
 
-        await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`, "PATCH", { fields: fieldsToUpdate });
+        await spUtils.graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`, "PATCH", { fields: fieldsToUpdate }, token);
         
         const summary = Object.keys(updatedFields).map(k => `${k}: ${updatedFields[k]}`).join(", ");
         await this.addEvent(leadId, "System", "Lead Updated", `Updated fields: ${summary}`);
@@ -421,6 +368,7 @@ const CRMService = {
         const lead = this.leadsCache.find(l => l.LeadId === leadId);
         if (!lead) return;
         const now = new Date().toISOString();
+        const token = await getAccessToken();
 
         // Check if we are re-opening a closed lead
         let eventType = "System";
@@ -432,9 +380,9 @@ const CRMService = {
             details = `Lead was re-opened and status set to: ${newStatus}`;
         }
 
-        await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`, "PATCH", {
+        await spUtils.graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.LEADS}/items/${lead.itemId}`, "PATCH", {
             fields: { Status: newStatus, LastActivityAt: now }
-        });
+        }, token);
 
         await this.addEvent(leadId, eventType, summary, details);
 
@@ -525,13 +473,8 @@ const CRMService = {
         }
 
         // 2. Execute Batch
-        const response = await fetch("https://graph.microsoft.com/v1.0/$batch", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ requests: requests })
-        });
+        const result = await spUtils.executeGraphBatch(requests, token);
         
-        const result = await response.json();
         const errors = result.responses.filter(r => r.status >= 400);
         if (errors.length > 0) {
             console.error("Batch creation failed:", errors);
@@ -652,10 +595,11 @@ const CRMService = {
     async getFullTimeline(lead) {
         this.currentLead = lead;
         const leadId = lead.LeadId;
+        const token = await getAccessToken();
 
         // 1. Start the SharePoint Events Request immediately
         const eventsUrl = `https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.EVENTS}/items?expand=fields&$filter=fields/LeadId eq '${leadId}'`;
-        const eventsPromise = this._graphRequest(eventsUrl);
+        const eventsPromise = spUtils.graphRequest(eventsUrl, "GET", null, token);
 
         // 2. Start the Email Search Requests ONLY if the lead is active
         let emailPromises = [];
@@ -670,7 +614,7 @@ const CRMService = {
                 const url = `https://graph.microsoft.com/v1.0/me/messages?$search="${search}"&$top=20&$select=id,subject,receivedDateTime,bodyPreview,from,isRead,conversationId,isDraft`;
                 
                 try {
-                    const res = await this._graphRequest(url);
+                    const res = await spUtils.graphRequest(url, "GET", null, token);
                     return res.value
                         .filter(m => m.isDraft !== true)
                         .map(m => ({
@@ -713,6 +657,7 @@ const CRMService = {
     },
 
     async addEvent(leadId, type, summary, details) {
+        const token = await getAccessToken();
         const payload = {
             fields: {
                 LeadId: leadId,
@@ -722,6 +667,6 @@ const CRMService = {
                 EventAt: new Date().toISOString()
             }
         };
-        await this._graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.EVENTS}/items`, "POST", payload);
+        await spUtils.graphRequest(`https://graph.microsoft.com/v1.0/sites/${CRM_CONFIG.SITE_ID}/lists/${CRM_CONFIG.LISTS.EVENTS}/items`, "POST", payload, token);
     }
 };

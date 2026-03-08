@@ -63,7 +63,7 @@ async function processFiles() {
     }
 
     const byWorkbook = new Map();
-    // MODIFIED: Group lists by listId, Excel files by directory/prefix
+    // Group lists by listId, Excel files by directory/prefix
     const sigOf = r => r.sourceType === 'list' ? `list|${r.listId}` : `${r.directory}|${r.filenamePrefix}`;
     cfg.forEach(r => (byWorkbook.get(sigOf(r)) ?? byWorkbook.set(sigOf(r), []).get(sigOf(r))).push(r));
 

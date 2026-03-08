@@ -324,6 +324,77 @@ async function fetchLatestFileMetadata(directory, filenamePrefix, token) {
     return items;
   }
   
+  /**
+   * Generic Graph API Request
+   */
+  async function graphRequest(url, method = "GET", body = null, token) {
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    };
+    if (body != null) headers['Content-Type'] = 'application/json';
+
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body != null ? JSON.stringify(body) : undefined
+    });
+
+    if (res.status === 410) {
+      throw new Error("DELTA_EXPIRED");
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`[Graph] ${res.status} ${res.statusText} :: ${text}`);
+    }
+    
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  /**
+   * Fetches delta changes for a SharePoint list.
+   */
+  async function fetchListDelta(siteId, listId, currentDeltaLink, token) {
+    let nextUrl = currentDeltaLink || `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items/delta?expand=fields`;
+    let changes = [];
+    let newDeltaLink = null;
+    let hasMore = true;
+
+    while (hasMore) {
+      const data = await graphRequest(nextUrl, "GET", null, token);
+      if (!data) break;
+      
+      changes.push(...(data.value || []));
+
+      if (data['@odata.deltaLink']) {
+        newDeltaLink = data['@odata.deltaLink'];
+        hasMore = false;
+      } else if (data['@odata.nextLink']) {
+        nextUrl = data['@odata.nextLink'];
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return { changes, deltaLink: newDeltaLink };
+  }
+
+  /**
+   * Executes a Graph API batch request.
+   */
+  async function executeGraphBatch(requests, token) {
+    const response = await fetch("https://graph.microsoft.com/v1.0/$batch", {
+      method: "POST",
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests })
+    });
+    if (!response.ok) {
+      throw new Error(`Batch request failed: ${response.statusText}`);
+    }
+    return await response.json();
+  }
+
   // Attach to window
   window.spUtils = {
     fetchLatestFileMetadata,
