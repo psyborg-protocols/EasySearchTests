@@ -61,14 +61,6 @@ const CRMService = {
             .catch(err => console.warn("[CRM] Background sync failed:", err));
     },
 
-    // --- Email Body Fetcher ---
-    async getMessageBody(messageId) {
-        // Fetches the HTML content of a specific message
-        const token = await getAccessToken();
-        const data = await spUtils.graphRequest(`https://graph.microsoft.com/v1.0/me/messages/${messageId}?$select=body`, "GET", null, token);
-        return data.body?.content || "<p>No content available.</p>";
-    },
-
     // --- Business Logic / Calculations ---
     calculateLeadValue(partNumber, quantity) {
         const pn = (partNumber || "").trim();

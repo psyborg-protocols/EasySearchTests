@@ -374,7 +374,7 @@ intervals: {
         </div>
     `;
 
-    await window.sendMail("Reminder: You have pending reports", emailBody, userAccount.username);
+    await mailUtils.sendMail("Reminder: You have pending reports", emailBody, userAccount.username);
   },
 
   // --- NEW FEATURE: Deep Linking ---

@@ -20,9 +20,6 @@ const msalConfig = {
     }
 };
 
-// Update this to your actual shared mailbox address
-const SHARED_MAILBOX_ADDRESS = "reminders@brandywinematerials.com";
-
 // Custom API scopes
 const contactUpdateScope = `api://${msalConfig.auth.clientId}/Contacts.Update`;
 const companyResearchScope = `api://${msalConfig.auth.clientId}/Company.Research`;
@@ -325,66 +322,4 @@ async function getApiAccessToken(options = {}) {
 
 async function getLLMAccessToken(options = {}) {
     return getScopedAccessToken([companyResearchScope], { ...options, redirectScopes: [companyResearchScope] });
-}
-
-// ------------------------------
-// Graph email helper
-// ------------------------------
-
-/**
- * Sends an email via Microsoft Graph API.
- * Uses the shared mailbox path if user has permissions,
- * otherwise defaults to 'me'.
- */
-async function sendMail(subject, htmlBody, toEmail) {
-    const token = await getAccessToken({ autoRedirectOnce: true, reason: "sendMail" });
-
-    if (!token) {
-        throw new Error("Not authenticated; please sign in and try again.");
-    }
-
-    const mailData = {
-        message: {
-            subject: subject,
-            body: {
-                contentType: "HTML",
-                content: htmlBody
-            },
-            toRecipients: [
-                {
-                    emailAddress: {
-                        address: toEmail
-                    }
-                }
-            ]
-        },
-        saveToSentItems: true
-    };
-
-    // Try sending from shared mailbox first
-    let endpoint = `https://graph.microsoft.com/v1.0/users/${SHARED_MAILBOX_ADDRESS}/sendMail`;
-
-    // Fallback logic for development environments where the constant might not be set
-    if (!SHARED_MAILBOX_ADDRESS.includes("brandywinematerials.com")) {
-        endpoint = `https://graph.microsoft.com/v1.0/me/sendMail`;
-    }
-
-    try {
-        const response = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(mailData)
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Email Send Failed: ${errorText}`);
-        }
-    } catch (error) {
-        console.error("Error sending email:", error);
-        throw error;
-    }
 }

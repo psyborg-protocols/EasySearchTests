@@ -963,7 +963,7 @@ async loadLead(leadId) {
                     </div>`;
 
                 try {
-                    let htmlBody = await CRMService.getMessageBody(messageId);
+                    let htmlBody = await mailUtils.getMessageBody(messageId);
 
                     // 1. Strip <style>, <script>, <link>, and <head> to prevent breaking the app layout
                     htmlBody = htmlBody.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
