@@ -4,7 +4,8 @@
 // ---------------------------------------------
 
 const CRMView = {
-    sortBy: 'recent', 
+    sortBy: 'recent',
+    showActiveOnly: true, 
     currentTimelineItems: [], 
     currentEditCleanup: null, 
 
@@ -69,6 +70,14 @@ const CRMView = {
                 this.sortBy = 'value';
                 btnValue.classList.add('active');
                 btnRecent.classList.remove('active');
+                this.renderList();
+            });
+        }
+
+        const toggleActive = document.getElementById('crmFilterActiveToggle');
+        if (toggleActive) {
+            toggleActive.addEventListener('change', (e) => {
+                this.showActiveOnly = e.target.checked;
                 this.renderList();
             });
         }
@@ -318,6 +327,10 @@ const CRMView = {
         
         if (search) {
             leads = leads.filter(l => (l.Title||"").toLowerCase().includes(search) || (l.Company||"").toLowerCase().includes(search) || (l.PartNumber||"").toLowerCase().includes(search));
+        }
+
+        if (this.showActiveOnly) {
+            leads = leads.filter(l => l.Status !== 'Closed');
         }
 
         leads.forEach(l => l._calculatedValue = CRMService.calculateLeadValue(l.PartNumber, l.Quantity));
