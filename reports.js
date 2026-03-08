@@ -342,42 +342,16 @@ intervals: {
   async sendReminderEmail(dueReports) {
     if (!userAccount || !userAccount.username) return;
 
-    const reportListHtml = dueReports.map(r => 
-        `<li style="margin-bottom: 10px;">
-            <strong>${r.title}</strong><br>
-            <span style="color: #666;">${r.desc}</span><br>
-            <a href="${window.location.origin}${window.location.pathname}?runReport=${r.id}" 
-               style="color: #0d6efd; text-decoration: none; font-weight: bold;">
-               Open Report →
-            </a>
-         </li>`
-    ).join('');
-
-    const emailBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-            <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-bottom: 1px solid #e0e0e0;">
-                <h2 style="color: #2D2A32; margin: 0;">BrandyWise Reports Due</h2>
-            </div>
-            <div style="padding: 30px;">
-                <p>Hello,</p>
-                <p>We noticed you have <strong>${dueReports.length} reports</strong> that are currently due for review based on your scheduled preferences.</p>
-                <ul style="padding-left: 20px; margin-top: 20px;">
-                    ${reportListHtml}
-                </ul>
-                <p style="margin-top: 30px; font-size: 0.9em; color: #888;">
-                    Clicking a link above will take you directly to the dashboard to generate the report.
-                </p>
-            </div>
-            <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa;">
-                BrandyWine Materials LLC
-            </div>
-        </div>
-    `;
-
-    await mailUtils.sendMail("Reminder: You have pending reports", emailBody, userAccount.username);
+    try {
+        // Call the centralized utility function
+        await window.mailUtils.sendReportsReminderEmail(dueReports, userAccount.username);
+        console.log(`[VisitTracker] Reports reminder dispatched for ${dueReports.length} reports.`);
+    } catch (e) {
+        console.error("[VisitTracker] Failed to send reports reminder email:", e);
+    }
   },
 
-  // --- NEW FEATURE: Deep Linking ---
+  // --- Deep Linking ---
   async handleDeepLink() {
     const params = new URLSearchParams(window.location.search);
     const reportId = params.get('runReport');

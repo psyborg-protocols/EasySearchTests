@@ -135,6 +135,34 @@ function getVisitStats() {
   });
 }
 
+// --- Lead Reminders Methods ---
+
+function saveLeadReminders(statsObj) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const db = await openIndexedDB();
+      const tx = db.transaction("appStats", "readwrite");
+      const store = tx.objectStore("appStats");
+      const request = store.put(statsObj, "leadReminders");
+      request.onsuccess = () => resolve();
+      request.onerror = (e) => reject(e);
+    } catch (e) { reject(e); }
+  });
+}
+
+function getLeadReminders() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const db = await openIndexedDB();
+      const tx = db.transaction("appStats", "readonly");
+      const store = tx.objectStore("appStats");
+      const request = store.get("leadReminders");
+      request.onsuccess = (e) => resolve(e.target.result || {});
+      request.onerror = (e) => reject(e);
+    } catch (e) { reject(e); }
+  });
+}
+
 async function clearDatasets() {
   const db = await openIndexedDB();                   
   const tx = db.transaction("datasets", "readwrite");
@@ -156,5 +184,7 @@ window.idbUtil = {
   getReportMeta,
   getAllReportMeta,
   saveVisitStats,
-  getVisitStats
+  getVisitStats,
+  saveLeadReminders,
+  getLeadReminders
 };

@@ -57,6 +57,11 @@ const CRMService = {
                 // SUCCESS: Fire event again so View updates badge with FRESH data (Badge check 2: Fresh Data)
                 console.log("[CRM] Background sync complete. Refreshing UI.");
                 window.dispatchEvent(new Event('crm-data-loaded'));
+
+                // Check for ignored Action Required leads on page load/visit
+                if (window.idbUtil && window.mailUtils) {
+                    this.checkLeadReminders().catch(err => console.error("[CRM] Lead reminder check failed:", err));
+                }
             })
             .catch(err => console.warn("[CRM] Background sync failed:", err));
     },
@@ -582,6 +587,81 @@ const CRMService = {
             );
     },
 
+    // --- Lead Reminders & Escalation ---
+    async checkLeadReminders() {
+        if (!this.currentUserEmail) return;
+
+        const myEmail = this.currentUserEmail.toLowerCase();
+        
+        // Find all Action Required leads owned by the current user
+        const actionRequiredLeads = this.leadsCache.filter(l => 
+            l.Status === 'Action Required' && 
+            (l.Owner || "").toLowerCase() === myEmail
+        );
+
+        // Get tracked state from IDB
+        const trackedReminders = await window.idbUtil.getLeadReminders() || {};
+        const todayStr = new Date().toDateString();
+        const now = Date.now();
+        
+        let needsSave = false;
+        const leadsToRemind = [];
+
+        // 1. Clean up leads that are no longer Action Required (or closed)
+        const actionRequiredIds = new Set(actionRequiredLeads.map(l => l.LeadId));
+        for (const leadId in trackedReminders) {
+            if (!actionRequiredIds.has(leadId)) {
+                delete trackedReminders[leadId];
+                needsSave = true;
+            }
+        }
+
+        // 2. Process current Action Required leads
+        for (const lead of actionRequiredLeads) {
+            const leadId = lead.LeadId;
+            let track = trackedReminders[leadId];
+
+            if (!track) {
+                // First time seeing it as Action Required on a visit. 
+                // We just log the date and don't send the email yet.
+                trackedReminders[leadId] = { firstSeenDate: todayStr };
+                needsSave = true;
+            } else {
+                // We've seen it before
+                if (track.firstSeenDate !== todayStr && !track.firstReminderSent) {
+                    // It's a new day/visit, and we haven't sent the first reminder
+                    leadsToRemind.push(lead);
+                    track.firstReminderSent = todayStr;
+                    track.firstReminderTs = now; // Store timestamp to calculate the week later
+                    needsSave = true;
+                } 
+                else if (track.firstReminderSent && !track.secondReminderSent) {
+                    // Check if exactly 7 days (or more) have passed since first reminder
+                    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+                    if ((now - track.firstReminderTs) >= ONE_WEEK_MS) {
+                        leadsToRemind.push(lead);
+                        track.secondReminderSent = todayStr;
+                        needsSave = true;
+                    }
+                }
+            }
+        }
+
+        if (needsSave) {
+            await window.idbUtil.saveLeadReminders(trackedReminders);
+        }
+
+        // Fire off emails if any thresholds were hit
+        if (leadsToRemind.length > 0) {
+            try {
+                // Call the new utility function
+                await window.mailUtils.sendLeadReminderEmail(leadsToRemind, this.currentUserEmail);
+                console.log(`[LeadReminders] Automated reminder dispatched for ${leadsToRemind.length} leads.`);
+            } catch (e) {
+                console.error("[LeadReminders] Failed to send reminder email:", e);
+            }
+        }
+    },
 
     // --- Timeline Data ---
     async getFullTimeline(lead) {
