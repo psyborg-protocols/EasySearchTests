@@ -36,13 +36,6 @@
 
   <!-- App Container -->
   <div id="appContainer" class="container py-4 position-relative" style="display:none; margin-top: 30px;">
-    <!-- Floating Reports Button -->
-    <button id="generateReportsBtn" title="Open Reports Dashboard" class="generate-reports-btn" style="right: 10px;">
-      <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368">
-        <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h360v80H200v560h560v-360h80v360q0 33-23.5 56.5T760-120H200Zm80-160h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160Zm80-320v-80h-80v-80h80v-80h80v80h80v80h-80ZM480-480Z"/>
-      </svg>
-      <div id="reportNotificationBadge" class="report-badge"></div>
-    </button>
     
     <!-- Tabs for Search and Customer Info -->
     <ul class="nav nav-tabs" id="mainTabs" role="tablist">
@@ -59,6 +52,16 @@
         <button class="nav-link" id="crm-tab" data-bs-toggle="tab" data-bs-target="#crmView" type="button" role="tab">
           Leads 
           <span id="crmActionBadge" class="badge rounded-pill bg-danger ms-1 d-none" style="font-size: 0.6em; vertical-align: middle;">!</span>
+        </button>
+      </li>
+
+      <!-- Reports Button as a tab item, nudged up -->
+      <li class="nav-item ms-auto d-flex align-items-end pe-2" role="presentation">
+        <button id="generateReportsBtn" title="Open Reports Dashboard" class="generate-reports-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368">
+            <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h360v80H200v560h560v-360h80v360q0 33-23.5 56.5T760-120H200Zm80-160h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160Zm80-320v-80h-80v-80h80v-80h80v80h80v80h-80ZM480-480Z"/>
+          </svg>
+          <div id="reportNotificationBadge" class="report-badge"></div>
         </button>
       </li>
     </ul>
@@ -510,7 +513,6 @@
 
   <!-- Product Info Modal -->
   <div class="modal fade" id="productInfoModal" tabindex="-1" aria-labelledby="productInfoModalLabel" aria-hidden="true">
-    <!-- MODIFIED: Increased size to modal-xl -->
     <div class="modal-dialog modal-xl modal-dialog-centered">
       <div class="modal-content">
         
@@ -522,12 +524,10 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         
-        <!-- MODIFIED: Replaced body with 2-column layout -->
         <div class="modal-body" id="productInfoModalBody">
           <div class="row">
             <!-- Column 1: Inventory & Key Metrics -->
             <div class="col-lg-5 col-md-6">
-              <!-- REMOVED: <h4>Inventory & Metrics</h4> -->
               
               <!-- Inventory Details -->
               <dl class="row modal-dl" id="productInfoModalInventoryList">
@@ -536,7 +536,6 @@
 
               <!-- Key Metrics -->
               <div class="row g-2">
-                <!-- KEPT: Months of Supply in left column -->
                 <div class="col-6">
                     <div class="metric-card">
                         <h6>
@@ -566,19 +565,17 @@
                     <input type="checkbox" class="toggle-checkbox" id="historyToggle">
                     <label for="historyToggle" class="toggle-label history-toggle-label">
                       <div class="toggle-switch"></div>
-                      <span class="b2b">Purchases</span> <!-- Left/Unchecked -->
-                      <span class="b2c">Sales</span>     <!-- Right/Checked -->
+                      <span class="b2b">Purchases</span> 
+                      <span class="b2c">Sales</span>     
                     </label>
                   </div>
                 </div>
-                <!-- FIXED: Changed max-height to height to prevent card resizing/jumping when switching tabs -->
                 <div class="table-responsive" style="height: 210px !important; font-size: 0.85rem; overflow-y: auto;">
                   <table class="table table-sm table-hover mb-0" style="border-collapse: separate; border-spacing: 0;">
                     <thead class="table-light sticky-top">
                       <tr>
                         <th style="width: 30%;">Date</th>
                         <th id="histColEntity" style="width: 45%;">Vendor</th>
-                        <!-- Product column removed -->
                         <th class="text-end" style="width: 25%;">Price</th>
                       </tr>
                     </thead>
@@ -630,7 +627,7 @@
 
               <div class="metric-card">
                 <h6>Sales History (Last 24 Months)</h6>
-                <div style="position: relative; width: 100%; padding-top: 50%;"> <!-- 50% = 1:2 aspect ratio -->
+                <div style="position: relative; width: 100%; padding-top: 50%;"> 
                   <canvas id="productSalesChart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
                 </div>
               </div>
@@ -673,7 +670,7 @@
   </div>
 
   <!-- Competitor Pricing Modal -->
-  </div> <div class="modal fade" id="competitorPriceModal" tabindex="-1" aria-labelledby="competitorPriceModalLabel" aria-hidden="true">
+  <div class="modal fade" id="competitorPriceModal" tabindex="-1" aria-labelledby="competitorPriceModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content shadow-lg">
         <div class="modal-header border-0 pb-0">
@@ -700,7 +697,6 @@
     </div>
   </div>
 
-  <div class="modal fade show" id="pricingWarningModal" tabindex="-1" style="display: none;" aria-modal="true" role="dialog">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -739,9 +735,6 @@
   <script>document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
     new bootstrap.Tooltip(el);
     });
-    // uncomment to show the pricing warning modal on load
-    // const warningModal = new bootstrap.Modal(document.getElementById('pricingWarningModal'));
-    // warningModal.show();
   </script>
 </body>
 </html>

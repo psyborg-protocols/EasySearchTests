@@ -1,4 +1,3 @@
-
 body {
     background: url('background.jpg') no-repeat center center fixed;
     background-size: cover;
@@ -189,25 +188,26 @@ input, textarea, [contenteditable] {
     pointer-events: none;
 }
 .generate-reports-btn {
-    position: absolute;
-    top: 15px; /* Adjusted to hover above the tabs/card */
-    width: 40px; /* Fixed width */
-    height: 40px; /* Fixed height */
+    position: relative; /* Keeps the red notification dot attached to the button */
+    margin-bottom: 8px; /* The nudge up from the tab baseline! */
+    width: 40px; 
+    height: 40px; 
     z-index: 30;
     border: none;
     cursor: pointer;
-    padding: 0; /* Remove padding to make size consistent with width/height */
+    padding: 0; 
     border-radius: 6px;
     transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-    display: flex; /* For centering content */
-    align-items: center; /* For centering content */
-    justify-content: center; /* For centering content */
-    background: rgba(255, 255, 255, 0.8); /* Slightly transparent white */
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    background: rgba(255, 255, 255, 0.8); 
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    overflow: visible !important;
 }
 
 #appContainer .generate-reports-btn:hover {
-    background: rgba(201, 201, 201, 0.9); /* light gray on hover */
+    background: rgba(201, 201, 201, 0.9);
     transform: scale(1.1);
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
@@ -233,30 +233,6 @@ input, textarea, [contenteditable] {
 }
 .report-download-btn:hover svg{
     transform:scale(1.15);
-}
-.generate-reports-btn {
-    position: absolute;
-    top: 15px; 
-    width: 40px; 
-    height: 40px; 
-    z-index: 30;
-    border: none;
-    cursor: pointer;
-    padding: 0; 
-    border-radius: 6px;
-    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    background: rgba(255, 255, 255, 0.8); 
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    overflow: visible !important;
-}
-
-#appContainer .generate-reports-btn:hover {
-    background: rgba(201, 201, 201, 0.9);
-    transform: scale(1.1);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 /* Notification Badge */
@@ -322,7 +298,6 @@ input, textarea, [contenteditable] {
     justify-content: flex-end;
 }
 /* Reuse existing button styles */
-.report-download-btn svg { width: 24px; height: 24px; fill: #0d6efd; }    
 .truck-bright-green {
     color: #4CBB17 !important; /* bright green */
 }
