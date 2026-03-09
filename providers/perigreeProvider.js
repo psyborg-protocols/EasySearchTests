@@ -6,13 +6,13 @@
   const { Provider, utils } = window.MarketSearch;
 
   // --- helpers ---
-  // Primary: exact "x-Pack". Fallback: allow "x-Box" if encountered.
-  const PACK_RE_PRIMARY = /(\d+)\s*-\s*Pack\b/i;
-  const PACK_RE_FALLBACK = /(\d+)\s*-\s*Box\b/i;
+  // Matches "x-Pack", "x Pack", "xPK", "x-Box", etc.
+  const PACK_RE = /(\d+)\s*-?\s*(?:Pack|PK|Box)\b/i;
 
   function extractQtyFromVariant(variant) {
-    // Check variant.title and option1/2/3 for "x-Pack"
+    // Check variant.sku, title, and option1/2/3 for pack size markers
     const fields = [
+      (variant?.sku || '').trim(),
       (variant?.title || '').trim(),
       (variant?.option1 || '').trim(),
       (variant?.option2 || '').trim(),
@@ -21,8 +21,7 @@
 
     for (const f of fields) {
       if (!f) continue;
-      let m = f.match(PACK_RE_PRIMARY);
-      if (!m) m = f.match(PACK_RE_FALLBACK); // optional robustness
+      const m = f.match(PACK_RE);
       if (m) {
         const n = Number(m[1]);
         if (Number.isFinite(n) && n > 0) return n;
