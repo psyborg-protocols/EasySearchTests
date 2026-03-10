@@ -7,10 +7,19 @@
   const { Provider, utils } = window.MarketSearch;
 
   function parsePackSize(packDesc) {
-    const m = String(packDesc || '').match(/\(([\d,]+)\s*\/\s*pk\)/i)
-          || String(packDesc || '').match(/\b([\d,]+)\b/);
+    const str = String(packDesc || '').trim();
+    
+    // If the API gives us an empty string, assume it's sold individually (Qty: 1)
+    if (!str) return 1; 
+
+    // Try to find the specific "(XX/pk)" format first, then fallback to any standalone number
+    const m = str.match(/\(([\d,]+)\s*\/\s*pk\)/i)
+           || str.match(/\b([\d,]+)\b/);
+           
     const n = m ? Number(m[1].replace(/,/g, '')) : NaN;
-    return Number.isFinite(n) ? n : undefined;
+    
+    // If we extracted a valid number, return it. Otherwise, default to 1.
+    return Number.isFinite(n) ? n : 1;
   }
 
 
