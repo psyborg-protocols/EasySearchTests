@@ -616,7 +616,7 @@ input, textarea, [contenteditable] {
 
 /* Toggle Switch Customization for History Card */
 .history-toggle-label {
-    width: 110px !important; /* Gave it a tiny bit more room */
+    width: 85px !important;
     flex: none !important;
     justify-content: space-between !important;
     padding: 0 6px !important;
