@@ -616,28 +616,27 @@ input, textarea, [contenteditable] {
 
 /* Toggle Switch Customization for History Card */
 .history-toggle-label {
-    width: 105px !important; /* Compact width */
+    width: 110px !important; /* Gave it a tiny bit more room */
     flex: none !important;
     justify-content: space-between !important;
-    padding: 0 5px !important;
+    padding: 0 6px !important;
 }
 
 /* UNCHECKED (Left) - "Purchases" active */
-/* Switch is wider to fit "Purchases" */
 .history-toggle-label .toggle-switch {
-    width: 64px !important; 
-    left: 2px !important;
-    transition: all 0.3s ease !important; /* Smoothly animate width and position */
+    width: 60% !important; /* Uses percentage instead of hard px */
+    left: 2% !important;
+    transition: all 0.3s ease !important; 
 }
 
 /* CHECKED (Right) - "Sales" active */
-/* Switch shrinks and moves right */
 #historyToggle:checked + .history-toggle-label .toggle-switch {
-    width: 38px !important; 
-    left: 66px !important;
+    width: 36% !important; /* Shrinks to fit "Sales" */
+    left: 62% !important;  /* 100% total - 36% width - 2% right margin = 62% */
 }
 
 /* Font size adjustment for the toggle text */
 .history-toggle-label span {
     font-size: 0.75rem !important;
+    z-index: 2; /* Ensures text stays clearly above the slider */
 }

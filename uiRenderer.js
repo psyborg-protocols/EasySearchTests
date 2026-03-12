@@ -783,7 +783,7 @@ function calculateYoYSales(partNumber) {
 let productInfoModalInstance = null;
 let productSalesChartInstance = null; // Chart instance for the modal
 
-// --- NEW: Event listener to draw chart AFTER modal is visible ---
+// Event listener to draw chart AFTER modal is visible ---
 // This is a one-time setup
 document.addEventListener('DOMContentLoaded', () => {
   const modalEl = document.getElementById('productInfoModal');
