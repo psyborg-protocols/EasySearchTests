@@ -1626,6 +1626,47 @@ const quoteCalculator = {
   },
 
   /**
+   * Updates the quote row when the user manually types a target Profit Margin.
+   * Calculates the required Price to hit that margin.
+   */
+  updateFromMargin: function (rowElement) {
+    if (rowElement.classList.contains('placeholder-row')) {
+      rowElement.classList.remove('placeholder-row');
+    }
+
+    const getNumeric = (selector) => {
+      const el = rowElement.querySelector(`[data-col="${selector}"]`);
+      if (!el) return 0;
+      return toNumber(el.textContent);
+    };
+
+    const quantity = getNumeric('quantity');
+    const unitCost = getNumeric('unitcost');
+    
+    // Extract the target margin, stripping out any '%' signs the user might type
+    const marginCellText = rowElement.querySelector('[data-col="margin"]').textContent;
+    const targetMargin = parseFloat(marginCellText.replace(/[^0-9.-]/g, '')) || 0;
+
+    let price = 0;
+    // Prevent division by zero or negative prices if margin is set to >= 100%
+    if (targetMargin < 100) {
+       price = unitCost / (1 - (targetMargin / 100));
+    }
+
+    const orderTotal = quantity * price;
+    const totalProfit = (price - unitCost) * quantity;
+
+    // Update the UI
+    // Note: We use toFixed(2) for price so it remains easily editable as a raw number
+    rowElement.querySelector('[data-col="price"]').textContent = price.toFixed(2);
+    rowElement.querySelector('[data-col="ordertotal"]').textContent = moneyFmt.format(orderTotal);
+    rowElement.querySelector('[data-col="totalprofit"]').textContent = moneyFmt.format(totalProfit);
+
+    // Re-run the comparison tool
+    this.updatePriceDifferenceIndicator();
+  },
+
+  /**
    * Checks prices in the first two rows and displays a percentage difference
    * indicator below the second row's price cell if they are different.
    */
