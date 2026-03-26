@@ -295,7 +295,7 @@ async function processFiles() {
 
 /* helper: convert raw sheet rows → trimmed pricing rows */
 function slimPriceRows(frame) {
-  const KEEP = ["Product", "Units per Box", "DISCOUNT COST", "USER FB", "USER HB", "USER LTB", "DISTR FB", "DISTR HB", "DISTR LTB"];
+  const KEEP = ["Product", "Units per Box", "DISCOUNT UNIT COST", "USER FB", "USER HB", "USER LTB", "DISTR FB", "DISTR HB", "DISTR LTB"];
   return frame.flatMap(r => {
     if (!r.Product) return [];
     const slim = {};
