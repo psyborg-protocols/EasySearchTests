@@ -990,6 +990,12 @@ function showProductInfoModal(encodedPartNumber) {
   const salesData = window.dataStore["Sales"]?.dataframe || [];
   const product = inventoryData.find(item => String(item["PartNumber"]).trim() === partNumber);
 
+  const pricingData = window.dataStore["Pricing"]?.dataframe || [];
+  const pricingEntry = pricingData.find(row => String(row["Product"]).trim() === partNumber);
+  if (pricingEntry && pricingEntry["DISCOUNT UNIT COST"]) {
+    product["DiscountedCost"] = toNumber(pricingEntry["DISCOUNT UNIT COST"]);
+  }
+
   if (!product) {
     console.error("Could not find product details for modal:", partNumber);
     return;
@@ -1007,7 +1013,7 @@ function showProductInfoModal(encodedPartNumber) {
   const inventoryListEl = document.getElementById('productInfoModalInventoryList');
   const fieldsToShow = [
     "Active", "QtyOnHand", "QtyCommited", "ReOrder Level",
-    "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue"
+    "QtyOnOrder", "FullBoxQty", "UnitCost", "DiscountedCost", "ExtValue"
   ];
   let inventoryHtml = '';
   const qtyOnHand = toNumber(product["QtyOnHand"]);
@@ -1023,6 +1029,7 @@ function showProductInfoModal(encodedPartNumber) {
     } else {
       switch (field) {
         case 'UnitCost':
+        case 'DiscountedCost':
         case 'ExtValue':
           displayValue = (typeof value === 'number') ? moneyFmt.format(value) : value;
           break;
