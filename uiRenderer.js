@@ -1013,7 +1013,7 @@ function showProductInfoModal(encodedPartNumber) {
   const inventoryListEl = document.getElementById('productInfoModalInventoryList');
   const fieldsToShow = [
     "Active", "QtyOnHand", "QtyCommited", "ReOrder Level",
-    "QtyOnOrder", "FullBoxQty", "UnitCost", "DiscountedCost", "ExtValue"
+    "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue", "DiscountedCost"
   ];
   let inventoryHtml = '';
   const qtyOnHand = toNumber(product["QtyOnHand"]);
@@ -1029,10 +1029,20 @@ function showProductInfoModal(encodedPartNumber) {
     } else {
       switch (field) {
         case 'UnitCost':
-        case 'DiscountedCost':
         case 'ExtValue':
           displayValue = (typeof value === 'number') ? moneyFmt.format(value) : value;
           break;
+        
+      //Special case for 2026 discounted cost from Pricing table
+        case 'DiscountedCost':
+          // Added icon and bold wrapper
+          displayName = `<i class="fa-thin fa-bahai text-warning me-1"></i> <span class="fw-bold">Discounted 2026 Cost</span>`;
+          
+          // Added bold wrapper and a green text color to the value
+          const formattedVal = (typeof value === 'number') ? moneyFmt.format(value) : value;
+          displayValue = `<span class="fw-bold text-success">${formattedVal}</span>`;
+          break;
+
         case 'Active':
           displayValue = String(value).toLowerCase() === 'true' ?
             '<span class="badge bg-success">Active</span>' :
