@@ -1036,7 +1036,7 @@ function showProductInfoModal(encodedPartNumber) {
       //Special case for 2026 discounted cost from Pricing table
         case 'DiscountedCost':
           // Added icon and bold wrapper
-          displayName = `<span class="fw-bold">Discounted 2026 Cost</span><i class="fa-solid fa-certificate text-warning me-1"></i>`;
+          displayName = `<span class="fw-bold">Discounted 2026 Cost</span> <i class="fas fa-certificate me-1" style="color: #c5a059;"></i>`;
           
           // Added bold wrapper and a green text color to the value
           const formattedVal = (typeof value === 'number') ? moneyFmt.format(value) : value;
