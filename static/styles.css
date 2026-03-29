@@ -297,7 +297,12 @@ input, textarea, [contenteditable] {
     align-items: center;
     justify-content: flex-end;
 }
-/* Reuse existing button styles */
+
+/* Prevents headers in the Matching Products table from wrapping */
+#productTable.table thead th {
+    white-space: nowrap;
+}
+
 .truck-bright-green {
     color: #4CBB17 !important; /* bright green */
 }
