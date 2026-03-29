@@ -1020,7 +1020,7 @@ function showProductInfoModal(encodedPartNumber) {
   const reOrderLevel = toNumber(product["ReOrder Level"]);
 
   fieldsToShow.forEach(field => {
-    const displayName = field.replace(/([A-Z])/g, ' $1').trim();
+    let displayName = field.replace(/([A-Z])/g, ' $1').trim();
     const value = product[field];
     let displayValue;
 
