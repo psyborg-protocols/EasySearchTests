@@ -1036,7 +1036,7 @@ function showProductInfoModal(encodedPartNumber) {
       //Special case for 2026 discounted cost from Pricing table
         case 'DiscountedCost':
           // Added icon and bold wrapper
-          displayName = `<i class="fa-solid fa-bahai text-warning me-1"></i> <span class="fw-bold">Discounted 2026 Cost</span>`;
+          displayName = `<span class="fw-bold">Discounted 2026 Cost</span><i class="fa-solid fa-certificate text-warning me-1"></i>`;
           
           // Added bold wrapper and a green text color to the value
           const formattedVal = (typeof value === 'number') ? moneyFmt.format(value) : value;
@@ -1062,8 +1062,8 @@ function showProductInfoModal(encodedPartNumber) {
     }
     inventoryHtml += `
               <div class="row">
-                  <dt class="col-sm-5">${displayName}</dt>
-                  <dd class="col-sm-7 mb-0">${displayValue}</dd>
+                  <dt class="col-sm-7">${displayName}</dt>
+                  <dd class="col-sm-5 mb-0">${displayValue}</dd>
               </div>`;
   });
   inventoryListEl.innerHTML = inventoryHtml;
