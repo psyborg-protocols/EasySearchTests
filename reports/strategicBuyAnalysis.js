@@ -113,6 +113,8 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                 }
 
                 const pricingData = dataStore.Pricing?.dataframe || [];
+                const purchasesData = dataStore.Purchases?.dataframe || [];
+                const priceRaiseData = dataStore.PriceRaise?.dataframe || {};
 
                 const analysisResults = [];
                 let totalRecommendedSpend = 0;
@@ -218,6 +220,40 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                     const discountCost = pricingEntry ? parseNumber(pricingEntry["DISCOUNT UNIT COST"]) : 0;
                     const hasDiscount = discountCost > 0;
 
+                    // --- NEW LOGIC: Most Recent Purchase & July 9th Increase ---
+                    let recentPurchasePrice = 0;
+                    const prodPurchases = purchasesData.filter(p => String(p.Product_Service).trim() === prodName);
+                    if (prodPurchases.length > 0) {
+                        prodPurchases.sort((a, b) => parseDate(b.Date) - parseDate(a.Date));
+                        const recentRow = prodPurchases[0];
+                        const qty = parseNumber(recentRow.Quantity);
+                        const total = parseNumber(recentRow.Total_Amount);
+                        
+                        if (recentRow.Cost) recentPurchasePrice = parseNumber(recentRow.Cost);
+                        else if (recentRow.UnitCost) recentPurchasePrice = parseNumber(recentRow.UnitCost);
+                        else if (recentRow.Rate) recentPurchasePrice = parseNumber(recentRow.Rate);
+                        else if (qty !== 0) recentPurchasePrice = total / qty;
+                    }
+
+                    let july9thPrice = 0;
+                    const raiseInfo = priceRaiseData[prodName];
+                    if (raiseInfo && raiseInfo.July9thIncrease) {
+                        july9thPrice = parseNumber(raiseInfo.July9thIncrease);
+                    }
+
+                    let hasPriceWarning = false;
+                    let priceWarningMessage = "";
+
+                    if (hasDiscount) {
+                        if (recentPurchasePrice > 0 && discountCost > recentPurchasePrice) {
+                            hasPriceWarning = true;
+                            priceWarningMessage = `Discount cost (${moneyFmt.format(discountCost)}) is higher than most recent purchase price (${moneyFmt.format(recentPurchasePrice)})`;
+                        } else if (july9thPrice > 0 && discountCost === july9thPrice) {
+                            hasPriceWarning = true;
+                            priceWarningMessage = `Discount cost (${moneyFmt.format(discountCost)}) is equal to the July 9th increase price`;
+                        }
+                    }
+
                     // Inventory check
                     const invRow = dbData.find(r => String(r.PartNumber || '').trim() === prodName);
                     const qtyOnHand = invRow ? parseNumber(invRow.QtyOnHand) - parseNumber(invRow.QtyCommited) : 0;
@@ -239,7 +275,9 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                         netToOrder: netToOrder,
                         costToOrder: costToOrder,
                         unitCost: activeUnitCost,
-                        hasDiscount: hasDiscount
+                        hasDiscount: hasDiscount,
+                        hasPriceWarning: hasPriceWarning,
+                        priceWarningMessage: priceWarningMessage
                     });
                 });
 
@@ -277,11 +315,20 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                     const accordionItemClass = res.hasDiscount ? "accordion-item" : "accordion-item opacity-75";
                     const btnClass = res.hasDiscount ? "accordion-button collapsed" : "accordion-button collapsed bg-light text-muted";
                     const titleClass = res.hasDiscount ? "text-primary" : "text-muted";
-                    const badgeHtml = res.hasDiscount 
-                        ? `<span class="badge ${res.netToOrder > 0 ? 'bg-success' : 'bg-secondary'}">Recommend: Order ${res.netToOrder} units</span>`
-                        : `<span class="badge bg-secondary border border-secondary text-white"><i class="fas fa-ban me-1"></i> Not available at discount</span>`;
+                    
+                    let badgeHtml = '';
+                    if (res.hasDiscount) {
+                        const orderBadge = `<span class="badge ${res.netToOrder > 0 ? 'bg-success' : 'bg-secondary'}">Recommend: Order ${res.netToOrder} units</span>`;
+                        const warningBadge = res.hasPriceWarning 
+                            ? `<span class="badge bg-warning text-dark ms-2 border border-warning" title="${res.priceWarningMessage}"><i class="fas fa-exclamation-triangle me-1"></i> Price Warning</span>`
+                            : '';
+                        badgeHtml = `<div>${orderBadge}${warningBadge}</div>`;
+                    } else {
+                        badgeHtml = `<span class="badge bg-secondary border border-secondary text-white"><i class="fas fa-ban me-1"></i> Not available at discount</span>`;
+                    }
                     
                     const nonDiscountWarning = res.hasDiscount ? '' : `<div class="alert alert-secondary py-2 mb-3"><i class="fas fa-info-circle me-2"></i>This product does not have a discounted price available. It has been excluded from the strategic buy recommendation.</div>`;
+                    const priceWarningAlert = res.hasPriceWarning ? `<div class="alert alert-warning py-2 mb-3 fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Warning: ${res.priceWarningMessage}</div>` : '';
 
                     return `
                     <div class="${accordionItemClass}">
@@ -296,6 +343,7 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                         <div id="${collapseId}" class="accordion-collapse collapse" data-bs-parent="#sfbAnalysisAccordion">
                             <div class="accordion-body bg-light p-4">
                                 ${nonDiscountWarning}
+                                ${priceWarningAlert}
                                 <div class="row mb-4">
                                     <div class="col-md-3 border-end">
                                         <h6 class="text-muted text-uppercase small fw-bold">Calculated Buy</h6>
