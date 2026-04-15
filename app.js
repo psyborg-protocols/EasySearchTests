@@ -162,6 +162,15 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
     }
 
+    const strategicBuyBtn = document.getElementById("strategicBuyBtn");
+    if (strategicBuyBtn) {
+        strategicBuyBtn.addEventListener("click", () => {
+            if (typeof window.buildStrategicBuyReport === "function") {
+                window.buildStrategicBuyReport(document.body, 'strategicBuy');
+            }
+        });
+    }
+
     // Ensure links are checked one last time if 'reports-ready' fires late
     document.addEventListener("reports-ready", exposeFileLinks);
 });
