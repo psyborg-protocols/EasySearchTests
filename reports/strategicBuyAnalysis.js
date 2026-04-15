@@ -2,11 +2,14 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
     return new Promise((resolve, reject) => {
         try {
             // 1. Validate Data Exists
+            const dataStore = window.dataStore;
             if (!dataStore || !dataStore.Sales || !dataStore.DB) {
                 alert("Data not fully loaded. Please wait for the app to finish syncing and try again.");
                 return reject({ reportId, error: 'Data not loaded' });
             }
 
+            const salesData = dataStore.Sales.dataframe || [];
+            const dbData = dataStore.DB.dataframe || [];
 
     // 1. Validate Data Exists
     const dataStore = window.dataStore;
@@ -34,7 +37,7 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
         <div class="modal-content border-0 shadow-lg">
           
           <div class="modal-header bg-white text-dark border-bottom">
-            <h5 class="modal-title fw-bold"><i class="fas fa-bullseye me-2 text-primary"></i> Forward Buy Analysis</h5>
+            <h5 class="modal-title fw-bold"><i class="fas fa-bullseye me-2 text-primary"></i> Strategic Forward Buy Dashboard</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           
@@ -347,13 +350,3 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
         }
     });
 };
-
-// Attach event listener to the Strategic Buy button
-const strategicBuyBtn = document.getElementById("strategicBuyBtn");
-if (strategicBuyBtn) {
-    strategicBuyBtn.addEventListener("click", () => {
-        if (typeof window.buildStrategicBuyReport === "function") {
-            window.buildStrategicBuyReport(document.body, 'strategicBuy');
-        }
-    });
-}
