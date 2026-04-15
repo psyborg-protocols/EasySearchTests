@@ -112,6 +112,8 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                     return;
                 }
 
+                const pricingData = dataStore.Pricing?.dataframe || [];
+
                 const analysisResults = [];
                 let totalRecommendedSpend = 0;
 
@@ -211,13 +213,19 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                     const ltBuy = wma * HORIZON_MONTHS;
                     recommendedBuy += ltBuy;
 
+                    // Pricing check for 2026 Discount
+                    const pricingEntry = pricingData.find(row => String(row.Product).trim() === prodName);
+                    const discountCost = pricingEntry ? parseNumber(pricingEntry["DISCOUNT UNIT COST"]) : 0;
+                    const hasDiscount = discountCost > 0;
+
                     // Inventory check
                     const invRow = dbData.find(r => String(r.PartNumber || '').trim() === prodName);
                     const qtyOnHand = invRow ? parseNumber(invRow.QtyOnHand) - parseNumber(invRow.QtyCommited) : 0;
                     const unitCost = invRow ? parseNumber(invRow.UnitCost) : 0;
                     
-                    const netToOrder = Math.max(0, Math.round(recommendedBuy) - qtyOnHand);
-                    const costToOrder = netToOrder * unitCost;
+                    const activeUnitCost = hasDiscount ? discountCost : unitCost;
+                    const netToOrder = hasDiscount ? Math.max(0, Math.round(recommendedBuy) - qtyOnHand) : 0;
+                    const costToOrder = netToOrder * activeUnitCost;
 
                     totalRecommendedSpend += costToOrder;
 
@@ -230,7 +238,8 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                         qtyOnHand: qtyOnHand,
                         netToOrder: netToOrder,
                         costToOrder: costToOrder,
-                        unitCost: unitCost
+                        unitCost: activeUnitCost,
+                        hasDiscount: hasDiscount
                     });
                 });
 
@@ -265,18 +274,28 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                         </tr>`;
                     }).join('');
 
+                    const accordionItemClass = res.hasDiscount ? "accordion-item" : "accordion-item opacity-75";
+                    const btnClass = res.hasDiscount ? "accordion-button collapsed" : "accordion-button collapsed bg-light text-muted";
+                    const titleClass = res.hasDiscount ? "text-primary" : "text-muted";
+                    const badgeHtml = res.hasDiscount 
+                        ? `<span class="badge ${res.netToOrder > 0 ? 'bg-success' : 'bg-secondary'}">Recommend: Order ${res.netToOrder} units</span>`
+                        : `<span class="badge bg-secondary border border-secondary text-white"><i class="fas fa-ban me-1"></i> Not available at discount</span>`;
+                    
+                    const nonDiscountWarning = res.hasDiscount ? '' : `<div class="alert alert-secondary py-2 mb-3"><i class="fas fa-info-circle me-2"></i>This product does not have a discounted price available. It has been excluded from the strategic buy recommendation.</div>`;
+
                     return `
-                    <div class="accordion-item">
+                    <div class="${accordionItemClass}">
                         <h2 class="accordion-header" id="heading${idx}">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                            <button class="${btnClass}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
                                 <div class="d-flex justify-content-between w-100 pe-3 align-items-center">
-                                    <span class="fw-bold text-primary">${res.product}</span>
-                                    <span class="badge ${res.netToOrder > 0 ? 'bg-success' : 'bg-secondary'}">Recommend: Order ${res.netToOrder} units</span>
+                                    <span class="fw-bold ${titleClass}">${res.product}</span>
+                                    ${badgeHtml}
                                 </div>
                             </button>
                         </h2>
                         <div id="${collapseId}" class="accordion-collapse collapse" data-bs-parent="#sfbAnalysisAccordion">
                             <div class="accordion-body bg-light p-4">
+                                ${nonDiscountWarning}
                                 <div class="row mb-4">
                                     <div class="col-md-3 border-end">
                                         <h6 class="text-muted text-uppercase small fw-bold">Calculated Buy</h6>
