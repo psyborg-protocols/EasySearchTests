@@ -164,8 +164,19 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                         const monthsSinceLastOrder = (today - lastOrder.date) / (1000 * 60 * 60 * 24 * 30.44);
                         const isLapsed = monthsSinceLastOrder > Math.max(dropCycleMonths * 1.5, 6);
 
-                        const isWithinHorizon = projectedDate <= horizonDate;
-                        const buyQty = (isWithinHorizon && !isLapsed) ? avgQty : 0;
+                        let buyQty = 0;
+                        let expectedOrders = 0;
+                        let currentProjectedDate = new Date(projectedDate.getTime());
+
+                        // Accumulate ALL projected orders that fall within the horizon
+                        if (!isLapsed) {
+                            while (currentProjectedDate <= horizonDate) {
+                                expectedOrders++;
+                                buyQty += avgQty;
+                                currentProjectedDate = new Date(currentProjectedDate.getTime() + (dropCycleMonths * 30.44 * 24 * 60 * 60 * 1000));
+                            }
+                        }
+
                         recommendedBuy += buyQty;
 
                         giantDetails.push({
@@ -173,8 +184,9 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                             avgQty: Math.round(avgQty),
                             dropCycle: dropCycleMonths.toFixed(1),
                             lastOrderDate: lastOrder.date,
-                            projectedDate: projectedDate,
-                            isWithinHorizon,
+                            projectedDate: projectedDate, // Display the first upcoming order date
+                            isWithinHorizon: expectedOrders > 0,
+                            expectedOrders: expectedOrders,
                             isLapsed,
                             buyQty: Math.round(buyQty)
                         });
@@ -236,7 +248,7 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                             actionHtml = `<i class="fas fa-ban text-danger"></i> Lapsed`;
                             rowClass = 'table-danger opacity-75';
                         } else if (g.buyQty > 0) {
-                            actionHtml = `<i class="fas fa-check text-success"></i> Buy ${g.buyQty}`;
+                            actionHtml = `<i class="fas fa-check text-success"></i> Buy ${g.buyQty} <small class="text-dark fw-normal">(${g.expectedOrders} expected orders)</small>`;
                             rowClass = 'table-success';
                         } else {
                             actionHtml = `<i class="fas fa-times text-muted"></i> Skip (Out of Horizon)`;
