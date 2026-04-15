@@ -350,3 +350,10 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
         }
     });
 };
+
+const strategicBuyBtn = document.getElementById("strategicBuyBtn");
+if (strategicBuyBtn) {
+    strategicBuyBtn.addEventListener("click", () => {
+        buildStrategicBuyReport(document.body, 'strategicBuy');
+    });
+}
