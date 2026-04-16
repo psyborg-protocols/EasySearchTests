@@ -3,13 +3,14 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
         try {
             // 1. Validate Data Exists
             const dataStore = window.dataStore;
-            if (!dataStore || !dataStore.Sales || !dataStore.DB) {
+            if (!dataStore || !dataStore.Sales || !dataStore.DB || !dataStore.Orders) {
                 alert("Data not fully loaded. Please wait for the app to finish syncing and try again.");
                 return reject({ reportId, error: 'Data not loaded' });
             }
 
             const salesData = dataStore.Sales.dataframe || [];
             const dbData = dataStore.DB.dataframe || [];
+            const ordersData = dataStore.Orders.dataframe || [];
 
             // Helper functions
             const parseDate = window.ReportUtils?.parseDate || (d => new Date(d));
@@ -31,7 +32,6 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                   </div>
                   
-                  <!-- Interactive Control Bar -->
                   <div class="p-3 border-bottom bg-light d-flex flex-wrap gap-4 align-items-end">
                     <div>
                       <label class="form-label small fw-bold text-muted mb-1 text-uppercase"><i class="fas fa-filter me-1"></i> Product Line</label>
@@ -52,17 +52,23 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                         <span class="input-group-text bg-white text-muted">Months</span>
                       </div>
                     </div>
+                    
+                    <div class="mb-1">
+                      <div class="form-check form-switch mt-3" title="Toggle to include or exclude dropship sales from calculation">
+                        <input class="form-check-input" type="checkbox" id="sfbIncludeDropship" style="cursor: pointer;">
+                        <label class="form-check-label small fw-bold text-muted text-uppercase" for="sfbIncludeDropship" style="cursor: pointer;">Include Dropship Orders</label>
+                      </div>
+                    </div>
+
                     <div class="ms-auto text-end">
                       <label class="form-label small fw-bold text-muted mb-1 text-uppercase">Total Recommended PO</label>
                       <h3 class="mb-0 text-success fw-bold" id="sfbTotalSpend">$0.00</h3>
                     </div>
                   </div>
 
-                  <!-- Report Content Area -->
                   <div class="modal-body p-4" style="background-color: #f4f6f8;">
                     <div class="accordion shadow-sm" id="sfbAnalysisAccordion">
-                        <!-- Dynamically populated by updateReport() -->
-                    </div>
+                        </div>
                   </div>
                   
                   <div class="modal-footer border-0 bg-white">
@@ -84,6 +90,7 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
             function updateReport() {
                 const lineSelection = document.getElementById('sfbProductLine').value;
                 const HORIZON_MONTHS = parseInt(document.getElementById('sfbHorizon').value, 10) || 8;
+                const includeDropship = document.getElementById('sfbIncludeDropship').checked;
                 
                 let TARGET_PREFIXES = ['ME', 'MS', 'MSR'];
                 if (lineSelection !== 'ALL') {
@@ -98,7 +105,40 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                 salesData.forEach(row => {
                     const prod = String(row.Product_Service || '').trim();
                     const isTarget = TARGET_PREFIXES.some(prefix => prod.startsWith(prefix));
+                    
                     if (isTarget) {
+                        // --- DROPSHIP FILTERING LOGIC ---
+                        if (!includeDropship) {
+                            const sDate = parseDate(row.Date);
+                            const sTotal = parseNumber(row.Total_Amount);
+                            const sCust = String(row.Customer || '').trim().toLowerCase();
+                            
+                            // Find matching order in recent activity data
+                            const matchingOrder = ordersData.find(o => {
+                                const oCust = String(o["Customer"] || '').trim().toLowerCase();
+                                if (oCust !== sCust) return false;
+                                
+                                const oDate = parseDate(o["Order Date"]);
+                                const dateDiffDays = Math.abs(sDate - oDate) / (1000 * 60 * 60 * 24);
+                                if (dateDiffDays > 3) return false; // Require date to be within 3 days
+                                
+                                const oTotal = parseNumber(o["Invoice Total"]);
+                                const totalDiff = Math.abs(sTotal - oTotal);
+                                if (totalDiff > 10) return false; // Require total to be within $10
+                                
+                                return true;
+                            });
+
+                            if (matchingOrder) {
+                                const shipFrom = String(matchingOrder["Ship From"] || '').trim();
+                                // If ship from is defined and not 'Whse', it's a dropship. Skip it.
+                                if (shipFrom && shipFrom.toLowerCase() !== 'whse') {
+                                    return; 
+                                }
+                            }
+                        }
+                        // ---------------------------------
+
                         if (!productSales[prod]) productSales[prod] = [];
                         productSales[prod].push(row);
                     }
@@ -188,7 +228,7 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                             avgQty: Math.round(avgQty),
                             dropCycle: dropCycleMonths.toFixed(1),
                             lastOrderDate: lastOrder.date,
-                            projectedDate: projectedDate, // Display the first upcoming order date
+                            projectedDate: projectedDate, 
                             isWithinHorizon: expectedOrders > 0,
                             expectedOrders: expectedOrders,
                             isLapsed,
@@ -215,12 +255,11 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                     const ltBuy = wma * HORIZON_MONTHS;
                     recommendedBuy += ltBuy;
 
-                    // Pricing check for 2026 Discount
+                    // Pricing check
                     const pricingEntry = pricingData.find(row => String(row.Product).trim() === prodName);
                     const discountCost = pricingEntry ? parseNumber(pricingEntry["DISCOUNT UNIT COST"]) : 0;
                     const hasDiscount = discountCost > 0;
 
-                    // --- NEW LOGIC: Most Recent Purchase & July 9th Increase ---
                     let recentPurchasePrice = 0;
                     const prodPurchases = purchasesData.filter(p => String(p.Product_Service).trim() === prodName);
                     if (prodPurchases.length > 0) {
@@ -394,6 +433,9 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
             // 4. Attach Listeners for Live Updates
             document.getElementById('sfbProductLine').addEventListener('change', updateReport);
             document.getElementById('sfbHorizon').addEventListener('input', updateReport);
+            
+            // NEW: Listener for the dropship toggle
+            document.getElementById('sfbIncludeDropship').addEventListener('change', updateReport);
 
             // Clean up DOM on close
             reportModalEl.addEventListener('hidden.bs.modal', () => {
