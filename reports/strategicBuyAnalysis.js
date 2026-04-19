@@ -120,7 +120,7 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                                 
                                 const oDate = parseDate(o["Invoice Date"]);
                                 const dateDiffDays = Math.abs(sDate - oDate) / (1000 * 60 * 60 * 24);
-                                if (dateDiffDays > 14) return false; // Require date to be within 14 days
+                                if (dateDiffDays > 21) return false; // Require date to be within 21 days
                                 
                                 const oTotal = parseNumber(o["Invoice Total"]);
                                 const totalDiff = Math.abs(sTotal - oTotal);
