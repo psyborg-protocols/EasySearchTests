@@ -118,7 +118,7 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                                 const oCust = String(o["Customer"] || '').trim().toLowerCase();
                                 if (oCust !== sCust) return false;
                                 
-                                const oDate = parseDate(o["Order Date"]);
+                                const oDate = parseDate(o["Invoice Date"]);
                                 const dateDiffDays = Math.abs(sDate - oDate) / (1000 * 60 * 60 * 24);
                                 if (dateDiffDays > 3) return false; // Require date to be within 3 days
                                 
