@@ -414,7 +414,7 @@ const CRMService = {
         const token = await getAccessToken();
         const leadId = crypto.randomUUID(); // Browser native UUID
         const now = new Date().toISOString();
-        const user = userAccount ? (userAccount.username) : "Unknown";
+        const user = data.owner || (userAccount ? userAccount.username : "Unknown");
 
         // 1. Prepare Batch Requests
         const requests = [];
