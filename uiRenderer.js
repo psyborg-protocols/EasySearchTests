@@ -1555,11 +1555,21 @@ async function updateUIForLoggedInUser() {
       await CRMService.init();
   }
 
-  // Determine if we should route to Leads or Search
+  // --- URL Routing Logic ---
+  const urlParams = new URLSearchParams(window.location.search);
+  const requestedTab = urlParams.get('tab');
+  
   let routeToLeads = false;
-  if (window.CRMView && typeof CRMView.hasDashboardUpdates === 'function') {
+
+  if (requestedTab === 'leads') {
+      routeToLeads = true;
+      // Clean up the URL so the user doesn't get stuck here on future reloads
+      window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (window.CRMView && typeof CRMView.hasDashboardUpdates === 'function') {
+      // Fallback to our smart dashboard update checker
       routeToLeads = await CRMView.hasDashboardUpdates();
   }
+  // ------------------------------
 
   // Grab the tab buttons and views
   const searchTab = document.getElementById('search-tab');
