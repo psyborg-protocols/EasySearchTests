@@ -297,7 +297,7 @@ const CRMView = {
         const summaryPane = document.getElementById('crmLeadSummary');
         if (summaryPane) summaryPane.style.display = 'none';
 
-        // 1. Filter leads to just the current user's active leads
+        // 1. Filter leads
         const myEmail = (CRMService.currentUserEmail || "").toLowerCase();
         let myLeads = CRMService.leadsCache.filter(l => 
             l.Status !== 'Closed' && (l.Owner || "").toLowerCase().includes(myEmail)
@@ -306,9 +306,8 @@ const CRMView = {
         // 2. Find Action Required Leads
         const actionLeads = myLeads.filter(l => l.Status === 'Action Required');
 
-        // 3. Find Recent Updates (Since last dismissed)
+        // 3. Find Recent Updates
         const stats = await window.idbUtil.getVisitStats() || {};
-        // Default to showing the last 24 hours if they've never dismissed the board
         const lastVisit = stats.lastCrmVisit || (Date.now() - 24 * 60 * 60 * 1000);
 
         const recentChanges = myLeads.filter(l => {
@@ -326,6 +325,19 @@ const CRMView = {
 
             return isNewLead || isClientResponse;
         }).sort((a, b) => new Date(b.LastActivityAt) - new Date(a.LastActivityAt));
+
+        // --- NEW: Data Fingerprinting ---
+        // Create a unique hash of the exact data this dashboard needs
+        const dashboardState = JSON.stringify({
+            actions: actionLeads.map(l => l.LeadId + l.Status),
+            recents: recentChanges.map(l => l.LeadId + l.LastActivityAt + l.Status)
+        });
+
+        // If the data hasn't changed since the last render, abort to prevent flicker!
+        if (this._lastDashboardState === dashboardState) {
+            return; 
+        }
+        this._lastDashboardState = dashboardState;
 
         // 4. Build the UI
         const userName = typeof userAccount !== 'undefined' && userAccount?.name 
@@ -426,33 +438,22 @@ const CRMView = {
     async refreshList() {
         const container = document.getElementById('crmLeadList');
         
-        // 1. Take a snapshot of the current state before we ask the server
-        const preSyncSnapshot = JSON.stringify(CRMService.leadsCache);
-        
-        // 2. Render immediately from Cache (Instant UX)
+        // 1. If we already have data in memory, render it IMMEDIATELY.
+        // This makes the tab switch feel instant.
         if (CRMService.leadsCache.length > 0) {
             this.renderList();
             if (!CRMService.currentLead) this.renderWelcomeDashboard();
         } else {
+            // Only show spinner if we have absolutely nothing (first load ever)
             if (container) container.innerHTML = `<div class="text-center mt-5 text-muted"><div class="spinner-border spinner-border-sm text-primary mb-2"></div><br><small>Syncing My Leads...</small></div>`;
         }
 
-        // 3. Trigger Background Network Sync
+        // 2. Trigger a background refresh (safe because we added the isSyncing lock)
         try {
             await CRMService.getLeads();
-            
-            // 4. Compare the new state to the snapshot
-            const postSyncSnapshot = JSON.stringify(CRMService.leadsCache);
-            
-            // ONLY re-render the DOM if the data actually changed
-            if (preSyncSnapshot !== postSyncSnapshot) {
-                console.log("[View] Network sync found changes. Re-rendering UI.");
-                this.renderList();
-                if (!CRMService.currentLead) this.renderWelcomeDashboard();
-            } else {
-                console.log("[View] Network sync found no changes. Skipping DOM redraw to prevent flicker.");
-            }
-            
+            // If the sync brought in new items (not just status updates), re-render.
+            this.renderList();
+            if (!CRMService.currentLead) this.renderWelcomeDashboard();
         } catch (e) {
             if (container && CRMService.leadsCache.length === 0) {
                 container.innerHTML = `<div class="alert alert-danger m-3 small">${e.message}</div>`;
@@ -487,6 +488,17 @@ const CRMView = {
 
         if (this.sortBy === 'value') leads.sort((a, b) => (b._calculatedValue || 0) - (a._calculatedValue || 0));
         else leads.sort((a, b) => new Date(b.LastActivityAt) - new Date(a.LastActivityAt));
+
+        // Data Fingerprinting ---
+        // We track the specific properties that affect the UI of the list
+        const listState = JSON.stringify(leads.map(l => 
+            l.LeadId + l.Status + l.LastActivityAt + l.Title + l.PartNumber + l._calculatedValue + (CRMService.currentLead?.LeadId === l.LeadId)
+        ));
+
+        if (this._lastListState === listState) {
+            return; // Abort render to prevent flicker!
+        }
+        this._lastListState = listState;
 
         if (leads.length === 0) {
             container.innerHTML = `<div class="text-center text-muted mt-5 opacity-50"><p class="small">No active leads found.</p></div>`;
