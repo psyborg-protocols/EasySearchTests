@@ -621,27 +621,32 @@ input, textarea, [contenteditable] {
 
 /* Toggle Switch Customization for History Card */
 .history-toggle-label {
-    width: 85px !important;
+    /* The container sizes itself natively to the rendered text and padding */
+    width: max-content !important; 
+    padding: 0.15rem 0.25rem !important; 
+    gap: 0.5rem; /* Space between the two words */
     flex: none !important;
-    justify-content: space-between !important;
-    padding: 0 6px !important;
+}
+
+.history-toggle-label span {
+    font-size: 0.75rem !important;
+    padding: 0 0.5rem; /* Native breathing room around the words */
+    z-index: 2; 
 }
 
 /* UNCHECKED (Left) - "Purchases" active */
 .history-toggle-label .toggle-switch {
-    width: 60% !important; /* Uses percentage instead of hard px */
-    left: 2% !important;
-    transition: all 0.3s ease !important; 
+    /* 'ch' uses the native font width. ~9.5 characters fits "Purchases" and its padding */
+    width: 9.5ch !important; 
+    left: 0.25rem !important; /* Matches the container's left padding */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; 
 }
 
 /* CHECKED (Right) - "Sales" active */
 #historyToggle:checked + .history-toggle-label .toggle-switch {
-    width: 36% !important; /* Shrinks to fit "Sales" */
-    left: 62% !important;  /* 100% total - 36% width - 2% right margin = 62% */
-}
-
-/* Font size adjustment for the toggle text */
-.history-toggle-label span {
-    font-size: 0.75rem !important;
-    z-index: 2; /* Ensures text stays clearly above the slider */
+    /* Shrinks to fit "Sales" natively */
+    width: 6.5ch !important; 
+    
+    /* Perfect right-alignment: 100% width - pill width - right padding */
+    left: calc(100% - 6.5ch - 0.25rem) !important; 
 }
