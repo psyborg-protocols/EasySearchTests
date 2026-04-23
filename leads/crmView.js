@@ -314,7 +314,17 @@ const CRMView = {
         const recentChanges = myLeads.filter(l => {
             const activityTime = new Date(l.LastActivityAt).getTime();
             const createdTime = new Date(l.CreatedAt).getTime();
-            return activityTime > lastVisit || createdTime > lastVisit;
+            
+            // 1. Is it a brand new assignment?
+            const isNewLead = createdTime > lastVisit;
+            
+            // 2. Did the client reply? (Smart Status detects their email and sets 'Waiting On You')
+            const isClientResponse = (l.Status === 'Waiting On You' && activityTime > lastVisit);
+
+            // Exclude 'Action Required' because it already lives in the red card above
+            if (l.Status === 'Action Required') return false;
+
+            return isNewLead || isClientResponse;
         }).sort((a, b) => new Date(b.LastActivityAt) - new Date(a.LastActivityAt));
 
         // 4. Build the UI
@@ -381,7 +391,7 @@ const CRMView = {
                             const isNew = new Date(l.CreatedAt).getTime() > lastVisit;
                             let badge = isNew 
                                 ? '<span class="badge bg-success ms-2 small">New Assignment</span>'
-                                : '<span class="badge bg-info text-dark ms-2 small">New Activity</span>';
+                                : '<span class="badge bg-info text-dark ms-2 small">New Message</span>';
 
                             return `
                             <a href="#" onclick="CRMView.loadLead('${l.LeadId}')" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 py-3 border-bottom">
