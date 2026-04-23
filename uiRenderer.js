@@ -1555,7 +1555,7 @@ async function updateUIForLoggedInUser() {
       await CRMService.init();
   }
 
-  // --- URL Routing Logic ---
+  // --- URL Routing & Dashboard Check ---
   const urlParams = new URLSearchParams(window.location.search);
   const requestedTab = urlParams.get('tab');
   
@@ -1563,39 +1563,25 @@ async function updateUIForLoggedInUser() {
 
   if (requestedTab === 'leads') {
       routeToLeads = true;
-      // Clean up the URL so the user doesn't get stuck here on future reloads
       window.history.replaceState({}, document.title, window.location.pathname);
   } else if (window.CRMView && typeof CRMView.hasDashboardUpdates === 'function') {
-      // Fallback to our smart dashboard update checker
       routeToLeads = await CRMView.hasDashboardUpdates();
   }
-  // ------------------------------
 
-  // Grab the tab buttons and views
-  const searchTab = document.getElementById('search-tab');
-  const searchView = document.getElementById('searchView');
-  const crmTab = document.getElementById('crm-tab');
-  const crmView = document.getElementById('crmView');
-  const customerTab = document.getElementById('customer-info-tab');
-  const customerView = document.getElementById('customerInfoView');
-
-  // Clear all active states first
-  [searchTab, crmTab, customerTab].forEach(t => t?.classList.remove('active'));
-  [searchView, crmView, customerView].forEach(v => v?.classList.remove('show', 'active'));
-
-  if (routeToLeads && crmTab && crmView) {
-      // Show Leads Tab
-      crmTab.classList.add('active');
-      crmView.classList.add('show', 'active');
-      
-      // Force the view to render its content
-      if (window.CRMView && typeof CRMView.refreshList === 'function') {
-          CRMView.refreshList();
+  // --- Native Bootstrap Tab Switching ---
+  if (routeToLeads) {
+      const crmTabEl = document.getElementById('crm-tab');
+      if (crmTabEl) {
+          // This automatically handles all the CSS classes and fires the 'shown' event
+          const tabInstance = new bootstrap.Tab(crmTabEl);
+          tabInstance.show(); 
       }
-  } else if (searchTab && searchView) {
-      // Default fallback: Show Search Tab
-      searchTab.classList.add('active');
-      searchView.classList.add('show', 'active');
+  } else {
+      const searchTabEl = document.getElementById('search-tab');
+      if (searchTabEl) {
+          const tabInstance = new bootstrap.Tab(searchTabEl);
+          tabInstance.show();
+      }
   }
 }
 
