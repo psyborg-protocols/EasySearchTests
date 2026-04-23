@@ -5,6 +5,7 @@
 
 const CRMNewLead = {
     modalInstance: null,
+    orgUsersList: [], // Stores fetched directory users
 
     init() {
         // Wire up the button in index.html
@@ -33,13 +34,40 @@ const CRMNewLead = {
         this.setupStatusDropdown();
         this.setupPartsAutosuggest();
         this.setupCompanyAutosuggest();
+        this.setupAssignAutosuggest(); // Setup assignment autosuggest
         this.setupSubmitHandler();
+
+        // Fetch users in the background when the modal opens
+        this.loadOrgUsers();
+    },
+
+    // Fetches the organization's user directory via Graph API
+    async loadOrgUsers() {
+        if (this.orgUsersList && this.orgUsersList.length > 0) return; 
+
+        try {
+            // Assumes getAccessToken() is available globally in your app
+            const token = await getAccessToken(); 
+            const url = `https://graph.microsoft.com/v1.0/users?$select=displayName,mail,userPrincipalName&$top=999`;
+            const response = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.orgUsersList = data.value
+                    .map(u => ({ name: u.displayName, email: u.mail || u.userPrincipalName }))
+                    .filter(u => u.email)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+            } else {
+                console.warn("[CRMNewLead] Failed to fetch org users.");
+            }
+        } catch (err) {
+            console.error("[CRMNewLead] Error fetching org users:", err);
+        }
     },
 
     getFormHTML() {
         return `
         <div class="flex flex-col overflow-hidden" style="background-color: #ffffff;">
-            <!-- HEADER -->
             <div class="px-4 py-3 border-bottom bg-white d-flex justify-content-between items-center">
                 <div class="position-relative">
                     <div id="nlStatusTrigger" class="status-trigger group d-flex align-items-center gap-2" style="cursor:pointer">
@@ -47,7 +75,6 @@ const CRMNewLead = {
                         <i class="fas fa-chevron-down text-muted small"></i>
                     </div>
                     
-                    <!-- Custom Menu -->
                     <div id="nlStatusDropdownMenu" class="status-dropdown-menu" style="display:none;">
                         <div class="status-option active" data-value="New Lead" data-label="New Lead">
                             <div class="status-dot bg-success"></div> New Lead
@@ -62,7 +89,6 @@ const CRMNewLead = {
 
             <div id="nlAlertBox" class="d-none mx-4 mt-3 alert alert-danger py-2 small mb-0"></div>
 
-            <!-- FORM BODY -->
             <div class="flex-fill overflow-auto p-4">
                 <form id="nlLeadForm" class="space-y-4">
                     <input type="hidden" id="nlLeadStatusValue" value="New Lead" />
@@ -87,6 +113,14 @@ const CRMNewLead = {
                             <input id="nlEmail" type="email" class="field-custom with-icon" placeholder="email@address.com" />
                             <i class="fas fa-envelope input-icon"></i>
                         </div>    
+                        
+                        <div class="input-group-custom mb-3 position-relative" id="nlAssignContainer">
+                            <input id="nlAssignTo" type="text" class="field-custom with-icon" placeholder="Assign to (Optional)" autocomplete="off" />
+                            <i class="fas fa-user-tag input-icon"></i>
+                            <input type="hidden" id="nlAssignToEmail" />
+                            <div id="nlAssignDropdown" class="autosuggest-dropdown"></div>
+                        </div>
+
                         <div class="d-flex gap-3">
                             <div class="input-group-custom w-75 position-relative">
                                 <input id="nlPartNumber" type="text" class="field-custom with-icon" placeholder="Part #" autocomplete="off" />
@@ -112,7 +146,6 @@ const CRMNewLead = {
                 </form>
             </div>
 
-            <!-- FOOTER -->
             <div class="p-4 border-top bg-light">
                 <button id="nlSendBtn" type="button" class="btn btn-primary w-100 py-2 fw-medium shadow-sm d-flex align-items-center justify-content-center gap-2">
                     <span id="nlBtnText">Submit Lead</span>
@@ -214,6 +247,59 @@ const CRMNewLead = {
                 menu.style.display = 'none';
             };
         });
+    },
+
+    setupAssignAutosuggest() {
+        const input = document.getElementById("nlAssignTo");
+        const emailInput = document.getElementById("nlAssignToEmail");
+        const dropdown = document.getElementById("nlAssignDropdown");
+        const container = document.getElementById("nlAssignContainer");
+
+        const doFilter = () => {
+            const val = input.value.trim().toLowerCase();
+            
+            // Clear the hidden email if the user modifies the input to prevent sending to the wrong user
+            emailInput.value = ""; 
+
+            let matches = this.orgUsersList || [];
+            if (val.length > 0) {
+                matches = matches.filter(u => 
+                    u.name.toLowerCase().includes(val) || u.email.toLowerCase().includes(val)
+                );
+            }
+            
+            if (matches.length > 0) {
+                dropdown.innerHTML = matches.slice(0, 30).map(m => `
+                    <div class="autosuggest-item" onclick="CRMNewLead.selectUser('${m.name.replace(/'/g, "\\'")}', '${m.email}')">
+                        <div class="fw-bold text-dark">${m.name}</div>
+                        <div class="small text-muted text-truncate">${m.email}</div>
+                    </div>
+                `).join('');
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.innerHTML = `<div class="p-2 small text-muted fst-italic">No users found</div>`;
+                dropdown.style.display = 'block';
+            }
+        };
+
+        input.addEventListener('focus', () => { 
+            if (this.orgUsersList && this.orgUsersList.length > 0) doFilter(); 
+        });
+        
+        input.addEventListener('input', doFilter);
+
+        // Hide when clicking outside
+        document.addEventListener('click', (e) => {
+            if (container && !container.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+    },
+
+    selectUser(name, email) {
+        document.getElementById("nlAssignTo").value = name;
+        document.getElementById("nlAssignToEmail").value = email;
+        document.getElementById("nlAssignDropdown").style.display = 'none';
     },
 
     setupPartsAutosuggest() {
@@ -323,7 +409,7 @@ const CRMNewLead = {
     },
 
     selectCompany(name) {
-        document.getElementById("nlCompany").value = name; // Basic Title Case logic handled by CSS or backend
+        document.getElementById("nlCompany").value = name; 
         document.getElementById("nlCompanyDropdown").style.display = 'none';
 
         // Attempt to auto-fill contact info from OrgContacts
@@ -359,7 +445,9 @@ const CRMNewLead = {
                 qty: document.getElementById('nlQuantity').value.trim(),
                 subject: document.getElementById('nlLeadSubject').value.trim(),
                 message: document.getElementById('nlLeadMessage').value.trim(),
-                status: document.getElementById('nlLeadStatusValue').value
+                status: document.getElementById('nlLeadStatusValue').value,
+                // Include the assigned owner
+                owner: document.getElementById('nlAssignToEmail').value.trim() 
             };
 
             const alertBox = document.getElementById('nlAlertBox');
@@ -393,6 +481,11 @@ const CRMNewLead = {
                 
                 // Success
                 this.modalInstance.hide();
+                
+                // Reset form fields slightly so next open is clean
+                document.getElementById('nlLeadForm').reset();
+                document.getElementById('nlAssignToEmail').value = "";
+                
                 alert("Lead created successfully!");
                 
                 // Refresh list
