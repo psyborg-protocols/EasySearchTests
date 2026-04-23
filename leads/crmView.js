@@ -8,11 +8,13 @@ const CRMView = {
     showActiveOnly: true, 
     currentTimelineItems: [], 
     currentEditCleanup: null, 
+    orgUsersList: [],
 
     SPARKLE_ICON: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-stars me-1 sparkle-anim" viewBox="0 0 16 16"><path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z"/></svg>`,
 
     init() {
         this.injectStyles();
+        this.loadOrgUsers(); // Fetch users for the assignment/transfer dropdown
 
         // --- 1. Data Loading Listeners (Reactive) ---
         
@@ -91,6 +93,25 @@ const CRMView = {
             }
         });
 
+    },
+
+    async loadOrgUsers() {
+        if (this.orgUsersList && this.orgUsersList.length > 0) return;
+        try {
+            const token = await getAccessToken();
+            const url = `https://graph.microsoft.com/v1.0/users?$select=displayName,mail,userPrincipalName&$top=999`;
+            const response = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.orgUsersList = data.value
+                    .map(u => ({ name: u.displayName, email: u.mail || u.userPrincipalName }))
+                    .filter(u => u.email)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+            }
+        } catch (err) {
+            console.error("[CRMView] Error fetching org users:", err);
+        }
     },
 
     updateTabBadge() {
@@ -802,11 +823,20 @@ async loadLead(leadId) {
                     ${contactsHtml}
                 </div>
 
-                <div class="mt-4 pt-3 border-top">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">Owner</small>
-                        <small class="fw-semibold">${lead.Owner || 'Unassigned'}</small>
+                <div class="mt-4 pt-3 border-top position-relative">
+                    <label class="small text-muted mb-2 d-block text-uppercase fw-bold" style="font-size:0.75rem;">Assigned Owner</label>
+                    
+                    <!-- Display Mode -->
+                    <div id="summaryFieldOwner" class="lead-summary-field-box px-2 py-1" onclick="CRMView.enterOwnerEditMode('${lead.LeadId}')" title="Click to transfer ownership">
+                        <div class="d-flex align-items-center gap-2 w-100">
+                            <i class="fas fa-user-circle text-primary fs-5"></i>
+                            <span class="text-truncate fw-semibold text-dark">${lead.Owner || 'Unassigned'}</span>
+                            <i class="fas fa-exchange-alt edit-indicator ms-auto"></i>
+                        </div>
                     </div>
+
+                    <!-- Edit/Transfer Mode (Hidden by default) -->
+                    <div id="ownerEditContainer" class="d-none mt-1"></div>
                 </div>
             </div>
         `;
@@ -818,6 +848,104 @@ async loadLead(leadId) {
                 e.stopPropagation();
                 this.submitInlineNote(e, lead.LeadId);
             });
+        }
+    },
+
+    enterOwnerEditMode(leadId) {
+        if (this.currentEditCleanup) { this.currentEditCleanup(); this.currentEditCleanup = null; }
+
+        const displayBox = document.getElementById('summaryFieldOwner');
+        const editBox = document.getElementById('ownerEditContainer');
+        if (!displayBox || !editBox) return;
+
+        displayBox.classList.add('d-none');
+        editBox.classList.remove('d-none');
+
+        editBox.innerHTML = `
+            <div class="position-relative">
+                <input type="text" id="crmOwnerInput" class="form-control form-control-sm border-primary shadow-none" placeholder="Search user to transfer to..." autocomplete="off">
+                <div id="crmOwnerDropdown" class="crm-edit-dropdown w-100 shadow-sm" style="max-height: 180px;"></div>
+            </div>
+            <div class="d-flex justify-content-end mt-2">
+                <button class="btn btn-sm text-muted px-2 py-0" onclick="CRMView.cancelOwnerEdit()">Cancel</button>
+            </div>
+        `;
+
+        const input = document.getElementById('crmOwnerInput');
+        const dropdown = document.getElementById('crmOwnerDropdown');
+        input.focus();
+
+        // Autosuggest Logic
+        input.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase().trim();
+            if (val.length < 1) { dropdown.classList.remove('show'); return; }
+            
+            const matches = this.orgUsersList.filter(u => 
+                u.name.toLowerCase().includes(val) || u.email.toLowerCase().includes(val)
+            ).slice(0, 10);
+            
+            if (matches.length > 0) {
+                dropdown.innerHTML = matches.map(m => {
+                    const safeName = m.name.replace(/'/g, "\\'");
+                    return `
+                    <div class="dropdown-item p-2 border-bottom" onclick="CRMView.confirmTransfer('${leadId}', '${safeName}', '${m.email}')">
+                        <div class="fw-bold text-dark" style="font-size: 0.85rem;">${m.name}</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">${m.email}</div>
+                    </div>`;
+                }).join('');
+                dropdown.classList.add('show');
+            } else {
+                dropdown.innerHTML = `<div class="p-2 text-muted small fst-italic">No users found</div>`;
+                dropdown.classList.add('show');
+            }
+        });
+    },
+
+    cancelOwnerEdit() {
+        document.getElementById('ownerEditContainer')?.classList.add('d-none');
+        document.getElementById('summaryFieldOwner')?.classList.remove('d-none');
+    },
+
+    confirmTransfer(leadId, newOwnerName, newOwnerEmail) {
+        const editBox = document.getElementById('ownerEditContainer');
+        
+        // Render the nice inline warning box
+        editBox.innerHTML = `
+            <div class="p-3 mt-1 fade-in-up" style="background-color: #fff7ed; border: 1px solid #fdba74; border-radius: 8px; border-left: 4px solid #f97316;">
+                <div class="d-flex align-items-start gap-2 mb-3">
+                    <i class="fas fa-exclamation-triangle text-warning mt-1" style="color: #ea580c !important;"></i>
+                    <div class="small" style="color: #9a3412; line-height: 1.4;">
+                        <strong class="d-block mb-1 text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Confirm Transfer</strong>
+                        Do you really want to transfer this lead to <strong>${newOwnerName}</strong>? <br>
+                        This lead will be removed from your active leads view.
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-sm btn-light border text-muted fw-medium py-1" onclick="CRMView.cancelOwnerEdit()">Cancel</button>
+                    <button class="btn btn-sm py-1 fw-bold text-white shadow-sm" style="background-color: #ea580c;" onclick="CRMView.executeTransfer('${leadId}', '${newOwnerEmail}', '${newOwnerName}')">Yes, Transfer Lead</button>
+                </div>
+            </div>
+        `;
+    },
+
+    async executeTransfer(leadId, newOwnerEmail, newOwnerName) {
+        const editBox = document.getElementById('ownerEditContainer');
+        editBox.innerHTML = `<div class="p-3 text-center text-muted small"><i class="fas fa-circle-notch fa-spin me-2 text-primary"></i>Transferring ownership...</div>`;
+        
+        try {
+            // Update the record in SharePoint
+            await CRMService.updateLeadFields(leadId, { Owner: newOwnerEmail });
+            
+            // Add a permanent historical note to the timeline
+            await CRMService.addEvent(leadId, "System", "Ownership Transferred", `Lead was transferred to ${newOwnerName} (${newOwnerEmail})`);
+
+            // Refresh UI
+            this.loadLead(leadId); 
+            this.renderList(); 
+            this.updateTabBadge();
+        } catch (err) {
+            alert("Transfer failed: " + err.message);
+            this.cancelOwnerEdit();
         }
     },
 
@@ -1185,7 +1313,8 @@ async loadLead(leadId) {
             // Note: crmService creates a "Status Update" event with details "Status changed to: Closed"
             return item.summary === 'Lead Created' || 
                    (item.summary === 'Status Update' && item.details && item.details.includes('Closed')) ||
-                   item.summary === 'Lead Re-opened';
+                   item.summary === 'Lead Re-opened' ||
+                   item.summary === 'Ownership Transferred'; // NEW: Always show ownership transfer history
         });
 
         let html = '';
@@ -1263,13 +1392,14 @@ async loadLead(leadId) {
                     </div>
                 </div>`;
             } else {
-                // Notes, Samples, 'Lead Created', and now 'Status Update' (Closed)
+                // Notes, Samples, 'Lead Created', 'Ownership Transferred', and 'Status Update' (Closed)
                 const isSys = item.eventType === 'System';
                 const isSample = item.eventType === 'SampleSent';
                 
-                // Check if this is the Closed  or Re-opening event to style it differently
+                // Check if this is the Closed, Re-opening, or Transfer event to style it differently
                 const isClosedEvent = isSys && item.summary === 'Status Update' && item.details.includes('Closed');
                 const isReopenedEvent = isSys && item.summary === 'Lead Re-opened';
+                const isTransferEvent = isSys && item.summary === 'Ownership Transferred';
 
                 // Default Styling (Notes)
                 let icon = 'fa-sticky-note';
@@ -1285,6 +1415,10 @@ async loadLead(leadId) {
                     icon = 'fa-unlock'; 
                     colorClass = 'text-success';
                     bgClass = 'background:#ecfdf5; border: 1px solid #d1fae5;';                
+                } else if (isTransferEvent) {
+                    icon = 'fa-exchange-alt';
+                    colorClass = 'text-primary';
+                    bgClass = 'background:#eff6ff; border: 1px solid #bfdbfe;';
                 } else if (isSys) {
                     // Lead Created
                     icon = 'fa-flag'; 
