@@ -28,6 +28,8 @@ const CRMView = {
             const crmTab = document.getElementById('crm-tab');
             if (crmTab && crmTab.classList.contains('active')) {
                 this.renderList();
+                // Show dashboard if no lead is selected
+                if (!CRMService.currentLead) this.renderWelcomeDashboard();
             }
         });
 
@@ -286,6 +288,131 @@ const CRMView = {
         document.head.appendChild(style);
     },
 
+    async renderWelcomeDashboard() {
+        const container = document.getElementById('crmTimeline');
+        if (!container) return;
+
+        // Hide the standard lead header and summary pane
+        document.getElementById('crmDetailHeader').style.setProperty('display', 'none', 'important');
+        const summaryPane = document.getElementById('crmLeadSummary');
+        if (summaryPane) summaryPane.style.display = 'none';
+
+        // 1. Filter leads to just the current user's active leads
+        const myEmail = (CRMService.currentUserEmail || "").toLowerCase();
+        let myLeads = CRMService.leadsCache.filter(l => 
+            l.Status !== 'Closed' && (l.Owner || "").toLowerCase().includes(myEmail)
+        );
+
+        // 2. Find Action Required Leads
+        const actionLeads = myLeads.filter(l => l.Status === 'Action Required');
+
+        // 3. Find Recent Updates (Since last dismissed)
+        const stats = await window.idbUtil.getVisitStats() || {};
+        // Default to showing the last 24 hours if they've never dismissed the board
+        const lastVisit = stats.lastCrmVisit || (Date.now() - 24 * 60 * 60 * 1000);
+
+        const recentChanges = myLeads.filter(l => {
+            const activityTime = new Date(l.LastActivityAt).getTime();
+            const createdTime = new Date(l.CreatedAt).getTime();
+            return activityTime > lastVisit || createdTime > lastVisit;
+        }).sort((a, b) => new Date(b.LastActivityAt) - new Date(a.LastActivityAt));
+
+        // 4. Build the UI
+        const userName = typeof userAccount !== 'undefined' && userAccount?.name 
+            ? userAccount.name.split(' ')[0] 
+            : "there";
+
+        let html = `
+        <div class="d-flex flex-column h-100 p-4 fade-in-up" style="max-width: 700px; margin: 0 auto; width: 100%;">
+            <h3 class="mb-4 text-dark fw-bold text-center">Welcome back, ${userName}!</h3>
+        `;
+
+        // --- Action Required Card ---
+        if (actionLeads.length > 0) {
+            html += `
+            <div class="card border-0 shadow-sm w-100 mb-4" style="border-left: 4px solid #dc3545 !important;">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-exclamation-circle text-danger fs-4 me-2"></i>
+                        <h5 class="card-title mb-0 fw-bold">Action Required</h5>
+                    </div>
+                    <p class="text-muted small mb-3">You have ${actionLeads.length} lead(s) waiting on your response for more than 7 days.</p>
+                    <div class="list-group list-group-flush border-top">
+                        ${actionLeads.map(l => `
+                            <a href="#" onclick="CRMView.loadLead('${l.LeadId}')" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 py-3 border-bottom">
+                                <div>
+                                    <span class="fw-bold d-block text-dark" style="font-size: 0.95rem;">${l.Title}</span>
+                                    <small class="text-muted">${l.Company || 'Private Lead'}</small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger px-3 rounded-pill">View Lead</button>
+                            </a>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>`;
+        } else {
+            html += `
+            <div class="card border-0 shadow-sm w-100 mb-4 bg-light">
+                <div class="card-body text-center p-4">
+                    <i class="fas fa-check-circle text-success fs-1 mb-2"></i>
+                    <h6 class="fw-bold mb-1">You're all caught up!</h6>
+                    <p class="text-muted small mb-0">No leads currently require immediate action.</p>
+                </div>
+            </div>`;
+        }
+
+        // --- Recent Updates Card ---
+        if (recentChanges.length > 0) {
+            html += `
+            <div class="card border-0 shadow-sm w-100" style="border-left: 4px solid #0d6efd !important;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-bell text-primary fs-4 me-2"></i>
+                            <h5 class="card-title mb-0 fw-bold">Recent Updates</h5>
+                        </div>
+                        <button class="btn btn-sm btn-light border text-muted fw-bold shadow-sm" onclick="CRMView.markUpdatesRead()">
+                            <i class="fas fa-check-double me-1"></i> Dismiss All
+                        </button>
+                    </div>
+                    <p class="text-muted small mb-3">Activities and new assignments since you last cleared this board.</p>
+                    <div class="list-group list-group-flush border-top" style="max-height: 350px; overflow-y: auto;">
+                        ${recentChanges.map(l => {
+                            const isNew = new Date(l.CreatedAt).getTime() > lastVisit;
+                            let badge = isNew 
+                                ? '<span class="badge bg-success ms-2 small">New Assignment</span>'
+                                : '<span class="badge bg-info text-dark ms-2 small">New Activity</span>';
+
+                            return `
+                            <a href="#" onclick="CRMView.loadLead('${l.LeadId}')" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 py-3 border-bottom">
+                                <div>
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="fw-bold d-block text-dark" style="font-size: 0.95rem;">${l.Title}</span>
+                                        ${badge}
+                                    </div>
+                                    <small class="text-muted">${this.getRelativeTime(new Date(l.LastActivityAt))} &bull; ${l.Status}</small>
+                                </div>
+                                <i class="fas fa-chevron-right text-muted small"></i>
+                            </a>`;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        html += `</div>`;
+        container.innerHTML = html;
+    },
+
+    async markUpdatesRead() {
+        const stats = await window.idbUtil.getVisitStats() || {};
+        stats.lastCrmVisit = Date.now();
+        await window.idbUtil.saveVisitStats(stats);
+        
+        // Re-render the dashboard to clear the recent updates list
+        this.renderWelcomeDashboard();
+    },
+
     async refreshList() {
         const container = document.getElementById('crmLeadList');
         
@@ -293,6 +420,7 @@ const CRMView = {
         // This makes the tab switch feel instant.
         if (CRMService.leadsCache.length > 0) {
             this.renderList();
+            if (!CRMService.currentLead) this.renderWelcomeDashboard();
         } else {
             // Only show spinner if we have absolutely nothing (first load ever)
             if (container) container.innerHTML = `<div class="text-center mt-5 text-muted"><div class="spinner-border spinner-border-sm text-primary mb-2"></div><br><small>Syncing My Leads...</small></div>`;
@@ -303,6 +431,7 @@ const CRMView = {
             await CRMService.getLeads();
             // If the sync brought in new items (not just status updates), re-render.
             this.renderList();
+            if (!CRMService.currentLead) this.renderWelcomeDashboard();
         } catch (e) {
             if (container && CRMService.leadsCache.length === 0) {
                 container.innerHTML = `<div class="alert alert-danger m-3 small">${e.message}</div>`;
