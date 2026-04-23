@@ -426,22 +426,33 @@ const CRMView = {
     async refreshList() {
         const container = document.getElementById('crmLeadList');
         
-        // 1. If we already have data in memory, render it IMMEDIATELY.
-        // This makes the tab switch feel instant.
+        // 1. Take a snapshot of the current state before we ask the server
+        const preSyncSnapshot = JSON.stringify(CRMService.leadsCache);
+        
+        // 2. Render immediately from Cache (Instant UX)
         if (CRMService.leadsCache.length > 0) {
             this.renderList();
             if (!CRMService.currentLead) this.renderWelcomeDashboard();
         } else {
-            // Only show spinner if we have absolutely nothing (first load ever)
             if (container) container.innerHTML = `<div class="text-center mt-5 text-muted"><div class="spinner-border spinner-border-sm text-primary mb-2"></div><br><small>Syncing My Leads...</small></div>`;
         }
 
-        // 2. Trigger a background refresh (safe because we added the isSyncing lock)
+        // 3. Trigger Background Network Sync
         try {
             await CRMService.getLeads();
-            // If the sync brought in new items (not just status updates), re-render.
-            this.renderList();
-            if (!CRMService.currentLead) this.renderWelcomeDashboard();
+            
+            // 4. Compare the new state to the snapshot
+            const postSyncSnapshot = JSON.stringify(CRMService.leadsCache);
+            
+            // ONLY re-render the DOM if the data actually changed
+            if (preSyncSnapshot !== postSyncSnapshot) {
+                console.log("[View] Network sync found changes. Re-rendering UI.");
+                this.renderList();
+                if (!CRMService.currentLead) this.renderWelcomeDashboard();
+            } else {
+                console.log("[View] Network sync found no changes. Skipping DOM redraw to prevent flicker.");
+            }
+            
         } catch (e) {
             if (container && CRMService.leadsCache.length === 0) {
                 container.innerHTML = `<div class="alert alert-danger m-3 small">${e.message}</div>`;
