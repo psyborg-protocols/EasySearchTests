@@ -1551,7 +1551,7 @@ async function updateUIForLoggedInUser() {
   document.getElementById('userDisplayName').textContent = displayName;
 
   // Ensure CRM service has loaded the local cache so we can check for updates
-  if (window.CRMService && !CRMService.isInitialized) {
+  if (CRMService && !CRMService.isInitialized) {
       await CRMService.init();
   }
 
@@ -1564,7 +1564,7 @@ async function updateUIForLoggedInUser() {
   if (requestedTab === 'leads') {
       routeToLeads = true;
       window.history.replaceState({}, document.title, window.location.pathname);
-  } else if (window.CRMView && typeof CRMView.hasDashboardUpdates === 'function') {
+  } else if (CRMView && typeof CRMView.hasDashboardUpdates === 'function') {
       routeToLeads = await CRMView.hasDashboardUpdates();
   }
 
