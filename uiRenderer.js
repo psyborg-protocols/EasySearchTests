@@ -1542,7 +1542,7 @@ async function showCompetitorPricingModal(sku) {
 }
 
 // Update UI after successful login
-function updateUIForLoggedInUser() {
+async function updateUIForLoggedInUser() {
   document.getElementById('loginContainer').style.display = 'none';
   document.getElementById('appContainer').style.display = 'block';
 
@@ -1550,14 +1550,42 @@ function updateUIForLoggedInUser() {
   const displayName = userAccount?.name || userAccount?.username || "User";
   document.getElementById('userDisplayName').textContent = displayName;
 
-  // Ensure the default tab is active and corresponding content is shown
+  // Ensure CRM service has loaded the local cache so we can check for updates
+  if (window.CRMService && !CRMService.isInitialized) {
+      await CRMService.init();
+  }
+
+  // Determine if we should route to Leads or Search
+  let routeToLeads = false;
+  if (window.CRMView && typeof CRMView.hasDashboardUpdates === 'function') {
+      routeToLeads = await CRMView.hasDashboardUpdates();
+  }
+
+  // Grab the tab buttons and views
   const searchTab = document.getElementById('search-tab');
   const searchView = document.getElementById('searchView');
-  if (searchTab && searchView) {
-    searchTab.classList.add('active');
-    searchView.classList.add('show', 'active');
-    document.getElementById('customerInfoView').classList.remove('show', 'active');
-    document.getElementById('customer-info-tab').classList.remove('active');
+  const crmTab = document.getElementById('crm-tab');
+  const crmView = document.getElementById('crmView');
+  const customerTab = document.getElementById('customer-info-tab');
+  const customerView = document.getElementById('customerInfoView');
+
+  // Clear all active states first
+  [searchTab, crmTab, customerTab].forEach(t => t?.classList.remove('active'));
+  [searchView, crmView, customerView].forEach(v => v?.classList.remove('show', 'active'));
+
+  if (routeToLeads && crmTab && crmView) {
+      // Show Leads Tab
+      crmTab.classList.add('active');
+      crmView.classList.add('show', 'active');
+      
+      // Force the view to render its content
+      if (window.CRMView && typeof CRMView.refreshList === 'function') {
+          CRMView.refreshList();
+      }
+  } else if (searchTab && searchView) {
+      // Default fallback: Show Search Tab
+      searchTab.classList.add('active');
+      searchView.classList.add('show', 'active');
   }
 }
 

@@ -426,6 +426,30 @@ const CRMView = {
         container.innerHTML = html;
     },
 
+    async hasDashboardUpdates() {
+        const myEmail = (CRMService.currentUserEmail || "").toLowerCase();
+        let myLeads = CRMService.leadsCache.filter(l => 
+            l.Status !== 'Closed' && (l.Owner || "").toLowerCase().includes(myEmail)
+        );
+
+        // 1. Check for Action Required
+        if (myLeads.some(l => l.Status === 'Action Required')) return true;
+
+        // 2. Check for Recent Updates
+        const stats = await window.idbUtil.getVisitStats() || {};
+        const lastVisit = stats.lastCrmVisit || (Date.now() - 24 * 60 * 60 * 1000);
+
+        const hasRecentUpdates = myLeads.some(l => {
+            const activityTime = new Date(l.LastActivityAt).getTime();
+            const createdTime = new Date(l.CreatedAt).getTime();
+            const isNewLead = createdTime > lastVisit;
+            const isClientResponse = (l.Status === 'Waiting On You' && activityTime > lastVisit);
+            return isNewLead || isClientResponse;
+        });
+
+        return hasRecentUpdates;
+    },
+
     async markUpdatesRead() {
         const stats = await window.idbUtil.getVisitStats() || {};
         stats.lastCrmVisit = Date.now();
