@@ -877,7 +877,7 @@ async loadLead(leadId) {
                 </ul>
             </div>
             <button class="quotes-btn-responsive btn" onclick="CRMView.updateStatus('${lead.LeadId}', 'Sent To Quotes')" title="Send to Quotes">
-                <img src="/EasySearchTests/static/leads-icon.png" style="width:24px; height:24px;">
+                <img src="/static/leads-icon.png" style="width:24px; height:24px;">
             </button>
         `;
     },
