@@ -31,7 +31,8 @@ const graphScopes = [
     "Sites.ReadWrite.All",
     "OrgContact.Read.All",
     "Mail.Send.Shared",
-    "Mail.Read"
+    "Mail.Read",
+    "User.ReadBasic.All"
 ];
 
 let msalInstance = null;
