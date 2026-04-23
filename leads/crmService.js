@@ -267,7 +267,7 @@ const CRMService = {
                     calculatedStatus = isMyEmail ? 'Waiting On Contact' : 'Waiting On You'; 
                 }
 
-                // B) Escalation Logic (Streak-based)
+// B) Escalation Logic (Streak-based)
                 // Look back through the recent emails to find when the current sender's streak began
                 let streakStartDate = msgDate;
                 for (let i = 1; i < validMessages.length; i++) {
@@ -281,8 +281,16 @@ const CRMService = {
                     }
                 }
 
+                // Respect manual user interventions
+                // If the user manually updated the lead (leadDate > msgDate), 
+                // the "clock" for escalation resets to that manual activity date.
+                let escalationStartDate = streakStartDate;
+                if (leadDate > msgDate) {
+                    escalationStartDate = leadDate;
+                }
+
                 const now = new Date();
-                const diffDays = (now - streakStartDate) / (1000 * 60 * 60 * 24);
+                const diffDays = (now - escalationStartDate) / (1000 * 60 * 60 * 24);
 
                 // Apply Escalation if the base status has been waiting longer than 7 days
                 if ((calculatedStatus === 'Waiting On You' || calculatedStatus === 'Waiting On Contact') && diffDays > 7) {
