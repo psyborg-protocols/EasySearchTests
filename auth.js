@@ -13,6 +13,7 @@ const msalConfig = {
             "https://login.microsoftonline.com/b4b6e20e-14bd-4419-bf0a-c7d2c948c513",
         redirectUri: window.location.origin + "/",
         // navigateToLoginRequestUrl defaults to true; we also do our own deep-link restore
+        navigateToLoginRequestUrl: false
     },
     cache: {
         cacheLocation: "localStorage",
