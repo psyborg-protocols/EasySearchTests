@@ -1,7 +1,7 @@
 // base URL for Azure Functions
 const BW_BACKEND_BASE_URL = "https://bwbackend-cahmavhhgjcaa3be.canadaeast-01.azurewebsites.net/api";
 
-// This will be injected by the GitHub Actions build step
+// This will be injected by the GitHub Actions build step - :D
 const BW_BACKEND_CODE = "__BW_BACKEND_CODE__";
 
 // Centralized Site ID for SharePoint
