@@ -98,7 +98,18 @@ const CRMView = {
     async loadOrgUsers() {
         if (this.orgUsersList && this.orgUsersList.length > 0) return;
         try {
-            const token = await getAccessToken();
+            // 1. Ask for a token, but tell MSAL NOT to trigger a redirect if we aren't logged in
+            const token = await getAccessToken({ 
+                autoRedirectOnce: false, 
+                reason: "crm_load_org_users" 
+            });
+            
+            // 2. If no token is available, gracefully exit. Do NOT fetch!
+            if (!token) {
+                console.log("[CRMView] Auth not ready. Deferring org users load.");
+                return; 
+            }
+
             const url = `https://graph.microsoft.com/v1.0/users?$select=displayName,mail,userPrincipalName&$top=999`;
             const response = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
             
@@ -853,6 +864,11 @@ async loadLead(leadId) {
 
     enterOwnerEditMode(leadId) {
         if (this.currentEditCleanup) { this.currentEditCleanup(); this.currentEditCleanup = null; }
+
+        // Lazy load the users if they haven't been loaded yet!
+        if (this.orgUsersList.length === 0) {
+            this.loadOrgUsers();
+        }
 
         const displayBox = document.getElementById('summaryFieldOwner');
         const editBox = document.getElementById('ownerEditContainer');
