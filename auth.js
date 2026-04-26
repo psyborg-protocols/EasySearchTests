@@ -6,6 +6,11 @@
 //  - Keep deep-link restore behavior
 // ---------------------------------------------
 
+// Force HTTPS to prevent localStorage partitioning mismatch on custom domains
+if (window.location.protocol === "http:" && window.location.hostname !== "localhost") {
+    window.location.replace(window.location.href.replace("http:", "https:"));
+}
+
 if (window !== window.parent) {
     console.warn("[Startup] Iframe execution detected. Halting script to prevent MSAL race conditions.");
     throw new Error("Iframe execution halted intentionally."); 
@@ -70,7 +75,9 @@ const LOOP_PROTECTION_WINDOW = 30000;
 
 function isRedirectCallbackUrl() {
     const h = window.location.hash || "";
-    return h.includes("code=") || h.includes("state=") || h.includes("error=");
+    const s = window.location.search || "";
+    return h.includes("code=") || h.includes("state=") || h.includes("error=") ||
+           s.includes("code=") || s.includes("state=") || s.includes("error=");
 }
 
 function setActiveAccount(account) {
@@ -184,6 +191,12 @@ async function initializeAuth() {
         // If redirect failed, clear in-progress so we don't get stuck.
         clearRedirectInProgress();
         console.error("[Auth] Error during redirect processing:", error);
+
+        // Clean the URL so the app isn't stuck reading the same invalid state code
+        if (window.history && window.history.replaceState) {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
     } finally {
         authReady = true;
     }
