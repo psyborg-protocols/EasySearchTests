@@ -6,6 +6,11 @@
 //  - Keep deep-link restore behavior
 // ---------------------------------------------
 
+if (window !== window.parent) {
+    console.warn("[Startup] Iframe execution detected. Halting script to prevent MSAL race conditions.");
+    throw new Error("Iframe execution halted intentionally."); 
+}
+
 const msalConfig = {
     auth: {
         clientId: "26f834bc-3365-486c-95ff-1a45a24488b5",
