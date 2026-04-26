@@ -18,6 +18,16 @@ const msalConfig = {
     cache: {
         cacheLocation: "localStorage",
         storeAuthStateInCookie: true
+    },
+    system: {
+        loggerOptions: {
+            loggerCallback: (level, message, containsPii) => {
+                if (containsPii) return;
+                console.log(`[MSAL] ${message}`);
+            },
+            logLevel: msal.LogLevel.Verbose,
+            piiLoggingEnabled: false
+        }
     }
 };
 
