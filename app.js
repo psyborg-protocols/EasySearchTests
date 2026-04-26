@@ -3,13 +3,14 @@
 // ---------------------------------------------
 
 const APP_VERSION = "1.2.1";
-if (window !== window.parent) {
+
+
+document.addEventListener("DOMContentLoaded", async function () {
+    if (window !== window.parent) {
     console.log("[App] Running inside an iframe (likely MSAL silent request). Halting UI startup.");
     // We intentionally do not fire the rest of the app logic inside the hidden iframe
     return; 
-}
-document.addEventListener("DOMContentLoaded", async function () {
-    
+    }
     // ------------------------------
     // 0. HELPER: LINK RENDERER
     // ------------------------------
