@@ -11,7 +11,7 @@ const msalConfig = {
         clientId: "26f834bc-3365-486c-95ff-1a45a24488b5",
         authority:
             "https://login.microsoftonline.com/b4b6e20e-14bd-4419-bf0a-c7d2c948c513",
-        redirectUri: "https://psyborg-protocols.github.io/EasySearchTests/",
+        redirectUri: "https://app.brandywinemixers.com/",
         // navigateToLoginRequestUrl defaults to true; we also do our own deep-link restore
     },
     cache: {
