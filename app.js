@@ -2,25 +2,52 @@
 // app.js
 // ---------------------------------------------
 
-const APP_VERSION = "1.2.2"; // Bumped version for new Auth Architecture
+const APP_VERSION = "1.2.4"; // Bumped version for Dynamic Data Loading
+
+// 1. Extract File Link logic so it can be called dynamically
+window.exposeFileLinks = () => {
+    const { fileLinks = {} } = window.dataStore || {};
+    const setLink = (id, url) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.href = url || "#";
+        el.classList.toggle("d-none", !url);
+    };
+    setLink("salesFileLink", fileLinks.Sales);
+    setLink("dbFileLink", fileLinks.DB);
+    setLink("pricingFileLink", fileLinks.Pricing);
+};
+
+// 2. Extract Data Sync logic so it can be called exactly when the user logs in
+window.loadFreshAppData = async () => {
+    if (window.isFetchingData) return; // Prevent duplicate network calls
+    window.isFetchingData = true;
+
+    try {
+        console.log("[App] Authorized. Fetching fresh network data...");
+        if (window.dataLoader) {
+            await dataLoader.processFiles();
+        }
+        
+        window.exposeFileLinks(); 
+        document.dispatchEvent(new Event("reports-ready"));
+
+        if (window.ReportManager) {
+            await window.ReportManager.checkDueReportsAndTrackVisits();
+        }
+        console.log("[App] Network data sync complete.");
+    } catch (e) {
+        console.error("[App] Error during background refresh:", e);
+    } finally {
+        window.isFetchingData = false;
+    }
+};
 
 document.addEventListener("DOMContentLoaded", async function () {
+    // Guard against MSAL hidden iframe execution
+    if (window !== window.parent) return; 
 
-    // 1. Helper: Expose file links from dataStore
-    const exposeFileLinks = () => {
-        const { fileLinks = {} } = window.dataStore || {};
-        const setLink = (id, url) => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.href = url || "#";
-            el.classList.toggle("d-none", !url);
-        };
-        setLink("salesFileLink", fileLinks.Sales);
-        setLink("dbFileLink", fileLinks.DB);
-        setLink("pricingFileLink", fileLinks.Pricing);
-    };
-
-    // 2. Version Check & Hard Reset
+    // Version Check & Hard Reset
     const currentVersion = localStorage.getItem("APP_VERSION");
     if (currentVersion !== APP_VERSION) {
         console.log(`[Version Check] ${currentVersion} → ${APP_VERSION}`);
@@ -30,13 +57,23 @@ document.addEventListener("DOMContentLoaded", async function () {
         return;
     }
 
-    // 3. Initialize Auth (This now automatically handles rendering the UI via Events)
+    // Initialize Auth (This automatically handles rendering the UI)
     await initializeAuth();
 
-    // 4. Load Cache for Instant UI
+    // 3. 🚀 NEW: Listen for Popup Login Success!
+    // When the Microsoft popup closes, this fires and dynamically downloads your data.
+    if (window.msalInstance) {
+        msalInstance.addEventCallback((message) => {
+            if (message.eventType === msal.EventType.LOGIN_SUCCESS) {
+                console.log("[App] Popup login successful! Firing initial data sync...");
+                window.loadFreshAppData();
+            }
+        });
+    }
+
+    // Load Cache for Instant UI
     window.dataStore = window.dataStore || {};
     window.dataStore.fileLinks = window.dataStore.fileLinks || {};
-    let isCacheLoaded = false;
 
     try {
         const cachedDB = await idbUtil.getDataset("DBData");
@@ -65,8 +102,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (cachedSales.metadata?.webUrl) window.dataStore.fileLinks["Sales"] = cachedSales.metadata.webUrl;
             if (cachedPricing.metadata?.webUrl) window.dataStore.fileLinks["Pricing"] = cachedPricing.metadata.webUrl;
 
-            isCacheLoaded = true;
-            exposeFileLinks();
+            window.exposeFileLinks();
             document.dispatchEvent(new Event("reports-ready"));
             console.log("[Startup] Cache loaded successfully.");
         }
@@ -74,30 +110,14 @@ document.addEventListener("DOMContentLoaded", async function () {
         console.error("[Startup] Cache load error:", err);
     }
 
-    // 5. Background Network Refresh
-    // Only execute if user is logged in
+    // 4. Background Network Refresh
+    // This runs on standard page loads if the user was ALREADY logged in yesterday.
     if (msalInstance && msalInstance.getAllAccounts().length > 0) {
-        try {
-            console.log("[Startup] Authorized. Refreshing data in background...");
-            // CRM initialization is now safely handled inside UIrenderer.updateUIForLoggedInUser()
-            
-            await dataLoader.processFiles();
-            exposeFileLinks(); 
-
-            if (!isCacheLoaded) {
-                document.dispatchEvent(new Event("reports-ready"));
-            }
-
-            if (window.ReportManager) {
-                await window.ReportManager.checkDueReportsAndTrackVisits();
-            }
-        } catch (e) {
-            console.error("[Startup] Error during background refresh:", e);
-        }
+        window.loadFreshAppData();
     }
 
-    // 6. Event Listeners
+    // Event Listeners
     document.getElementById("signInButton")?.addEventListener("click", signIn);
     document.getElementById("signOutButton")?.addEventListener("click", signOut);
-    document.addEventListener("reports-ready", exposeFileLinks);
+    document.addEventListener("reports-ready", window.exposeFileLinks);
 });
