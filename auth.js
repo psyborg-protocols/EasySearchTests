@@ -65,16 +65,29 @@ async function initializeAuth() {
 
     // 1. Leverage MSAL's Native Event System for UI State
     msalInstance.addEventCallback((message) => {
-        if (message.eventType === msal.EventType.LOGIN_SUCCESS || 
-            message.eventType === msal.EventType.ACQUIRE_TOKEN_SUCCESS) {
-            
+        
+        // A. Initial Login Success (User just used the Popup)
+        if (message.eventType === msal.EventType.LOGIN_SUCCESS) {
             if (message.payload && message.payload.account) {
-                console.log("[Auth] Login/Token Success Event Fired.");
+                console.log("[Auth] Login Success Event Fired.");
                 setActiveAccount(message.payload.account);
+                
                 if (window.UIrenderer) UIrenderer.updateUIForLoggedInUser();
+                
+                // Trigger fresh data ONLY on explicit login
+                if (window.loadFreshAppData) window.loadFreshAppData();
             }
         }
         
+        // B. Silent Token Refresh (Background Heartbeat)
+        if (message.eventType === msal.EventType.ACQUIRE_TOKEN_SUCCESS) {
+            if (message.payload && message.payload.account) {
+                // Ensure the account stays active, but DO NOT trigger a data reload
+                setActiveAccount(message.payload.account);
+            }
+        }
+        
+        // C. Logout Success
         if (message.eventType === msal.EventType.LOGOUT_SUCCESS) {
             console.log("[Auth] Logout Success Event Fired.");
             setActiveAccount(null);

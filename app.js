@@ -60,17 +60,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     // Initialize Auth (This automatically handles rendering the UI)
     await initializeAuth();
 
-    // 3. 🚀 NEW: Listen for Popup Login Success!
-    // When the Microsoft popup closes, this fires and dynamically downloads your data.
-    if (window.msalInstance) {
-        msalInstance.addEventCallback((message) => {
-            if (message.eventType === msal.EventType.LOGIN_SUCCESS) {
-                console.log("[App] Popup login successful! Firing initial data sync...");
-                window.loadFreshAppData();
-            }
-        });
-    }
-
     // Load Cache for Instant UI
     window.dataStore = window.dataStore || {};
     window.dataStore.fileLinks = window.dataStore.fileLinks || {};
