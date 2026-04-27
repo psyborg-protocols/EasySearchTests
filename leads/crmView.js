@@ -97,21 +97,12 @@ const CRMView = {
 
     async loadOrgUsers() {
         if (this.orgUsersList && this.orgUsersList.length > 0) return;
+        
         try {
-            // 1. Ask for a token, but tell MSAL NOT to trigger a redirect if we aren't logged in
-            const token = await getAccessToken({ 
-                autoRedirectOnce: false, 
-                reason: "crm_load_org_users" 
-            });
-            
-            // 2. If no token is available, gracefully exit. Do NOT fetch!
-            if (!token) {
-                console.log("[CRMView] Auth not ready. Deferring org users load.");
-                return; 
-            }
-
             const url = `https://graph.microsoft.com/v1.0/users?$select=displayName,mail,userPrincipalName&$top=999`;
-            const response = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+            
+            // 🚀 One-liner fetch that handles tokens, popups, and 401 retries automatically
+            const response = await window.authenticatedFetch(url);
             
             if (response.ok) {
                 const data = await response.json();

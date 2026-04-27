@@ -26,6 +26,10 @@ const CRMService = {
     anchorsDeltaLink: null,
     currentLead: null,
 
+    get currentUserEmail() {
+        return window.userAccount?.username || msalInstance?.getActiveAccount()?.username || "";
+    },
+
     // Synchronization Locks
     isInitialized: false,
     syncPromise: null,
@@ -37,12 +41,6 @@ const CRMService = {
         this.isInitialized = true;
 
         console.log("[CRM] Service initializing...");
-
-        // Ensure msalInstance is available (it should be global from index.html)
-        const account = msalInstance ? msalInstance.getActiveAccount() : null;
-        
-        // Store it on the service for easy access later
-        this.currentUserEmail = account ? account.username : "";
 
         // A. Load Cache Immediately (Instant UI)
         await this._loadFromStorage(CRM_CONFIG.KEYS.LEADS, 'leadsCache', 'deltaLink');

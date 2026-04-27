@@ -2,171 +2,102 @@
 // app.js
 // ---------------------------------------------
 
-const APP_VERSION = "1.2.1";
-
+const APP_VERSION = "1.2.2"; // Bumped version for new Auth Architecture
 
 document.addEventListener("DOMContentLoaded", async function () {
-    if (window !== window.parent) {
-    console.log("[App] Running inside an iframe (likely MSAL silent request). Halting UI startup.");
-    // We intentionally do not fire the rest of the app logic inside the hidden iframe
-    return; 
-    }
-    // ------------------------------
-    // 0. HELPER: LINK RENDERER
-    // ------------------------------
-    // Defined early so we can call it immediately after cache load AND after network refresh
+
+    // 1. Helper: Expose file links from dataStore
     const exposeFileLinks = () => {
         const { fileLinks = {} } = window.dataStore || {};
         const setLink = (id, url) => {
             const el = document.getElementById(id);
             if (!el) return;
             el.href = url || "#";
-            // Show link only if URL exists
             el.classList.toggle("d-none", !url);
         };
         setLink("salesFileLink", fileLinks.Sales);
         setLink("dbFileLink", fileLinks.DB);
         setLink("pricingFileLink", fileLinks.Pricing);
-        console.log("[App] Links exposed:", fileLinks);
     };
 
-    // ------------------------------
-    // 1. VERSION CHECK
-    // ------------------------------
+    // 2. Version Check & Hard Reset
     const currentVersion = localStorage.getItem("APP_VERSION");
     if (currentVersion !== APP_VERSION) {
         console.log(`[Version Check] ${currentVersion} → ${APP_VERSION}`);
-        // Clear cached datasets when the app version changes
-        await idbUtil.clearDatasets();
+        if (window.idbUtil) await idbUtil.clearDatasets();
         localStorage.setItem("APP_VERSION", APP_VERSION);
         location.reload();
         return;
     }
 
-    // ------------------------------
-    // 2. AUTH INITIALIZATION
-    // ------------------------------
-    // Process MSAL redirect result and restore any existing session
+    // 3. Initialize Auth (This now automatically handles rendering the UI via Events)
     await initializeAuth();
 
-    // ------------------------------
-    // 3. LOAD CACHE FIRST (Instant UI)
-    // ------------------------------
+    // 4. Load Cache for Instant UI
+    window.dataStore = window.dataStore || {};
+    window.dataStore.fileLinks = window.dataStore.fileLinks || {};
     let isCacheLoaded = false;
 
     try {
-        console.log("[Startup] Attempting to load cache...");
-
         const cachedDB = await idbUtil.getDataset("DBData");
         const cachedSales = await idbUtil.getDataset("SalesData");
         const cachedPricing = await idbUtil.getDataset("PricingData");
-        const cachedEquivalents = await idbUtil.getDataset("EquivalentsData");
-        const cachedPriceRaise = await idbUtil.getDataset("PriceRaiseData");
-        const cachedCompanyInfo = await idbUtil.getDataset("CompanyInfoData");
-        const cachedOrgContacts = await idbUtil.getDataset("OrgContactsData");
-        const cachedOrders = await idbUtil.getDataset("OrdersData");
-        const cachedSamples = await idbUtil.getDataset("SamplesData");
-        const cachedPurchases = await idbUtil.getDataset("PurchasesData");
         
-        // --- CRM handles its own cache ---
-
-        // Ensure dataStore is initialized
-        window.dataStore = window.dataStore || {};
-        window.dataStore.fileLinks = window.dataStore.fileLinks || {};
-
         if (cachedDB && cachedSales && cachedPricing) {
             window.dataStore["DB"] = cachedDB;
             window.dataStore["Sales"] = cachedSales;
             window.dataStore["Pricing"] = cachedPricing;
-            window.dataStore["PriceRaise"] = cachedPriceRaise;
-
-            if (cachedCompanyInfo) window.dataStore["CompanyInfo"] = cachedCompanyInfo;
-            if (cachedEquivalents) window.dataStore["Equivalents"] = cachedEquivalents;
+            
+            // Load remaining cache entries...
+            window.dataStore["PriceRaise"] = await idbUtil.getDataset("PriceRaiseData");
+            window.dataStore["CompanyInfo"] = await idbUtil.getDataset("CompanyInfoData");
+            window.dataStore["Equivalents"] = await idbUtil.getDataset("EquivalentsData");
+            window.dataStore["Orders"] = await idbUtil.getDataset("OrdersData");
+            window.dataStore["Samples"] = await idbUtil.getDataset("SamplesData");
+            window.dataStore["Purchases"] = await idbUtil.getDataset("PurchasesData");
+            
+            const cachedOrgContacts = await idbUtil.getDataset("OrgContactsData");
             if (cachedOrgContacts) {
-                window.dataStore["OrgContacts"] = new Map(
-                    Object.entries(cachedOrgContacts)
-                );
+                window.dataStore["OrgContacts"] = new Map(Object.entries(cachedOrgContacts));
             }
-            if (cachedOrders) window.dataStore["Orders"] = cachedOrders;
-            if (cachedSamples) window.dataStore["Samples"] = cachedSamples;
-            if (cachedPurchases) window.dataStore["Purchases"] = cachedPurchases;
 
-            // --- OPTIMIZATION: EXTRACT LINKS FROM CACHE ---
-            // We pull the URLs from the cached metadata so links appear instantly
             if (cachedDB.metadata?.webUrl) window.dataStore.fileLinks["DB"] = cachedDB.metadata.webUrl;
             if (cachedSales.metadata?.webUrl) window.dataStore.fileLinks["Sales"] = cachedSales.metadata.webUrl;
             if (cachedPricing.metadata?.webUrl) window.dataStore.fileLinks["Pricing"] = cachedPricing.metadata.webUrl;
 
-            // Render UI & Links immediately
-            console.log("[Startup] Cache loaded. UI active.");
             isCacheLoaded = true;
-            exposeFileLinks(); // <--- RENDER LINKS NOW
-
-            window.reportsReady = true;
+            exposeFileLinks();
             document.dispatchEvent(new Event("reports-ready"));
-        } else {
-            console.warn("[Startup] Cache incomplete; full load required.");
+            console.log("[Startup] Cache loaded successfully.");
         }
     } catch (err) {
         console.error("[Startup] Cache load error:", err);
     }
 
-    // ------------------------------
-    // 4. BACKGROUND REFRESH (Fresh Data)
-    // ------------------------------
-    try {
-        const token = await getAccessToken({
-            autoRedirectOnce: true,
-            reason: "startup_background_refresh"
-        });
-
-        if (token) {
-            console.log("[Startup] Refreshing data in background...");
-            // Initialize CRMService cache loading
-            CRMService.init();
-
-            // This function downloads new files and updates window.dataStore.fileLinks
+    // 5. Background Network Refresh
+    // Only execute if user is logged in
+    if (msalInstance && msalInstance.getAllAccounts().length > 0) {
+        try {
+            console.log("[Startup] Authorized. Refreshing data in background...");
+            // CRM initialization is now safely handled inside UIrenderer.updateUIForLoggedInUser()
+            
             await dataLoader.processFiles();
-
-            // Render links AGAIN to ensure they are up-to-date with fresh metadata
             exposeFileLinks(); 
 
             if (!isCacheLoaded) {
-                window.reportsReady = true;
                 document.dispatchEvent(new Event("reports-ready"));
             }
 
-            console.log("[Startup] Background refresh complete.");
-
-            // Re-check reports logic after fresh data load
             if (window.ReportManager) {
                 await window.ReportManager.checkDueReportsAndTrackVisits();
             }
-        } else {
-            console.log("[Startup] Not signed in yet — skipping background refresh.");
-            // Keep UI usable with cached data; user can also click Sign In.
+        } catch (e) {
+            console.error("[Startup] Error during background refresh:", e);
         }
-    } catch (e) {
-        console.error("[Startup] Error during background refresh:", e);
     }
 
-    // ------------------------------
-    // 5. BUTTON LISTENERS
-    // ------------------------------
-    const signInButton = document.getElementById("signInButton");
-    if (signInButton) {
-        signInButton.addEventListener("click", () => {
-            signIn(); // Redirect happens here
-        });
-    }
-
-    const signOutButton = document.getElementById("signOutButton");
-    if (signOutButton) {
-        signOutButton.addEventListener("click", () => {
-            signOut();
-        });
-    }
-
-    // Ensure links are checked one last time if 'reports-ready' fires late
+    // 6. Event Listeners
+    document.getElementById("signInButton")?.addEventListener("click", signIn);
+    document.getElementById("signOutButton")?.addEventListener("click", signOut);
     document.addEventListener("reports-ready", exposeFileLinks);
 });

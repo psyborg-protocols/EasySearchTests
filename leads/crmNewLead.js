@@ -46,10 +46,9 @@ const CRMNewLead = {
         if (this.orgUsersList && this.orgUsersList.length > 0) return; 
 
         try {
-            // Assumes getAccessToken() is available globally in your app
-            const token = await getAccessToken(); 
             const url = `https://graph.microsoft.com/v1.0/users?$select=displayName,mail,userPrincipalName&$top=999`;
-            const response = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+            
+            const response = await window.authenticatedFetch(url);
             
             if (response.ok) {
                 const data = await response.json();

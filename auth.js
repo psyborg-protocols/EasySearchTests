@@ -1,9 +1,5 @@
 // ---------------------------------------------
-// auth.js — Redirect-based MSAL flow (safe auto-login-once)
-// Goals:
-//  - No infinite redirect loops
-//  - Minimal user interaction: auto-redirect once when a token is needed
-//  - Keep deep-link restore behavior
+// auth.js — Refactored to MSAL Popup Flow & Native Events
 // ---------------------------------------------
 
 // Force HTTPS to prevent localStorage partitioning mismatch on custom domains
@@ -19,11 +15,9 @@ if (window !== window.parent) {
 const msalConfig = {
     auth: {
         clientId: "26f834bc-3365-486c-95ff-1a45a24488b5",
-        authority:
-            "https://login.microsoftonline.com/b4b6e20e-14bd-4419-bf0a-c7d2c948c513",
+        authority: "https://login.microsoftonline.com/b4b6e20e-14bd-4419-bf0a-c7d2c948c513",
         redirectUri: window.location.origin + "/",
-        // navigateToLoginRequestUrl defaults to true; we also do our own deep-link restore
-        navigateToLoginRequestUrl: false
+        navigateToLoginRequestUrl: true // Natively handles deep-linking routing
     },
     cache: {
         cacheLocation: "localStorage",
@@ -35,120 +29,33 @@ const msalConfig = {
                 if (containsPii) return;
                 console.log(`[MSAL] ${message}`);
             },
-            logLevel: msal.LogLevel.Verbose,
+            logLevel: msal.LogLevel.Warning,
             piiLoggingEnabled: false
         }
     }
 };
 
-// Custom API scopes
+// Scopes
 const contactUpdateScope = `api://${msalConfig.auth.clientId}/Contacts.Update`;
 const companyResearchScope = `api://${msalConfig.auth.clientId}/Company.Research`;
-
-// Graph scopes - includes Mail.Send for shared mailbox
 const graphScopes = [
-    "User.Read",
-    "Files.ReadWrite.All",
-    "Sites.ReadWrite.All",
-    "OrgContact.Read.All",
-    "Mail.Send.Shared",
-    "Mail.Read",
-    "User.ReadBasic.All"
+    "User.Read", "Files.ReadWrite.All", "Sites.ReadWrite.All", 
+    "OrgContact.Read.All", "Mail.Send.Shared", "Mail.Read", "User.ReadBasic.All"
 ];
 
 let msalInstance = null;
 let userAccount = null;
 let authReady = false;
 
-// Guards to prevent infinite redirect loops
-const AUTOLOGIN_TIMESTAMP_KEY = "msal_autologin_timestamp_v2"; // Renamed for clarity
-const REDIRECT_IN_PROGRESS_KEY = "msal_redirect_in_progress_v1";
-
-// How long (in ms) to block a retry after an attempt. 
-// 30 seconds is enough to detect a tight loop, but short enough to allow 
-// legitimate re-tries after a failed attempt settled.
-const LOOP_PROTECTION_WINDOW = 30000; 
-
-// ------------------------------
-// Small helpers
-// ------------------------------
-
-function isRedirectCallbackUrl() {
-    const h = window.location.hash || "";
-    const s = window.location.search || "";
-    return h.includes("code=") || h.includes("state=") || h.includes("error=") ||
-           s.includes("code=") || s.includes("state=") || s.includes("error=");
-}
-
 function setActiveAccount(account) {
     userAccount = account || null;
-    if (msalInstance && userAccount && typeof msalInstance.setActiveAccount === "function") {
+    if (msalInstance && userAccount) {
         msalInstance.setActiveAccount(userAccount);
-    }
-    if (userAccount && window.UIrenderer && typeof UIrenderer.updateUIForLoggedInUser === "function") {
-        UIrenderer.updateUIForLoggedInUser();
-    }
-}
-
-function clearAutoLoginGuardsOnSuccess() {
-    try {
-        sessionStorage.removeItem(AUTOLOGIN_TIMESTAMP_KEY);
-        sessionStorage.removeItem(REDIRECT_IN_PROGRESS_KEY);
-    } catch (_) {}
-}
-
-function markRedirectInProgress() {
-    try {
-        sessionStorage.setItem(REDIRECT_IN_PROGRESS_KEY, "1");
-    } catch (_) {}
-}
-
-function clearRedirectInProgress() {
-    try {
-        sessionStorage.removeItem(REDIRECT_IN_PROGRESS_KEY);
-    } catch (_) {}
-}
-
-/**
- * Checks if we recently tried to auto-redirect.
- * Returns TRUE if we are in a tight loop (attempted < 30s ago).
- * Returns FALSE if it's been a while (e.g., overnight), allowing the retry.
- */
-function hasTriedAutoLoginRecently() {
-    try {
-        const lastAttempt = sessionStorage.getItem(AUTOLOGIN_TIMESTAMP_KEY);
-        if (!lastAttempt) return false;
-        
-        const now = Date.now();
-        const diff = now - parseInt(lastAttempt, 10);
-        
-        // If diff is NaN or negative (clock skew), allow retry
-        if (isNaN(diff) || diff < 0) return false;
-
-        // If attempted recently (within window), BLOCK it.
-        return diff < LOOP_PROTECTION_WINDOW; 
-    } catch (_) {
-        return false;
-    }
-}
-
-function markTriedAutoLogin() {
-    try {
-        // Store the current timestamp
-        sessionStorage.setItem(AUTOLOGIN_TIMESTAMP_KEY, Date.now().toString());
-    } catch (_) {}
-}
-
-function isRedirectInProgress() {
-    try {
-        return sessionStorage.getItem(REDIRECT_IN_PROGRESS_KEY) === "1";
-    } catch (_) {
-        return false;
     }
 }
 
 // ------------------------------
-// Initialization
+// Initialization & Event System
 // ------------------------------
 
 async function initializeAuth() {
@@ -156,200 +63,148 @@ async function initializeAuth() {
 
     msalInstance = new msal.PublicClientApplication(msalConfig);
 
-    // Always process redirect first.
+    // 1. Leverage MSAL's Native Event System for UI State
+    msalInstance.addEventCallback((message) => {
+        if (message.eventType === msal.EventType.LOGIN_SUCCESS || 
+            message.eventType === msal.EventType.ACQUIRE_TOKEN_SUCCESS) {
+            
+            if (message.payload && message.payload.account) {
+                console.log("[Auth] Login/Token Success Event Fired.");
+                setActiveAccount(message.payload.account);
+                if (window.UIrenderer) UIrenderer.updateUIForLoggedInUser();
+            }
+        }
+        
+        if (message.eventType === msal.EventType.LOGOUT_SUCCESS) {
+            console.log("[Auth] Logout Success Event Fired.");
+            setActiveAccount(null);
+            if (window.UIrenderer) UIrenderer.updateUIForLoggedOutUser();
+        }
+    });
+
     try {
-        const response = await msalInstance.handleRedirectPromise();
-
-        // We have returned from a redirect round trip (success or failure)
-        clearRedirectInProgress();
-
-        if (response && response.account) {
-            console.log("[Auth] Completed redirect login.");
-            setActiveAccount(response.account);
-
-            // Restore original deep link if we saved one pre-login
-            const postLoginUrl = sessionStorage.getItem("postLoginUrl");
-            if (postLoginUrl) {
-                sessionStorage.removeItem("postLoginUrl");
-                // Replace so we don't clutter history
-                window.location.replace(postLoginUrl);
-                return;
-            }
-
-            clearAutoLoginGuardsOnSuccess();
-        } else {
-            // No fresh redirect result — try to restore an existing session
-            const accounts = msalInstance.getAllAccounts();
-            if (accounts.length > 0) {
-                console.log("[Auth] Existing account restored.");
-                setActiveAccount(accounts[0]);
-            } else {
-                console.log("[Auth] No existing account; waiting for sign-in.");
-            }
-        }
+        // Just in case the user previously used a redirect or falls back
+        await msalInstance.handleRedirectPromise();
     } catch (error) {
-        // If redirect failed, clear in-progress so we don't get stuck.
-        clearRedirectInProgress();
-        console.error("[Auth] Error during redirect processing:", error);
-
-        // Clean the URL so the app isn't stuck reading the same invalid state code
-        if (window.history && window.history.replaceState) {
-            const cleanUrl = window.location.origin + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
-        }
-    } finally {
-        authReady = true;
+        console.error("[Auth] Redirect handling error:", error);
     }
+
+    // 2. Restore active account from cache on load
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+        console.log("[Auth] Existing account restored from cache.");
+        setActiveAccount(accounts[0]);
+        if (window.UIrenderer) UIrenderer.updateUIForLoggedInUser();
+    }
+
+    authReady = true;
 }
 
 // ------------------------------
-// Sign-in / Sign-out
+// Sign-in / Sign-out (Popup Flow)
 // ------------------------------
 
 async function signIn() {
-    if (!msalInstance || !authReady) {
-        console.warn("[Auth] signIn called before initializeAuth; initializing now.");
-        await initializeAuth();
-    }
-
-    console.log("[SignIn] Redirecting to Microsoft login...");
-
-    // Save current URL (supports deep links with hash/query)
+    if (!msalInstance || !authReady) await initializeAuth();
+    console.log("[SignIn] Initiating Microsoft Popup Login...");
     try {
-        sessionStorage.setItem("postLoginUrl", window.location.href);
-    } catch (e) {
-        console.warn("[Auth] Could not persist post-login URL:", e);
+        // MSAL Event System handles the UI rendering upon success
+        await msalInstance.loginPopup({ scopes: graphScopes });
+    } catch (error) {
+        console.error("[Auth] Popup Login failed or was cancelled:", error);
     }
-
-    markRedirectInProgress();
-    await msalInstance.loginRedirect({ scopes: graphScopes });
 }
 
 function signOut() {
     if (!msalInstance) return;
-
-    const accounts = msalInstance.getAllAccounts();
-    const accountToLogout =
-        userAccount || (accounts.length > 0 ? accounts[0] : null);
-
-    if (window.UIrenderer &&
-        typeof UIrenderer.updateUIForLoggedOutUser === "function") {
-        UIrenderer.updateUIForLoggedOutUser();
-    }
-
+    const accountToLogout = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
+    
     if (accountToLogout) {
-        msalInstance.logoutRedirect({
-            account: accountToLogout,
-            postLogoutRedirectUri: msalConfig.auth.redirectUri
-        });
+        msalInstance.logoutPopup({ account: accountToLogout });
     } else {
-        console.log("[Auth] No account to log out.");
+        if (window.UIrenderer) UIrenderer.updateUIForLoggedOutUser();
     }
 }
 
 // ------------------------------
-// Token acquisition (Updated to use new time-based guard)
+// Centralized Fetch Interceptor
 // ------------------------------
 
-async function getScopedAccessToken(scopes, options = {}) {
-    const {
-        autoRedirectOnce = true,       
-        redirectScopes = scopes,       
-        reason = "token"               
-    } = options;
-
-    if (!msalInstance || !authReady) {
-        console.warn("[Token] Auth not ready; initializing.");
-        await initializeAuth();
+/**
+ * A centralized wrapper around `fetch` that automatically acquires and attaches
+ * the MSAL Bearer token, and handles 401 Unauthorized retries seamlessly.
+ */
+async function authenticatedFetch(url, options = {}, scopes = graphScopes) {
+    let token = await getAccessToken(scopes);
+    
+    if (!token) {
+        throw new Error("Authentication required to make this request.");
     }
 
-    if (!msalInstance) return null;
+    const headers = new Headers(options.headers || {});
+    headers.set("Authorization", `Bearer ${token}`);
+    
+    let fetchOptions = { ...options, headers };
+    let response = await fetch(url, fetchOptions);
 
-    let account = (typeof msalInstance.getActiveAccount === "function" ? msalInstance.getActiveAccount() : null) 
-                  || userAccount 
-                  || (msalInstance.getAllAccounts()[0] || null);
-
-    // If no account, we MUST interact.
-    if (!account) {
-        console.log("[Token] No logged-in user found.");
-        if (autoRedirectOnce) {
-            await maybeAutoRedirect(redirectScopes, reason);
+    // If the token was subtly rejected by the backend, force a refresh and retry once
+    if (response.status === 401) {
+        console.warn(`[Fetch Interceptor] 401 Unauthorized on ${url}. Forcing token refresh...`);
+        token = await getAccessToken(scopes, true); // Force refresh bypassing cache
+        
+        if (token) {
+            headers.set("Authorization", `Bearer ${token}`);
+            fetchOptions = { ...options, headers };
+            response = await fetch(url, fetchOptions);
         }
-        return null;
     }
 
-    if (!userAccount || (userAccount.homeAccountId !== account.homeAccountId)) {
-        setActiveAccount(account);
-    }
+    return response;
+}
+
+// ------------------------------
+// Token Acquisition
+// ------------------------------
+
+async function getScopedAccessToken(scopes, forceRefresh = false) {
+    if (!msalInstance || !authReady) await initializeAuth();
+
+    const account = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
+    if (!account) return null;
 
     try {
-        // Force refresh if we suspect the token is stale? 
-        // MSAL usually handles this, but with the 24h limit, silent fails hard.
-        const tokenResponse = await msalInstance.acquireTokenSilent({
+        // 1. Try silent acquisition first (hidden iframe / cache)
+        const response = await msalInstance.acquireTokenSilent({
             scopes,
-            account
+            account,
+            forceRefresh
         });
-        return tokenResponse.accessToken;
+        return response.accessToken;
     } catch (error) {
-        console.warn(`[Token] Silent acquisition failed (${reason}).`, error);
-
-        // Check for specific InteractionRequired errors OR the invalid_grant 24h issue
-        if (error instanceof msal.InteractionRequiredAuthError || 
-            error.message.includes("interaction_required") ||
-            error.message.includes("invalid_grant") || 
-            error.message.includes("AADSTS700084")) {
-            
-            console.log("[Token] Interaction required (Session expired or invalid).");
-            
-            if (autoRedirectOnce) {
-                await maybeAutoRedirect(redirectScopes, reason);
+        console.warn("[Token] Silent acquisition failed.", error);
+        
+        // 2. If silent fails, elegantly fallback to Popup
+        if (error instanceof msal.InteractionRequiredAuthError) {
+            console.log("[Token] Interaction required. Opening popup...");
+            try {
+                const popupResponse = await msalInstance.acquireTokenPopup({
+                    scopes,
+                    account
+                });
+                return popupResponse.accessToken;
+            } catch (popupError) {
+                console.error("[Token] Popup acquisition failed or cancelled.", popupError);
+                return null;
             }
-            return null;
         }
-
         throw error;
     }
 }
 
-async function maybeAutoRedirect(scopesForRedirect, reason) {
-    if (isRedirectCallbackUrl() || isRedirectInProgress()) {
-        console.log(`[Token] Suppressing auto-redirect (${reason}): redirect callback/in-progress.`);
-        return;
-    }
+// Legacy wrappers kept for backwards compatibility with the rest of your app
+async function getAccessToken() { return getScopedAccessToken(graphScopes); }
+async function getApiAccessToken() { return getScopedAccessToken([contactUpdateScope]); }
+async function getLLMAccessToken() { return getScopedAccessToken([companyResearchScope]); }
 
-    if (hasTriedAutoLoginRecently()) {
-        console.warn(`[Token] Suppressing auto-redirect (${reason}): detected tight loop (attempted recently).`);
-        return;
-    }
-
-    markTriedAutoLogin();
-
-    try {
-        sessionStorage.setItem("postLoginUrl", window.location.href);
-    } catch (e) {}
-
-    console.log(`[Token] Auto-redirecting to sign-in (${reason})...`);
-    markRedirectInProgress();
-    
-    // Use the active account's login hint to make the redirect smoother
-    const account = msalInstance.getActiveAccount();
-    const request = {
-        scopes: scopesForRedirect,
-        loginHint: account ? account.username : undefined
-    };
-
-    await msalInstance.loginRedirect(request);
-}
-
-// Convenience wrappers
-async function getAccessToken(options = {}) {
-    return getScopedAccessToken(graphScopes, { ...options, redirectScopes: graphScopes });
-}
-
-async function getApiAccessToken(options = {}) {
-    return getScopedAccessToken([contactUpdateScope], { ...options, redirectScopes: [contactUpdateScope] });
-}
-
-async function getLLMAccessToken(options = {}) {
-    return getScopedAccessToken([companyResearchScope], { ...options, redirectScopes: [companyResearchScope] });
-}
+// Export interceptor for global use
+window.authenticatedFetch = authenticatedFetch;
