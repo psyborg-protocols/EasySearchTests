@@ -135,7 +135,7 @@
                     BrandyWine Materials LLC
                 </div>
                 <div style="font-size: 8px; color: #f8f9fa; text-align: center; margin-top: 10px;">
-                    Ref: BrandyWiseLeadId:${lead.leadId ||  ''}
+                    Ref: BrandyWiseLeadId:${lead.LeadId ||  ''}
                 </div>
             </div>
         `;
@@ -289,7 +289,7 @@
                     BrandyWine Materials LLC
                 </div>
                 <div style="font-size: 8px; color: #f8f9fa; text-align: center; margin-top: 10px;">
-                    Ref: BrandyWiseLeadId:${lead.leadId ||  ''}
+                    Ref: BrandyWiseLeadId:${lead.LeadId ||  ''}
                 </div>
             </div>
             <br><hr><br>
