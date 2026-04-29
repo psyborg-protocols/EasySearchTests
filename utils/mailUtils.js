@@ -105,8 +105,7 @@
         const leadsUrl = `${window.location.origin}${window.location.pathname}?tab=leads`;
 
         const emailBody = `
-            <div style="display:none; width:0px; height:0px; overflow:hidden; font-size:0px; color:transparent;">BrandyWiseLeadId:${lead.LeadId || ''}</div>
-            
+           
             <div style="font-family: Arial, sans-serif; background-color: #ffffff; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                 <div style="background-color: #e0f2fe; padding: 20px; text-align: center; border-bottom: 1px solid #bae6fd;">
                     <h2 style="color: #0369a1; margin: 0;">New Lead Assigned</h2>
@@ -134,6 +133,9 @@
                 </div>
                 <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa; border-top: 1px solid #e0e0e0;">
                     BrandyWine Materials LLC
+                </div>
+                <div style="font-size: 8px; color: #f8f9fa; text-align: center; margin-top: 10px;">
+                    Ref: BrandyWiseLeadId:${lead.leadId ||  ''}
                 </div>
             </div>
         `;
@@ -261,7 +263,6 @@
         const leadsUrl = `${window.location.origin}${window.location.pathname}?tab=leads`;
 
         const emailBody = `
-            <div style="display:none; width:0px; height:0px; overflow:hidden; font-size:0px; color:transparent;">BrandyWiseLeadId:${lead.LeadId || ''}</div>
             
             <div style="font-family: Arial, sans-serif; background-color: #ffffff; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                 <div style="background-color: #e0f2fe; padding: 20px; text-align: center; border-bottom: 1px solid #bae6fd;">
@@ -286,6 +287,9 @@
                 </div>
                 <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa; border-top: 1px solid #e0e0e0;">
                     BrandyWine Materials LLC
+                </div>
+                <div style="font-size: 8px; color: #f8f9fa; text-align: center; margin-top: 10px;">
+                    Ref: BrandyWiseLeadId:${lead.leadId ||  ''}
                 </div>
             </div>
             <br><hr><br>
