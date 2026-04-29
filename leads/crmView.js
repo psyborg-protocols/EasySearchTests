@@ -946,6 +946,15 @@ async loadLead(leadId) {
             // Add a permanent historical note to the timeline
             await CRMService.addEvent(leadId, "System", "Ownership Transferred", `Lead was transferred to ${newOwnerName} (${newOwnerEmail})`);
 
+            // NEW: Send Assignment Notification Email
+            if (window.mailUtils) {
+                const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
+                if (lead) {
+                    window.mailUtils.sendLeadAssignmentEmail(lead, newOwnerEmail)
+                        .catch(err => console.warn("[CRM] Transfer email failed to send:", err));
+                }
+            }
+
             // Refresh UI
             this.loadLead(leadId); 
             this.renderList(); 

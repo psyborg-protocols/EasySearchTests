@@ -94,20 +94,80 @@
     }
 
     /**
-     * Specialized function to send automated reminders for leads requiring action.
+     * Notify a user when a lead is assigned to them.
+     * @param {Object} lead - Single lead object from CRMService.
+     * @param {string} toEmail - The recipient (the new owner).
+     */
+    async function sendLeadAssignmentEmail(lead, toEmail) {
+        if (!lead || !toEmail) return;
+
+        // Construct the deep link to the leads tab
+        const leadsUrl = `${window.location.origin}${window.location.pathname}?tab=leads`;
+
+        const emailBody = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #e0f2fe; padding: 20px; text-align: center; border-bottom: 1px solid #bae6fd;">
+                    <h2 style="color: #0369a1; margin: 0;">New Lead Assigned</h2>
+                </div>
+                <div style="padding: 30px;">
+                    <p>Hello,</p>
+                    <p>A lead has been assigned to you and is ready for your review.</p>
+                    
+                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin-top: 20px;">
+                        <h3 style="margin-top: 0; color: #0f172a; font-size: 1.1em;">${lead.Title || 'New Lead'}</h3>
+                        <p style="margin: 5px 0; color: #475569;"><strong>Company:</strong> ${lead.Company || 'N/A'}</p>
+                        <p style="margin: 5px 0; color: #475569;"><strong>Requested Part:</strong> ${lead.PartNumber || 'N/A'} (Qty: ${lead.Quantity || 0})</p>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 35px;">
+                        <a href="${leadsUrl}" 
+                           style="background-color: #0284c7; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                           View in Dashboard →
+                        </a>
+                    </div>
+
+                    <p style="margin-top: 30px; font-size: 0.9em; color: #888; text-align: center;">
+                        Please log into BrandyWise to begin tracking this lead.
+                    </p>
+                </div>
+                <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa;">
+                    BrandyWine Materials LLC
+                </div>
+            </div>
+        `;
+
+        return sendMail(`New Lead Assigned: ${lead.Company || lead.Title}`, emailBody, toEmail);
+    }
+
+    /**
+     * Send automated reminders for leads requiring action.
      * @param {Array} leads - Array of lead objects from CRMService.
      * @param {string} toEmail - The recipient (usually the current user).
      */
     async function sendLeadReminderEmail(leads, toEmail) {
         if (!leads || leads.length === 0) return;
 
-        const leadListHtml = leads.map(l => 
-            `<li style="margin-bottom: 10px;">
+        const now = new Date();
+
+        const leadListHtml = leads.map(l => {
+            // Calculate how long it has been waiting
+            let daysText = "a while";
+            if (l.LastActivityAt) {
+                const diffTime = Math.abs(now - new Date(l.LastActivityAt));
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                daysText = `${diffDays} day${diffDays === 1 ? '' : 's'}`;
+            }
+
+            return `<li style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
                 <strong>${l.Title}</strong><br>
                 <span style="color: #666;">Company: ${l.Company || 'N/A'}</span><br>
                 <span style="color: #666;">Requested Part: ${l.PartNumber || 'N/A'} (Qty: ${l.Quantity || 0})</span><br>
-             </li>`
-        ).join('');
+                <span style="color: #d97706; font-size: 0.9em; font-weight: bold;">Inactive for: ${daysText}</span>
+             </li>`;
+        }).join('');
+
+        // Construct the deep link to the leads tab
+        const leadsUrl = `${window.location.origin}${window.location.pathname}?tab=leads`;
 
         const emailBody = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
@@ -117,10 +177,18 @@
                 <div style="padding: 30px;">
                     <p>Hello,</p>
                     <p>You have <strong>${leads.length} lead(s)</strong> that currently require your attention. They have been waiting for a response.</p>
-                    <ul style="padding-left: 20px; margin-top: 20px;">
+                    <ul style="padding-left: 0; margin-top: 20px; list-style-type: none;">
                         ${leadListHtml}
                     </ul>
-                    <p style="margin-top: 30px; font-size: 0.9em; color: #888;">
+                    
+                    <div style="text-align: center; margin-top: 35px;">
+                        <a href="${leadsUrl}" 
+                           style="background-color: #991b1b; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                           Review Leads Dashboard →
+                        </a>
+                    </div>
+
+                    <p style="margin-top: 30px; font-size: 0.9em; color: #888; text-align: center;">
                         Please log into BrandyWise to review and update these leads.
                     </p>
                 </div>
@@ -134,7 +202,7 @@
     }
 
     /**
-     * Specialized function to send automated reminders for overdue reports.
+     * Send automated reminders for overdue reports.
      * @param {Array} dueReports - Array of report module objects from ReportManager.
      * @param {string} toEmail - The recipient (usually the current user).
      */
@@ -180,6 +248,7 @@
         sendMail,
         getMessageBody,
         sendLeadReminderEmail,
-        sendReportsReminderEmail
+        sendReportsReminderEmail,
+        sendLeadAssignmentEmail
     };
 })();
