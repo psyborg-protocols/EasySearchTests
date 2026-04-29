@@ -493,7 +493,7 @@ const CRMService = {
             // Don't send an email if the user is assigning it to themselves
             if (data.owner.toLowerCase() !== currentEmail) {
                 const newlyCreatedLead = this.leadsCache.find(l => l.LeadId === leadId) || {
-                    Title: data.subject, Company: data.company, PartNumber: data.partNum, Quantity: data.qty
+                    LeadId: leadId, Title: data.subject, Company: data.company, PartNumber: data.partNum, Quantity: data.qty
                 };
                 window.mailUtils.sendLeadAssignmentEmail(newlyCreatedLead, data.owner)
                     .catch(err => console.warn("[CRM] Assignment email failed to send:", err));
