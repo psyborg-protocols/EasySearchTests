@@ -244,11 +244,74 @@
         return sendMail("Reminder: You have pending reports", emailBody, toEmail);
     }
 
+    /**
+     * Forwards a specific Graph API message to a new owner, injecting the assignment HTML as a comment.
+     * @param {Object} lead - The lead object.
+     * @param {string} toEmail - The recipient (new owner).
+     * @param {string} messageId - The Microsoft Graph ID of the email to forward.
+     */
+    async function forwardLeadHistory(lead, toEmail, messageId) {
+        if (!lead || !toEmail || !messageId) return;
+
+        const token = await window.getAccessToken({ autoRedirectOnce: true, reason: "forwardMail" });
+        if (!token) throw new Error("Not authenticated.");
+
+        const leadsUrl = `${window.location.origin}${window.location.pathname}?tab=leads`;
+
+        const emailBody = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #e0f2fe; padding: 20px; text-align: center; border-bottom: 1px solid #bae6fd;">
+                    <h2 style="color: #0369a1; margin: 0;">Lead Transferred to You</h2>
+                </div>
+                <div style="padding: 30px;">
+                    <p>Hello,</p>
+                    <p>A lead has been transferred to you. The most recent email thread is included below for context.</p>
+                    
+                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin-top: 20px;">
+                        <h3 style="margin-top: 0; color: #0f172a; font-size: 1.1em;">${lead.Title || 'Lead Transfer'}</h3>
+                        <p style="margin: 5px 0; color: #475569;"><strong>Company:</strong> ${lead.Company || 'N/A'}</p>
+                        <p style="margin: 5px 0; color: #475569;"><strong>Requested Part:</strong> ${lead.PartNumber || 'N/A'} (Qty: ${lead.Quantity || 0})</p>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 35px;">
+                        <a href="${leadsUrl}" 
+                           style="background-color: #0284c7; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                           View in Dashboard →
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <br><hr><br>
+        `;
+
+        const mailData = {
+            Comment: emailBody, 
+            ToRecipients: [{ EmailAddress: { address: toEmail } }]
+        };
+
+        const endpoint = `https://graph.microsoft.com/v1.0/me/messages/${messageId}/forward`;
+
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(mailData)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Graph Forward Failed: ${errorText}`);
+        }
+    }
+
     window.mailUtils = {
         sendMail,
         getMessageBody,
         sendLeadReminderEmail,
         sendReportsReminderEmail,
-        sendLeadAssignmentEmail
+        sendLeadAssignmentEmail,
+        forwardLeadHistory
     };
 })();

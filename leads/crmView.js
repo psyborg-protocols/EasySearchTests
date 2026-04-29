@@ -940,22 +940,32 @@ async loadLead(leadId) {
         editBox.innerHTML = `<div class="p-3 text-center text-muted small"><i class="fas fa-circle-notch fa-spin me-2 text-primary"></i>Transferring ownership...</div>`;
         
         try {
-            // Update the record in SharePoint
+            // 1. Update the record in SharePoint
             await CRMService.updateLeadFields(leadId, { Owner: newOwnerEmail });
             
-            // Add a permanent historical note to the timeline
+            // 2. Add a permanent historical note to the timeline
             await CRMService.addEvent(leadId, "System", "Ownership Transferred", `Lead was transferred to ${newOwnerName} (${newOwnerEmail})`);
 
-            // NEW: Send Assignment Notification Email
+            // 3. Email Notification Logic
             if (window.mailUtils) {
                 const lead = CRMService.leadsCache.find(l => l.LeadId === leadId);
                 if (lead) {
-                    window.mailUtils.sendLeadAssignmentEmail(lead, newOwnerEmail)
-                        .catch(err => console.warn("[CRM] Transfer email failed to send:", err));
+                    // Try to find the most recent email in the currently loaded timeline
+                    const latestEmail = this.currentTimelineItems && this.currentTimelineItems.find(item => item.type === 'email');
+                    
+                    if (latestEmail && latestEmail.id) {
+                        // A: We found an email! Forward the conversation history.
+                        await window.mailUtils.forwardLeadHistory(lead, newOwnerEmail, latestEmail.id)
+                            .catch(err => console.warn("[CRM] History forward failed:", err));
+                    } else {
+                        // B: No emails exist yet (e.g., manual lead). Fall back to standard notification.
+                        await window.mailUtils.sendLeadAssignmentEmail(lead, newOwnerEmail)
+                            .catch(err => console.warn("[CRM] Transfer email failed to send:", err));
+                    }
                 }
             }
 
-            // Refresh UI
+            // 4. Refresh UI
             this.loadLead(leadId); 
             this.renderList(); 
             this.updateTabBadge();
