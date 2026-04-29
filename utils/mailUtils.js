@@ -105,37 +105,38 @@
         const leadsUrl = `${window.location.origin}${window.location.pathname}?tab=leads`;
 
         const emailBody = `
-           
-            <div style="font-family: Arial, sans-serif; background-color: #ffffff; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-                <div style="background-color: #e0f2fe; padding: 20px; text-align: center; border-bottom: 1px solid #bae6fd;">
-                    <h2 style="color: #0369a1; margin: 0;">New Lead Assigned</h2>
-                </div>
-                <div style="padding: 30px;">
-                    <p>Hello,</p>
-                    <p>A lead has been assigned to you and is ready for your review.</p>
-                    
-                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin-top: 20px;">
-                        <h3 style="margin-top: 0; color: #0f172a; font-size: 1.1em;">${lead.Title || 'New Lead'}</h3>
-                        <p style="margin: 5px 0; color: #475569;"><strong>Company:</strong> ${lead.Company || 'N/A'}</p>
-                        <p style="margin: 5px 0; color: #475569;"><strong>Requested Part:</strong> ${lead.PartNumber || 'N/A'} (Qty: ${lead.Quantity || 0})</p>
+            <div style="background-color: #ffffff; width: 100%; padding: 30px 0;">
+                <div style="font-family: Arial, sans-serif; background-color: #ffffff; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                    <div style="background-color: #e0f2fe; padding: 20px; text-align: center; border-bottom: 1px solid #bae6fd;">
+                        <h2 style="color: #0369a1; margin: 0;">New Lead Assigned</h2>
                     </div>
-                    
-                    <div style="text-align: center; margin-top: 35px;">
-                        <a href="${leadsUrl}" 
-                           style="background-color: #0284c7; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
-                           View in Dashboard →
-                        </a>
-                    </div>
+                    <div style="padding: 30px;">
+                        <p>Hello,</p>
+                        <p>A lead has been assigned to you and is ready for your review.</p>
+                        
+                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin-top: 20px;">
+                            <h3 style="margin-top: 0; color: #0f172a; font-size: 1.1em;">${lead.Title || 'New Lead'}</h3>
+                            <p style="margin: 5px 0; color: #475569;"><strong>Company:</strong> ${lead.Company || 'N/A'}</p>
+                            <p style="margin: 5px 0; color: #475569;"><strong>Requested Part:</strong> ${lead.PartNumber || 'N/A'} (Qty: ${lead.Quantity || 0})</p>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 35px;">
+                            <a href="${leadsUrl}" 
+                            style="background-color: #0284c7; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                            View in Dashboard →
+                            </a>
+                        </div>
 
-                    <p style="margin-top: 30px; font-size: 0.9em; color: #888; text-align: center;">
-                        Please log into BrandyWise to begin tracking this lead.
-                    </p>
-                </div>
-                <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa; border-top: 1px solid #e0e0e0;">
-                    BrandyWine Materials LLC
-                </div>
-                <div style="font-size: 8px; color: #f8f9fa; text-align: center; margin-top: 10px;">
-                    Ref: BrandyWiseLeadId:${lead.LeadId ||  ''}
+                        <p style="margin-top: 30px; font-size: 0.9em; color: #888; text-align: center;">
+                            Please log into BrandyWise to begin tracking this lead.
+                        </p>
+                    </div>
+                    <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa; border-top: 1px solid #e0e0e0;">
+                        BrandyWine Materials LLC
+                    </div>
+                    <div style="font-size: 8px; color: #f8f9fa; text-align: center; margin-top: 10px;">
+                        Ref: BrandyWiseLeadId:${lead.LeadId ||  ''}
+                    </div>
                 </div>
             </div>
         `;
