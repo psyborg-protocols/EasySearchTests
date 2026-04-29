@@ -105,7 +105,9 @@
         const leadsUrl = `${window.location.origin}${window.location.pathname}?tab=leads`;
 
         const emailBody = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+            <div style="display:none; width:0px; height:0px; overflow:hidden; font-size:0px; color:transparent;">BrandyWiseLeadId:${lead.LeadId || ''}</div>
+            
+            <div style="font-family: Arial, sans-serif; background-color: #ffffff; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                 <div style="background-color: #e0f2fe; padding: 20px; text-align: center; border-bottom: 1px solid #bae6fd;">
                     <h2 style="color: #0369a1; margin: 0;">New Lead Assigned</h2>
                 </div>
@@ -130,7 +132,7 @@
                         Please log into BrandyWise to begin tracking this lead.
                     </p>
                 </div>
-                <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa;">
+                <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa; border-top: 1px solid #e0e0e0;">
                     BrandyWine Materials LLC
                 </div>
             </div>
@@ -170,7 +172,7 @@
         const leadsUrl = `${window.location.origin}${window.location.pathname}?tab=leads`;
 
         const emailBody = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+            <div style="font-family: Arial, sans-serif; background-color: #ffffff; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                 <div style="background-color: #fee2e2; padding: 20px; text-align: center; border-bottom: 1px solid #fca5a5;">
                     <h2 style="color: #991b1b; margin: 0;">Action Required: Leads Pending</h2>
                 </div>
@@ -192,7 +194,7 @@
                         Please log into BrandyWise to review and update these leads.
                     </p>
                 </div>
-                <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa;">
+                <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa;border-top: 1px solid #e0e0e0;">
                     BrandyWine Materials LLC
                 </div>
             </div>
@@ -221,7 +223,7 @@
         ).join('');
 
         const emailBody = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+            <div style="font-family: Arial, sans-serif; background-color: #ffffff; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                 <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-bottom: 1px solid #e0e0e0;">
                     <h2 style="color: #2D2A32; margin: 0;">BrandyWise Reports Due</h2>
                 </div>
@@ -235,7 +237,7 @@
                         Clicking a link above will take you directly to the dashboard to generate the report.
                     </p>
                 </div>
-                <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa;">
+                <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa;border-top: 1px solid #e0e0e0;">
                     BrandyWine Materials LLC
                 </div>
             </div>
@@ -259,7 +261,9 @@
         const leadsUrl = `${window.location.origin}${window.location.pathname}?tab=leads`;
 
         const emailBody = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+            <div style="display:none; width:0px; height:0px; overflow:hidden; font-size:0px; color:transparent;">BrandyWiseLeadId:${lead.LeadId || ''}</div>
+            
+            <div style="font-family: Arial, sans-serif; background-color: #ffffff; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                 <div style="background-color: #e0f2fe; padding: 20px; text-align: center; border-bottom: 1px solid #bae6fd;">
                     <h2 style="color: #0369a1; margin: 0;">Lead Transferred to You</h2>
                 </div>
@@ -279,6 +283,9 @@
                            View in Dashboard →
                         </a>
                     </div>
+                </div>
+                <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 0.8em; color: #aaa; border-top: 1px solid #e0e0e0;">
+                    BrandyWine Materials LLC
                 </div>
             </div>
             <br><hr><br>
