@@ -442,7 +442,17 @@
             <div class="col-md-3 border-end bg-white d-flex flex-column h-100">
               <div class="p-3 border-bottom bg-light">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                  <h5 class="mb-0 fw-bold">My Leads</h5>
+                  <!-- Interactive Dropdown Title -->
+                  <div class="dropdown">
+                    <h5 class="mb-0 fw-bold dropdown-toggle text-dark" style="cursor: pointer;" data-bs-toggle="dropdown" aria-expanded="false" id="currentLeadViewTitle">
+                      My Leads
+                    </h5>
+                    <ul class="dropdown-menu shadow-sm border-0 mt-2" style="border-radius: 8px;">
+                      <li><a class="dropdown-item fw-medium active" href="#" id="viewMyLeadsBtn">My Leads</a></li>
+                      <li><a class="dropdown-item fw-medium" href="#" id="viewAllLeadsBtn">All Leads</a></li>
+                    </ul>
+                  </div>
+                  
                   <button id="crmAddLeadBtn" class="btn btn-sm btn-primary rounded-circle shadow-sm" style="width: 32px; height: 32px;" title="Add New Lead">
                       <i class="fas fa-plus"></i>
                   </button>

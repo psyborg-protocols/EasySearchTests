@@ -5,7 +5,8 @@
 
 const CRMView = {
     sortBy: 'recent',
-    showActiveOnly: true, 
+    showActiveOnly: true,
+    showAllLeads: false, 
     currentTimelineItems: [], 
     currentEditCleanup: null, 
     orgUsersList: [],
@@ -55,6 +56,30 @@ const CRMView = {
             crmTab.addEventListener('shown.bs.tab', () => this.refreshList());
         }
         
+        const btnMyLeads = document.getElementById('viewMyLeadsBtn');
+        const btnAllLeads = document.getElementById('viewAllLeadsBtn');
+        const titleText = document.getElementById('currentLeadViewTitle');
+
+        if (btnMyLeads && btnAllLeads && titleText) {
+            btnMyLeads.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showAllLeads = false;
+                titleText.innerHTML = 'My Leads';
+                btnMyLeads.classList.add('active');
+                btnAllLeads.classList.remove('active');
+                this.renderList();
+            });
+
+            btnAllLeads.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showAllLeads = true;
+                titleText.innerHTML = 'All Leads';
+                btnAllLeads.classList.add('active');
+                btnMyLeads.classList.remove('active');
+                this.renderList();
+            });
+        }
+
         const searchInput = document.getElementById('crmSearch');
         if (searchInput) {
             searchInput.addEventListener('input', () => this.renderList());
@@ -514,7 +539,8 @@ const CRMView = {
         const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
         let leads = CRMService.leadsCache;
 
-        if (userAccount) {
+        // Only filter to the logged-in user if showAllLeads is false
+        if (!this.showAllLeads && typeof userAccount !== 'undefined' && userAccount) {
             const userName = (userAccount.name || "").toLowerCase();
             const userEmail = (userAccount.username || "").toLowerCase();
             leads = leads.filter(l => {
