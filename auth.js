@@ -196,20 +196,19 @@ async function getScopedAccessToken(scopes, forceRefresh = false) {
     } catch (error) {
         console.warn("[Token] Silent acquisition failed.", error);
         
-        // 2. If silent fails, elegantly fallback to Popup
+        // 2. Gracefully handle expired sessions
         if (error instanceof msal.InteractionRequiredAuthError) {
-            console.log("[Token] Interaction required. Opening popup...");
-            try {
-                const popupResponse = await msalInstance.acquireTokenPopup({
-                    scopes,
-                    account
-                });
-                return popupResponse.accessToken;
-            } catch (popupError) {
-                console.error("[Token] Popup acquisition failed or cancelled.", popupError);
-                return null;
-            }
+            console.warn("[Token] Session expired or interaction required. Prompting UI for re-authentication.");
+            
+            // Do NOT automatically call acquireTokenPopup() here.
+            // Force the app into a logged-out state so the user has to click "Sign In".
+            setActiveAccount(null);
+            if (window.UIrenderer) UIrenderer.updateUIForLoggedOutUser();
+            
+            // Abort the fetch request gracefully so it doesn't cause cascading UI errors
+            return null; 
         }
+        
         throw error;
     }
 }
