@@ -262,12 +262,11 @@
                               <table class="table table-bordered mb-0" id="quoteCalculatorTable">
                                 <thead class="table-light">
                                   <tr>
-                                    <th style="width: 15%;">Product</th>
+                                    <th style="width: 17%;">Product</th>
                                     <th style="width: 8%;">Qty</th>
-                                    <th style="width: 8%;">FB Qty</th> <th style="width: 10%;">Unit Cost</th>
-                                    <th style="width: 10%;">Price</th>
-                                    <th style="width: 15%;">Order Total</th>
-                                    <th style="width: 10%;">Margin</th>
+                                    <th style="width: 8%;">FB Qty</th>
+                                    <th style="width: 10%;">Unit Cost</th>
+                                    <th style="width: 12%;">Margin</th> <th style="width: 15%;">Price</th>  <th style="width: 15%;">Order Total</th>
                                     <th style="width: 15%;">Total Profit</th>
                                   </tr>
                                 </thead>
@@ -280,19 +279,26 @@
                                     <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
                                     <td data-col="fbq" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
                                     <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
-                                    <td data-col="price" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'price')"></td>
-                                    <td data-col="ordertotal" class="fw-bold"></td>
+                                    
                                     <td data-col="margin" class="fw-bold text-primary" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'margin')"></td>
+                                    
+                                    <td data-col="price" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'price')"></td>
+                                    
+                                    <td data-col="ordertotal" class="fw-bold"></td>
                                     <td data-col="totalprofit" class="fw-bold"></td>
                                   </tr>
+                                  
                                   <tr class="placeholder-row">
                                     <td data-col="product"></td>
                                     <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
                                     <td data-col="fbq" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
                                     <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
-                                    <td data-col="price" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'price')"></td>
-                                    <td data-col="ordertotal" class="fw-bold"></td>
+                                    
                                     <td data-col="margin" class="fw-bold text-primary" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'margin')"></td>
+                                    
+                                    <td data-col="price" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'price')"></td>
+                                    
+                                    <td data-col="ordertotal" class="fw-bold"></td>
                                     <td data-col="totalprofit" class="fw-bold"></td>
                                   </tr>
                                 </tbody>
