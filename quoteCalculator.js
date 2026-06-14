@@ -156,24 +156,39 @@ const quoteCalculator = {
     const orderTotal = qty * price;
     const totalProfit = (price - unitCost) * qty;
 
-    // Update UI Cells
+    // Update UI Cells (except margin)
     rowElement.querySelector('[data-col="price"]').textContent = price.toFixed(2);
     rowElement.querySelector('[data-col="ordertotal"]').textContent = moneyFmt.format(orderTotal);
     rowElement.querySelector('[data-col="totalprofit"]').textContent = moneyFmt.format(totalProfit);
     
-    // Update Margin Cell & Tooltip
+    // Update Margin Cell
     const marginCell = rowElement.querySelector('[data-col="margin"]');
-    marginCell.textContent = margin.toFixed(1) + '%';
     
-    // Inject and refresh Bootstrap tooltip
-    marginCell.setAttribute('data-bs-toggle', 'tooltip');
-    marginCell.setAttribute('data-bs-html', 'true');
-    marginCell.setAttribute('title', tooltipHtml);
-    marginCell.style.cursor = 'help'; // Give a visual cue that it's hoverable
+    // Only overwrite the text if we aren't actively typing in it 
+    // (This prevents the typing cursor from resetting)
+    if (overrideSource !== 'margin') {
+      marginCell.textContent = margin.toFixed(1) + '%';
+    }
     
-    const existingTooltip = bootstrap.Tooltip.getInstance(marginCell);
-    if (existingTooltip) existingTooltip.dispose();
-    new bootstrap.Tooltip(marginCell);
+    marginCell.style.cursor = 'help'; // Visual cue
+    
+    // --- The Bootstrap 5 Tooltip Fix ---
+    let tooltipInstance = bootstrap.Tooltip.getInstance(marginCell);
+    
+    if (!tooltipInstance) {
+      // First time initialization
+      marginCell.setAttribute('title', tooltipHtml);
+      marginCell.setAttribute('data-bs-html', 'true');
+      tooltipInstance = new bootstrap.Tooltip(marginCell);
+    } else {
+      // Update existing tooltip's internal cache
+      marginCell.setAttribute('data-bs-original-title', tooltipHtml);
+      
+      // If the tooltip is currently visible on the screen, force it to live-update
+      if (typeof tooltipInstance.setContent === 'function') {
+         tooltipInstance.setContent({ '.tooltip-inner': tooltipHtml });
+      }
+    }
 
     this.checkHighValueWarning(orderTotal);
     this.updatePriceDifferenceIndicator();
