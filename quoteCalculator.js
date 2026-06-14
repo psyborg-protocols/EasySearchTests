@@ -26,29 +26,26 @@ const quoteCalculator = {
   },
 
   bindEvents: function() {
-    // Listen for Toggle Changes to recalculate
-    document.querySelectorAll('input[name="calcBrandToggle"], input[name="calcTypeToggle"]').forEach(el => {
-      el.addEventListener('change', () => this.recalculateAllRows());
-    });
+        // Listen for Toggle Changes to recalculate
+        document.querySelectorAll('input[name="calcBrandToggle"], input[name="calcTypeToggle"]').forEach(el => {
+        el.addEventListener('change', () => this.recalculateAllRows());
+        });
 
-    // Layout Shifting Logic
-    const accordion = document.getElementById('quoteCalculatorCollapse');
-    const leftCol = document.querySelector('.col-md-4'); // Assuming the Customer/Orders column
-    const rightCol = document.querySelector('.col-md-8'); // Assuming the Products/Calculator column
+        // Vertical Shrinking Logic
+        const accordion = document.getElementById('quoteCalculatorCollapse');
+        const orderHistory = document.getElementById('orderHistoryContainer');
 
-    if (accordion && leftCol && rightCol) {
-      accordion.addEventListener('show.bs.collapse', () => {
-        // Shrink left, expand right
-        leftCol.classList.replace('col-md-4', 'col-md-2');
-        rightCol.classList.replace('col-md-8', 'col-md-10');
-      });
+        if (accordion && orderHistory) {
+        accordion.addEventListener('show.bs.collapse', () => {
+            // Shrink the order history height up so the calculator has room
+            orderHistory.style.maxHeight = '200px'; 
+        });
 
-      accordion.addEventListener('hide.bs.collapse', () => {
-        // Restore defaults
-        leftCol.classList.replace('col-md-2', 'col-md-4');
-        rightCol.classList.replace('col-md-10', 'col-md-8');
-      });
-    }
+        accordion.addEventListener('hide.bs.collapse', () => {
+            // Restore default height when closed
+            orderHistory.style.maxHeight = '500px';
+        });
+        }
   },
 
   getNumeric: function(rowElement, selector) {
