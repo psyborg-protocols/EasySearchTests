@@ -99,20 +99,30 @@ const quoteCalculator = {
         price = unitCost / (1 - (margin / 100));
       }
       tooltipHtml = `
-        <div class="text-start">
-          <strong>Manual Margin Override</strong><br>
-          Target Margin: ${margin.toFixed(1)}%<br>
-          <em>Formula: Cost / (1 - Margin)</em>
+        <div class="text-start" style="font-size: 0.85rem; min-width: 160px;">
+          <div class="fw-bold border-bottom border-secondary pb-1 mb-1">
+            <i class="fas fa-edit me-1"></i>Manual Margin Override
+          </div>
+          <div class="d-flex justify-content-between"><span>Unit Cost:</span> <strong>$${unitCost.toFixed(2)}</strong></div>
+          <div class="d-flex justify-content-between"><span>Target Margin:</span> <strong>${margin.toFixed(1)}%</strong></div>
+          <div class="border-top border-secondary pt-1 mt-1 text-muted" style="font-size: 0.75rem;">
+            <em>Formula: Cost / (1 - Margin)</em>
+          </div>
         </div>`;
         
     } else if (overrideSource === 'price') {
       // User typed a specific price, calculate margin
       margin = (price > 0) ? ((price - unitCost) / price) * 100 : 0;
       tooltipHtml = `
-        <div class="text-start">
-          <strong>Manual Price Override</strong><br>
-          Price set to: $${price.toFixed(2)}<br>
-          <em>Formula: (Price - Cost) / Price</em>
+        <div class="text-start" style="font-size: 0.85rem; min-width: 160px;">
+          <div class="fw-bold border-bottom border-secondary pb-1 mb-1">
+            <i class="fas fa-edit me-1"></i>Manual Price Override
+          </div>
+          <div class="d-flex justify-content-between"><span>Unit Cost:</span> <strong>$${unitCost.toFixed(2)}</strong></div>
+          <div class="d-flex justify-content-between"><span>Set Price:</span> <strong>$${price.toFixed(2)}</strong></div>
+          <div class="border-top border-secondary pt-1 mt-1 text-muted" style="font-size: 0.75rem;">
+            <em>Formula: (Price - Cost) / Price</em>
+          </div>
         </div>`;
         
     } else {
@@ -140,17 +150,30 @@ const quoteCalculator = {
       // Re-derive the actual margin hitting the books
       margin = (price > 0) ? ((price - unitCost) / price) * 100 : 0;
       
-      // Build explanation
+      // Build explanation waterfall
       tooltipHtml = `
-        <div class="text-start">
-          <strong>Auto-Calc (${brand} ${tier} Box)</strong><br>
-          User Margin Target: ${rule.userMargin}%<br>
-          Base User Price: $${userPrice.toFixed(2)}<br>
+        <div class="text-start" style="font-size: 0.85rem; min-width: 200px;">
+          <div class="fw-bold border-bottom border-secondary pb-1 mb-1">
+            <i class="fas fa-calculator me-1"></i>${brand} (${tier} Box)
+          </div>
+          <div class="d-flex justify-content-between"><span>Unit Cost:</span> <strong>$${unitCost.toFixed(2)}</strong></div>
+          <div class="d-flex justify-content-between"><span>Base Margin:</span> <strong>${rule.userMargin}%</strong></div>
+          <div class="d-flex justify-content-between"><span>Base Price:</span> <strong>$${userPrice.toFixed(2)}</strong></div>
       `;
+
       if (type === 'B2B') {
-        tooltipHtml += `B2B Discount: ${rule.b2bDiscount}%<br>`;
+        tooltipHtml += `
+          <div class="d-flex justify-content-between text-warning mt-1">
+            <span>B2B Discount:</span> <strong>-${rule.b2bDiscount}%</strong>
+          </div>
+        `;
       }
-      tooltipHtml += `</div>`;
+
+      tooltipHtml += `
+          <div class="border-top border-secondary pt-1 mt-2 d-flex justify-content-between fw-bold text-info">
+            <span>Effective Margin:</span> <span>${margin.toFixed(1)}%</span>
+          </div>
+        </div>`;
     }
 
     const orderTotal = qty * price;
@@ -165,7 +188,6 @@ const quoteCalculator = {
     const marginCell = rowElement.querySelector('[data-col="margin"]');
     
     // Only overwrite the text if we aren't actively typing in it 
-    // (This prevents the typing cursor from resetting)
     if (overrideSource !== 'margin') {
       marginCell.textContent = margin.toFixed(1) + '%';
     }
