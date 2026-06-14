@@ -225,88 +225,88 @@
                     </table>
                   </div>
                 </div>
-              </div>
 
+                <!-- Nested Row for Quote & Profit Calculator -->  
+                <div class="row mt-4" id="quoteCalculatorRow">
+                  <div class="col-12">
+                    <div class="accordion" id="quoteAccordion">
+                      <div class="accordion-item shadow-sm">
+                        <h2 class="accordion-header d-flex align-items-center bg-light px-3" id="quoteAccordionHeader" style="gap: 15px;">
+                          <button class="accordion-button collapsed bg-transparent border-0 shadow-none px-0" type="button" data-bs-toggle="collapse" data-bs-target="#quoteCalculatorCollapse" style="width: auto; flex-grow: 1;">
+                            <strong>Quote &amp; Profit Calculator</strong>
+                          </button>
+                          
+                          <div class="d-flex align-items-center gap-3 z-3">
+                            <div class="btn-group btn-group-sm shadow-sm" role="group">
+                              <input type="radio" class="btn-check" name="calcBrandToggle" id="calcNordson" value="Nordson" checked>
+                              <label class="btn btn-outline-primary" for="calcNordson">Nordson</label>
+                              <input type="radio" class="btn-check" name="calcBrandToggle" id="calcMedmix" value="Medmix">
+                              <label class="btn btn-outline-primary" for="calcMedmix">Medmix</label>
+                            </div>
 
+                            <div class="btn-group btn-group-sm shadow-sm" role="group">
+                              <input type="radio" class="btn-check" name="calcTypeToggle" id="calcB2C" value="B2C" checked>
+                              <label class="btn btn-outline-secondary" for="calcB2C">B2C</label>
+                              <input type="radio" class="btn-check" name="calcTypeToggle" id="calcB2B" value="B2B">
+                              <label class="btn btn-outline-secondary" for="calcB2B">B2B</label>
+                            </div>
 
-            </div>
-                        <!-- Nested Row for Quote & Profit Calculator -->  
-            <div class="row mt-4" id="quoteCalculatorRow">
-              <div class="col-12">
-                <div class="accordion" id="quoteAccordion">
-                  <div class="accordion-item shadow-sm">
-                    <h2 class="accordion-header d-flex align-items-center bg-light px-3" id="quoteAccordionHeader" style="gap: 15px;">
-                      <button class="accordion-button collapsed bg-transparent border-0 shadow-none px-0" type="button" data-bs-toggle="collapse" data-bs-target="#quoteCalculatorCollapse" style="width: auto; flex-grow: 1;">
-                        <strong>Quote &amp; Profit Calculator</strong>
-                      </button>
-                      
-                      <div class="d-flex align-items-center gap-3 z-3">
-                        <div class="btn-group btn-group-sm shadow-sm" role="group">
-                          <input type="radio" class="btn-check" name="calcBrandToggle" id="calcNordson" value="Nordson" checked>
-                          <label class="btn btn-outline-primary" for="calcNordson">Nordson</label>
-                          <input type="radio" class="btn-check" name="calcBrandToggle" id="calcMedmix" value="Medmix">
-                          <label class="btn btn-outline-primary" for="calcMedmix">Medmix</label>
-                        </div>
-
-                        <div class="btn-group btn-group-sm shadow-sm" role="group">
-                          <input type="radio" class="btn-check" name="calcTypeToggle" id="calcB2C" value="B2C" checked>
-                          <label class="btn btn-outline-secondary" for="calcB2C">B2C</label>
-                          <input type="radio" class="btn-check" name="calcTypeToggle" id="calcB2B" value="B2B">
-                          <label class="btn btn-outline-secondary" for="calcB2B">B2B</label>
-                        </div>
-
-                        <button class="btn btn-sm btn-light text-muted" data-bs-toggle="modal" data-bs-target="#marginSettingsModal" title="Edit Default Margins">
-                          <i class="fas fa-cog"></i>
-                        </button>
-                      </div>
-                    </h2>
-                    <div id="quoteCalculatorCollapse" class="accordion-collapse collapse" aria-labelledby="quoteAccordionHeader">
-                      <div class="accordion-body p-0">
-                        <div class="table-responsive">
-                          <table class="table table-bordered mb-0" id="quoteCalculatorTable">
-                            <thead class="table-light">
-                              <tr>
-                                <th style="width: 15%;">Product</th>
-                                <th style="width: 8%;">Qty</th>
-                                <th style="width: 8%;">FB Qty</th> <th style="width: 10%;">Unit Cost</th>
-                                <th style="width: 10%;">Price</th>
-                                <th style="width: 15%;">Order Total</th>
-                                <th style="width: 10%;">Margin</th>
-                                <th style="width: 15%;">Total Profit</th>
-                              </tr>
-                            </thead>
-                            <tbody id="quoteCalculatorBody">
-                              <tr>
-                                <td style="position: relative; vertical-align: middle;">
-                                  <input type="text" id="quoteProductSearch" data-col="product" class="form-control form-control-sm border-0 shadow-none fw-bold p-0 bg-transparent" placeholder="Search..." autocomplete="off">
-                                  <ul id="quoteProductDropdown" class="dropdown-menu w-100" style="z-index: 1050;"></ul>
-                                </td>
-                                <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
-                                <td data-col="fbq" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
-                                <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
-                                <td data-col="price" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'price')"></td>
-                                <td data-col="ordertotal" class="fw-bold"></td>
-                                <td data-col="margin" class="fw-bold text-primary" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'margin')"></td>
-                                <td data-col="totalprofit" class="fw-bold"></td>
-                              </tr>
-                              <tr class="placeholder-row">
-                                <td data-col="product"></td>
-                                <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
-                                <td data-col="fbq" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
-                                <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
-                                <td data-col="price" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'price')"></td>
-                                <td data-col="ordertotal" class="fw-bold"></td>
-                                <td data-col="margin" class="fw-bold text-primary" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'margin')"></td>
-                                <td data-col="totalprofit" class="fw-bold"></td>
-                              </tr>
-                            </tbody>
-                          </table>
+                            <button class="btn btn-sm btn-light text-muted" data-bs-toggle="modal" data-bs-target="#marginSettingsModal" title="Edit Default Margins">
+                              <i class="fas fa-cog"></i>
+                            </button>
+                          </div>
+                        </h2>
+                        <div id="quoteCalculatorCollapse" class="accordion-collapse collapse" aria-labelledby="quoteAccordionHeader">
+                          <div class="accordion-body p-0">
+                            <div class="table-responsive">
+                              <table class="table table-bordered mb-0" id="quoteCalculatorTable">
+                                <thead class="table-light">
+                                  <tr>
+                                    <th style="width: 15%;">Product</th>
+                                    <th style="width: 8%;">Qty</th>
+                                    <th style="width: 8%;">FB Qty</th> <th style="width: 10%;">Unit Cost</th>
+                                    <th style="width: 10%;">Price</th>
+                                    <th style="width: 15%;">Order Total</th>
+                                    <th style="width: 10%;">Margin</th>
+                                    <th style="width: 15%;">Total Profit</th>
+                                  </tr>
+                                </thead>
+                                <tbody id="quoteCalculatorBody">
+                                  <tr>
+                                    <td style="position: relative; vertical-align: middle;">
+                                      <input type="text" id="quoteProductSearch" data-col="product" class="form-control form-control-sm border-0 shadow-none fw-bold p-0 bg-transparent" placeholder="Search..." autocomplete="off">
+                                      <ul id="quoteProductDropdown" class="dropdown-menu w-100" style="z-index: 1050;"></ul>
+                                    </td>
+                                    <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
+                                    <td data-col="fbq" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
+                                    <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
+                                    <td data-col="price" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'price')"></td>
+                                    <td data-col="ordertotal" class="fw-bold"></td>
+                                    <td data-col="margin" class="fw-bold text-primary" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'margin')"></td>
+                                    <td data-col="totalprofit" class="fw-bold"></td>
+                                  </tr>
+                                  <tr class="placeholder-row">
+                                    <td data-col="product"></td>
+                                    <td data-col="quantity" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
+                                    <td data-col="fbq" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
+                                    <td data-col="unitcost" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement)"></td>
+                                    <td data-col="price" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'price')"></td>
+                                    <td data-col="ordertotal" class="fw-bold"></td>
+                                    <td data-col="margin" class="fw-bold text-primary" contenteditable="true" oninput="quoteCalculator.onInputUpdate(this.parentElement, 'margin')"></td>
+                                    <td data-col="totalprofit" class="fw-bold"></td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
+
               </div>
+
             </div>
 
           </div>

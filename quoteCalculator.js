@@ -26,26 +26,26 @@ const quoteCalculator = {
   },
 
   bindEvents: function() {
-        // Listen for Toggle Changes to recalculate
-        document.querySelectorAll('input[name="calcBrandToggle"], input[name="calcTypeToggle"]').forEach(el => {
-        el.addEventListener('change', () => this.recalculateAllRows());
-        });
+    // Listen for Toggle Changes to recalculate
+    document.querySelectorAll('input[name="calcBrandToggle"], input[name="calcTypeToggle"]').forEach(el => {
+      el.addEventListener('change', () => this.recalculateAllRows());
+    });
 
-        // Vertical Shrinking Logic
-        const accordion = document.getElementById('quoteCalculatorCollapse');
-        const orderHistory = document.getElementById('orderHistoryContainer');
+    // Horizontal Stretch Logic
+    const accordion = document.getElementById('quoteCalculatorCollapse');
+    const wrapper = document.getElementById('quoteCalculatorRow');
 
-        if (accordion && orderHistory) {
-        accordion.addEventListener('show.bs.collapse', () => {
-            // Shrink the order history height up so the calculator has room
-            orderHistory.style.maxHeight = '200px'; 
-        });
+    if (accordion && wrapper) {
+      accordion.addEventListener('show.bs.collapse', () => {
+        // Apply the CSS stretch class when opening
+        wrapper.classList.add('expanded-full-width');
+      });
 
-        accordion.addEventListener('hide.bs.collapse', () => {
-            // Restore default height when closed
-            orderHistory.style.maxHeight = '500px';
-        });
-        }
+      accordion.addEventListener('hide.bs.collapse', () => {
+        // Remove it when closing
+        wrapper.classList.remove('expanded-full-width');
+      });
+    }
   },
 
   getNumeric: function(rowElement, selector) {
