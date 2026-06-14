@@ -115,28 +115,41 @@ async function initializeAuth() {
 }
 
 // ------------------------------
-// Sign-in / Sign-out (Popup Flow)
+// Sign-in / Sign-out (Hybrid Flow)
 // ------------------------------
+
+// Helper function to detect mobile/tablet environments
+const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
 
 async function signIn() {
     if (!msalInstance || !authReady) await initializeAuth();
-    console.log("[SignIn] Initiating Microsoft Popup Login...");
-    try {
-        // Pass prompt: "select_account" to clear out broken session caches natively
-        const response = await msalInstance.loginPopup({ 
-            scopes: graphScopes,
-            prompt: "select_account" 
-        });
+    
+    const loginRequest = { 
+        scopes: graphScopes,
+        prompt: "select_account" // Clears broken sessions
+    };
 
-        // Trigger manual UI update for expired-session recovery 
-        if (response && response.account) {
-            console.log("[SignIn] Login successful. Updating UI manually.");
-            setActiveAccount(response.account);
-            if (window.UIrenderer) UIrenderer.updateUIForLoggedInUser();
-            if (window.loadFreshAppData) window.loadFreshAppData();
+    try {
+        if (isMobileDevice()) {
+            console.log("[SignIn] Mobile/Tablet detected. Initiating Redirect Login...");
+            // Redirect navigates away, so we don't await a response here.
+            // The UI update will be handled by handleRedirectPromise() on reload.
+            await msalInstance.loginRedirect(loginRequest);
+        } else {
+            console.log("[SignIn] Desktop detected. Initiating Popup Login...");
+            const response = await msalInstance.loginPopup(loginRequest);
+            
+            if (response && response.account) {
+                console.log("[SignIn] Popup successful. Updating UI.");
+                setActiveAccount(response.account);
+                if (window.UIrenderer) UIrenderer.updateUIForLoggedInUser();
+                if (window.loadFreshAppData) window.loadFreshAppData();
+            }
         }
     } catch (error) {
-        console.error("[Auth] Popup Login failed or was cancelled:", error);
+        console.error("[Auth] Login failed or was cancelled:", error);
     }
 }
 
@@ -145,7 +158,11 @@ function signOut() {
     const accountToLogout = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
     
     if (accountToLogout) {
-        msalInstance.logoutPopup({ account: accountToLogout });
+        if (isMobileDevice()) {
+            msalInstance.logoutRedirect({ account: accountToLogout });
+        } else {
+            msalInstance.logoutPopup({ account: accountToLogout });
+        }
     } else {
         if (window.UIrenderer) UIrenderer.updateUIForLoggedOutUser();
     }
