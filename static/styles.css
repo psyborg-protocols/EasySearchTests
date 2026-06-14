@@ -388,6 +388,14 @@ input, textarea, [contenteditable] {
 #quoteCalculatorTable .placeholder-row [contenteditable="true"] {
     background-color: #f9fafb;
 }
+/* Allow the dropdown to overflow the accordion and card boundaries */
+#quoteAccordion, 
+#quoteAccordion .accordion-item, 
+#quoteAccordion .accordion-body,
+#quoteAccordion .table-responsive {
+    overflow: visible !important;
+}
+
 /* Custom styles for the product info modal */
 .modal-header-details {
     padding: 1rem 1.5rem;
