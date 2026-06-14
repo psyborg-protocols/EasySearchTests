@@ -95,7 +95,7 @@
               <!-- Order History Subtitle -->
               <h5 class="mt-3">Order History</h5>
               <!-- Order History Table -->
-              <div class="table-responsive" style="max-height: 500px;">
+              <div id="orderHistoryContainer" class="table-responsive" style="max-height: 500px; transition: max-height 0.3s ease-in-out;">
                 <table class="table table-bordered table-striped">
                   <thead>
                     <tr>
@@ -227,7 +227,10 @@
                 </div>
               </div>
 
-            <!-- Nested Row for Quote & Profit Calculator -->  
+
+
+            </div>
+                        <!-- Nested Row for Quote & Profit Calculator -->  
             <div class="row mt-4" id="quoteCalculatorRow">
               <div class="col-12">
                 <div class="accordion" id="quoteAccordion">
@@ -304,8 +307,6 @@
                   </div>
                 </div>
               </div>
-            </div>
-
             </div>
 
           </div>
