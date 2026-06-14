@@ -1331,9 +1331,11 @@ async function selectProduct(encodedPartNumber, options = {}) {
       // --- Populate Quote Calculator ---
       const quoteInfo = {
         PartNumber: selectedProduct["PartNumber"],
-        UnitCost: baseUnitCost, // Use the parsed number
-        Quantity: options.quantity, // from the clicked order row
-        Price: options.price        // from the clicked order row
+        Description: selectedProduct["Description"], // To help auto-detect Medmix
+        FullBoxQty: selectedProduct["FullBoxQty"],   // Pass this so column 3 populates
+        UnitCost: baseUnitCost, 
+        Quantity: options.quantity, 
+        Price: options.price        
       };
       quoteCalculator.populate(quoteInfo);
 
@@ -1871,7 +1873,6 @@ const quoteCalculator = {
 
 
 // Expose functions and objects globally
-window.quoteCalculator = quoteCalculator;
 window.UIrenderer = {
   updateUIForLoggedInUser,
   updateUIForLoggedOutUser,
