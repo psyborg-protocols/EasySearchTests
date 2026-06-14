@@ -1,5 +1,5 @@
 // ---------------------------------------------
-// auth.js — Refactored to MSAL Popup Flow & Native Events
+// auth.js — Updated for MSAL.js v3
 // ---------------------------------------------
 
 // Force HTTPS to prevent localStorage partitioning mismatch on custom domains
@@ -17,7 +17,7 @@ const msalConfig = {
         clientId: "26f834bc-3365-486c-95ff-1a45a24488b5",
         authority: "https://login.microsoftonline.com/b4b6e20e-14bd-4419-bf0a-c7d2c948c513",
         redirectUri: window.location.origin + "/",
-        navigateToLoginRequestUrl: true // Natively handles deep-linking routing
+        navigateToLoginRequestUrl: true 
     },
     cache: {
         cacheLocation: "localStorage",
@@ -55,18 +55,22 @@ function setActiveAccount(account) {
 }
 
 // ------------------------------
-// Initialization & Event System
+// Initialization & Event System (MSAL v3)
 // ------------------------------
 
 async function initializeAuth() {
     if (authReady && msalInstance) return;
 
+    // 1. Instantiate the application
     msalInstance = new msal.PublicClientApplication(msalConfig);
 
-    // 1. Leverage MSAL's Native Event System for UI State
+    // 2. Await Initialization (REQUIRED breaking change in MSAL v3)
+    await msalInstance.initialize();
+
+    // 3. Leverage MSAL's Native Event System for UI State
     msalInstance.addEventCallback((message) => {
         
-        // A. Initial Login Success (User just used the Popup)
+        // A. Initial Login Success 
         if (message.eventType === msal.EventType.LOGIN_SUCCESS) {
             if (message.payload && message.payload.account) {
                 console.log("[Auth] Login Success Event Fired.");
@@ -74,15 +78,13 @@ async function initializeAuth() {
                 
                 if (window.UIrenderer) UIrenderer.updateUIForLoggedInUser();
                 
-                // Trigger fresh data ONLY on explicit login
                 if (window.loadFreshAppData) window.loadFreshAppData();
             }
         }
         
-        // B. Silent Token Refresh (Background Heartbeat)
+        // B. Silent Token Refresh
         if (message.eventType === msal.EventType.ACQUIRE_TOKEN_SUCCESS) {
             if (message.payload && message.payload.account) {
-                // Ensure the account stays active, but DO NOT trigger a data reload
                 setActiveAccount(message.payload.account);
             }
         }
@@ -96,13 +98,12 @@ async function initializeAuth() {
     });
 
     try {
-        // Just in case the user previously used a redirect or falls back
         await msalInstance.handleRedirectPromise();
     } catch (error) {
         console.error("[Auth] Redirect handling error:", error);
     }
 
-    // 2. Restore active account from cache on load
+    // 4. Restore active account from cache on load
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
         console.log("[Auth] Existing account restored from cache.");
@@ -121,8 +122,19 @@ async function signIn() {
     if (!msalInstance || !authReady) await initializeAuth();
     console.log("[SignIn] Initiating Microsoft Popup Login...");
     try {
-        // MSAL Event System handles the UI rendering upon success
-        await msalInstance.loginPopup({ scopes: graphScopes });
+        // Pass prompt: "select_account" to clear out broken session caches natively
+        const response = await msalInstance.loginPopup({ 
+            scopes: graphScopes,
+            prompt: "select_account" 
+        });
+
+        // Trigger manual UI update for expired-session recovery 
+        if (response && response.account) {
+            console.log("[SignIn] Login successful. Updating UI manually.");
+            setActiveAccount(response.account);
+            if (window.UIrenderer) UIrenderer.updateUIForLoggedInUser();
+            if (window.loadFreshAppData) window.loadFreshAppData();
+        }
     } catch (error) {
         console.error("[Auth] Popup Login failed or was cancelled:", error);
     }
@@ -143,10 +155,6 @@ function signOut() {
 // Centralized Fetch Interceptor
 // ------------------------------
 
-/**
- * A centralized wrapper around `fetch` that automatically acquires and attaches
- * the MSAL Bearer token, and handles 401 Unauthorized retries seamlessly.
- */
 async function authenticatedFetch(url, options = {}, scopes = graphScopes) {
     let token = await getAccessToken(scopes);
     
@@ -160,10 +168,9 @@ async function authenticatedFetch(url, options = {}, scopes = graphScopes) {
     let fetchOptions = { ...options, headers };
     let response = await fetch(url, fetchOptions);
 
-    // If the token was subtly rejected by the backend, force a refresh and retry once
     if (response.status === 401) {
         console.warn(`[Fetch Interceptor] 401 Unauthorized on ${url}. Forcing token refresh...`);
-        token = await getAccessToken(scopes, true); // Force refresh bypassing cache
+        token = await getAccessToken(scopes, true); 
         
         if (token) {
             headers.set("Authorization", `Bearer ${token}`);
@@ -186,7 +193,6 @@ async function getScopedAccessToken(scopes, forceRefresh = false) {
     if (!account) return null;
 
     try {
-        // 1. Try silent acquisition first (hidden iframe / cache)
         const response = await msalInstance.acquireTokenSilent({
             scopes,
             account,
@@ -196,16 +202,11 @@ async function getScopedAccessToken(scopes, forceRefresh = false) {
     } catch (error) {
         console.warn("[Token] Silent acquisition failed.", error);
         
-        // 2. Gracefully handle expired sessions
+        // Gracefully handle expired sessions 
         if (error instanceof msal.InteractionRequiredAuthError) {
             console.warn("[Token] Session expired or interaction required. Prompting UI for re-authentication.");
-            
-            // Do NOT automatically call acquireTokenPopup() here.
-            // Force the app into a logged-out state so the user has to click "Sign In".
             setActiveAccount(null);
             if (window.UIrenderer) UIrenderer.updateUIForLoggedOutUser();
-            
-            // Abort the fetch request gracefully so it doesn't cause cascading UI errors
             return null; 
         }
         
@@ -213,10 +214,8 @@ async function getScopedAccessToken(scopes, forceRefresh = false) {
     }
 }
 
-// Legacy wrappers kept for backwards compatibility with the rest of your app
 async function getAccessToken() { return getScopedAccessToken(graphScopes); }
 async function getApiAccessToken() { return getScopedAccessToken([contactUpdateScope]); }
 async function getLLMAccessToken() { return getScopedAccessToken([companyResearchScope]); }
 
-// Export interceptor for global use
 window.authenticatedFetch = authenticatedFetch;
