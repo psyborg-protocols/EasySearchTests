@@ -90,15 +90,31 @@ const quoteCalculator = {
     let marginStr = rowElement.querySelector('[data-col="margin"]').textContent;
     let margin = parseFloat(marginStr.replace(/[^0-9.-]/g, '')) || 0;
 
+    let tooltipHtml = "";
+
     // --- LOGIC GATE ---
     if (overrideSource === 'margin') {
       // User typed a specific margin, calculate price
       if (margin < 100) {
         price = unitCost / (1 - (margin / 100));
       }
+      tooltipHtml = `
+        <div class="text-start">
+          <strong>Manual Margin Override</strong><br>
+          Target Margin: ${margin.toFixed(1)}%<br>
+          <em>Formula: Cost / (1 - Margin)</em>
+        </div>`;
+        
     } else if (overrideSource === 'price') {
       // User typed a specific price, calculate margin
       margin = (price > 0) ? ((price - unitCost) / price) * 100 : 0;
+      tooltipHtml = `
+        <div class="text-start">
+          <strong>Manual Price Override</strong><br>
+          Price set to: $${price.toFixed(2)}<br>
+          <em>Formula: (Price - Cost) / Price</em>
+        </div>`;
+        
     } else {
       // Auto-calculate based on Toggles and Tiers
       const brand = document.querySelector('input[name="calcBrandToggle"]:checked').value;
@@ -123,16 +139,41 @@ const quoteCalculator = {
 
       // Re-derive the actual margin hitting the books
       margin = (price > 0) ? ((price - unitCost) / price) * 100 : 0;
+      
+      // Build explanation
+      tooltipHtml = `
+        <div class="text-start">
+          <strong>Auto-Calc (${brand} ${tier} Box)</strong><br>
+          User Margin Target: ${rule.userMargin}%<br>
+          Base User Price: $${userPrice.toFixed(2)}<br>
+      `;
+      if (type === 'B2B') {
+        tooltipHtml += `B2B Discount: ${rule.b2bDiscount}%<br>`;
+      }
+      tooltipHtml += `</div>`;
     }
 
     const orderTotal = qty * price;
     const totalProfit = (price - unitCost) * qty;
 
-    // Update UI
+    // Update UI Cells
     rowElement.querySelector('[data-col="price"]').textContent = price.toFixed(2);
     rowElement.querySelector('[data-col="ordertotal"]').textContent = moneyFmt.format(orderTotal);
     rowElement.querySelector('[data-col="totalprofit"]').textContent = moneyFmt.format(totalProfit);
-    rowElement.querySelector('[data-col="margin"]').textContent = margin.toFixed(1) + '%';
+    
+    // Update Margin Cell & Tooltip
+    const marginCell = rowElement.querySelector('[data-col="margin"]');
+    marginCell.textContent = margin.toFixed(1) + '%';
+    
+    // Inject and refresh Bootstrap tooltip
+    marginCell.setAttribute('data-bs-toggle', 'tooltip');
+    marginCell.setAttribute('data-bs-html', 'true');
+    marginCell.setAttribute('title', tooltipHtml);
+    marginCell.style.cursor = 'help'; // Give a visual cue that it's hoverable
+    
+    const existingTooltip = bootstrap.Tooltip.getInstance(marginCell);
+    if (existingTooltip) existingTooltip.dispose();
+    new bootstrap.Tooltip(marginCell);
 
     this.checkHighValueWarning(orderTotal);
     this.updatePriceDifferenceIndicator();
