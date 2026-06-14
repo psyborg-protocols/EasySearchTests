@@ -239,6 +239,9 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('#customerInfoSearch') && !e.target.closest('#customerInfoDropdown')) {
     document.getElementById("customerInfoDropdown").classList.remove('show');
   }
+  if (!e.target.closest('#quoteProductSearch') && !e.target.closest('#quoteProductDropdown')) {
+    document.getElementById("quoteProductDropdown").classList.remove('show');
+  }
 });
 
 
@@ -1198,10 +1201,58 @@ document.getElementById("productSearch").addEventListener("input", async (e) => 
   }
 });
 
+document.getElementById("quoteProductSearch").addEventListener("input", async (e) => {
+  const query = e.target.value.trim();
+  const dropdown = document.getElementById("quoteProductDropdown");
+
+  if (!query) {
+    dropdown.innerHTML = "";
+    dropdown.classList.remove('show');
+    document.getElementById("productTable").innerHTML = "";
+    document.getElementById("competitorPriceLink").style.display = "none";
+    return;
+  }
+
+  try {
+    const products = await getMatchingProducts(query);
+
+    if (products.length > 0) {
+      dropdown.innerHTML = products
+        .map(product => {
+          const isExact = product["PartNumber"].toLowerCase() === query.toLowerCase();
+          return `
+            <li>
+              <a class="dropdown-item ${isExact ? 'fw-bold' : ''}" href="#"
+                onclick="event.preventDefault(); event.stopPropagation(); selectProduct('${encodeURIComponent(product["PartNumber"])}');">
+                ${product["PartNumber"]} - ${product["Description"]}
+              </a>
+            </li>`;
+        })
+        .join("");
+      dropdown.classList.add('show');
+    } else {
+      dropdown.innerHTML = "";
+      dropdown.classList.remove('show');
+    }
+  } catch (error) {
+    console.error("Error performing quote product search:", error);
+    dropdown.classList.remove('show');
+  }
+});
+
 async function selectProduct(encodedPartNumber, options = {}) {
   const partNumber = decodeURIComponent(encodedPartNumber).toString().trim();
   document.getElementById("productSearch").value = partNumber;
   const dropdown = document.getElementById("productDropdown");
+  const quoteSearchInput = document.getElementById("quoteProductSearch");
+  if (quoteSearchInput) quoteSearchInput.value = partNumber;
+
+  const quoteDropdown = document.getElementById("quoteProductDropdown");
+  if (quoteDropdown) {
+    quoteDropdown.innerHTML = "";
+    quoteDropdown.classList.remove('show');
+  }
+
   dropdown.innerHTML = "";
   dropdown.classList.remove('show');
 
@@ -1776,7 +1827,12 @@ const quoteCalculator = {
       productInfo.Price !== undefined;
 
     // ---------- FIRST ROW -------------------------------------------------
-    firstRow.querySelector('[data-col="product"]').textContent = productInfo.PartNumber;
+    const firstProdCell = firstRow.querySelector('[data-col="product"]');
+    if (firstProdCell.tagName === 'INPUT') {
+      firstProdCell.value = productInfo.PartNumber;
+    } else {
+      firstProdCell.textContent = productInfo.PartNumber;
+    }
     firstRow.querySelector('[data-col="unitcost"]').textContent = unitCost.toFixed(2);
 
     if (hasOrder) {
