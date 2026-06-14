@@ -1683,42 +1683,6 @@ document.getElementById('customer-info-tab').addEventListener('click', () => {
 });
 
 
-// --- Quote Calculator Object ---
-const quoteCalculator = {
-  /**
-   * Updates a single row in the quote calculator table based on its editable inputs.
-   * @param {HTMLElement} rowElement - The <tr> element to update.
-   */
-  updateRow: function (rowElement) {
-    // If it was a placeholder, make it a normal row upon editing
-    if (rowElement.classList.contains('placeholder-row')) {
-      rowElement.classList.remove('placeholder-row');
-    }
-
-    const getNumeric = (selector) => {
-      const el = rowElement.querySelector(`[data-col="${selector}"]`);
-      if (!el) return 0;
-      // Use the global toNumber helper for safe parsing
-      return toNumber(el.textContent);
-    };
-
-    const quantity = getNumeric('quantity');
-    const unitCost = getNumeric('unitcost');
-    const price = getNumeric('price');
-
-    const orderTotal = quantity * price;
-    const totalProfit = (price - unitCost) * quantity;
-    const margin = (price > 0) ? ((price - unitCost) / price) * 100 : 0;
-
-    // Update the calculated cells with formatting
-    rowElement.querySelector('[data-col="ordertotal"]').textContent = moneyFmt.format(orderTotal);
-    rowElement.querySelector('[data-col="totalprofit"]').textContent = moneyFmt.format(totalProfit);
-    rowElement.querySelector('[data-col="margin"]').textContent = margin.toFixed(1) + '%';
-
-    // Update the price difference indicator
-    this.updatePriceDifferenceIndicator();
-  },
-
   /**
    * Updates the quote row when the user manually types a target Profit Margin.
    * Calculates the required Price to hit that margin.
