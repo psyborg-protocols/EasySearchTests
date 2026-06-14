@@ -25,6 +25,22 @@ const quoteCalculator = {
     this.renderSettingsModal();
   },
 
+  openSettings: function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation(); // Stops the accordion from noticing the click
+    }
+    
+    const modalEl = document.getElementById('marginSettingsModal');
+    if (modalEl) {
+      // Get the modal instance or create it if it doesn't exist yet
+      const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modalInstance.show();
+    } else {
+      console.error("marginSettingsModal not found in the DOM.");
+    }
+  },
+
   bindEvents: function() {
     // Listen for Toggle Changes to recalculate
     document.querySelectorAll('input[name="calcBrandToggle"], input[name="calcTypeToggle"]').forEach(el => {
