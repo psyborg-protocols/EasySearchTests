@@ -996,7 +996,7 @@ function showProductInfoModal(encodedPartNumber) {
   const pricingData = window.dataStore["Pricing"]?.dataframe || [];
   const pricingEntry = pricingData.find(row => String(row["Product"]).trim() === partNumber);
   if (pricingEntry && pricingEntry["Unit Cost"]) {
-    product["DiscountedCost"] = toNumber(pricingEntry["Unit Cost"]);
+    product["ChangedCost"] = toNumber(pricingEntry["Unit Cost"]);
   }
 
   if (!product) {
@@ -1016,7 +1016,7 @@ function showProductInfoModal(encodedPartNumber) {
   const inventoryListEl = document.getElementById('productInfoModalInventoryList');
   const fieldsToShow = [
     "Active", "QtyOnHand", "QtyCommited", "ReOrder Level",
-    "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue", "DiscountedCost"
+    "QtyOnOrder", "FullBoxQty", "UnitCost", "ExtValue", "ChangedCost"
   ];
   let inventoryHtml = '';
   const qtyOnHand = toNumber(product["QtyOnHand"]);
@@ -1036,14 +1036,22 @@ function showProductInfoModal(encodedPartNumber) {
           displayValue = (typeof value === 'number') ? moneyFmt.format(value) : value;
           break;
         
-      //Special case for 2026 discounted cost from Pricing table
-        case 'DiscountedCost':
-          // Added icon and bold wrapper
-          displayName = `<span class="fw-bold">Discounted 2026 Cost</span> <i class="fas fa-certificate me-1" style="color: #eedc82;"></i>`;
+        // Special handling for ChangedCost to show increase/decrease vs UnitCost
+          case 'ChangedCost':
+          const currentYear = new Date().getFullYear();
+          // Fallback to toNumber if getProductUnitCost isn't exposed, but ideally we use the raw base cost
+          const baseCost = window.dataLoader ? window.dataLoader.getProductUnitCost(product.PartNumber, product.UnitCost) : toNumber(product.UnitCost);
+          const isIncrease = value > baseCost && baseCost > 0;
           
-          // Added bold wrapper and a green text color to the value
           const formattedVal = (typeof value === 'number') ? moneyFmt.format(value) : value;
-          displayValue = `<span class="fw-bold text-success">${formattedVal}</span>`;
+          
+          if (isIncrease) {
+              displayName = `<span class="fw-bold">Increased ${currentYear} Cost</span> <i class="fa-solid fa-chart-line text-danger ms-1"></i>`;
+              displayValue = `<span class="fw-bold text-danger">${formattedVal}</span>`;
+          } else {
+              displayName = `<span class="fw-bold">Discounted ${currentYear} Cost</span> <i class="fas fa-certificate ms-1" style="color: #eedc82;"></i>`;
+              displayValue = `<span class="fw-bold text-success">${formattedVal}</span>`;
+          }
           break;
 
         case 'Active':
