@@ -179,8 +179,11 @@ const quoteCalculator = {
     const orderTotal = qty * price;
     const totalProfit = (price - unitCost) * qty;
 
-    // Update UI Cells (except margin)
-    rowElement.querySelector('[data-col="price"]').textContent = price.toFixed(2);
+    // Update UI Cells (prevent overwriting price if the user is actively typing in it)
+    if (overrideSource !== 'price') {
+      rowElement.querySelector('[data-col="price"]').textContent = price.toFixed(2);
+    }
+    
     rowElement.querySelector('[data-col="ordertotal"]').textContent = moneyFmt.format(orderTotal);
     rowElement.querySelector('[data-col="totalprofit"]').textContent = moneyFmt.format(totalProfit);
     
