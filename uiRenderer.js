@@ -995,8 +995,8 @@ function showProductInfoModal(encodedPartNumber) {
 
   const pricingData = window.dataStore["Pricing"]?.dataframe || [];
   const pricingEntry = pricingData.find(row => String(row["Product"]).trim() === partNumber);
-  if (pricingEntry && pricingEntry["DISCOUNT UNIT COST"]) {
-    product["DiscountedCost"] = toNumber(pricingEntry["DISCOUNT UNIT COST"]);
+  if (pricingEntry && pricingEntry["Unit Cost"]) {
+    product["DiscountedCost"] = toNumber(pricingEntry["Unit Cost"]);
   }
 
   if (!product) {
@@ -1283,16 +1283,18 @@ async function selectProduct(encodedPartNumber, options = {}) {
           selectedProduct["PartNumber"], 
           selectedProduct["UnitCost"]
       );
-      const raiseInfo = window.dataStore["PriceRaise"]?.dataframe[partNumber];
 
       let unitCostCellContent = baseUnitCost ? `$${baseUnitCost.toFixed(2)}` : "N/A";
 
-      if (raiseInfo) {
-        // Bootstrap needs <br> and data-bs-html="true" for line-breaks
-        const country = getCountryName(raiseInfo.COO);
-        const tooltipHtml = `COO: ${country}<br>
-                              July&nbsp;9<sup>th</sup>&nbsp;Cost&nbsp;<i class="fa-solid fa-arrow-up"></i>: ${raiseInfo.July9thIncrease}<br>
-                              Added&nbsp;Cost: ${raiseInfo.AddedCost}`;
+      const pricingData = window.dataStore["Pricing"]?.dataframe || [];
+      const pricingEntry = pricingData.find(row => String(row["Product"]).trim() === partNumber);
+      const pricingUnitCost = pricingEntry ? toNumber(pricingEntry["Unit Cost"]) : 0;
+
+      if (pricingUnitCost > baseUnitCost && baseUnitCost > 0) {
+        const currentYear = new Date().getFullYear();
+        const increase = pricingUnitCost - baseUnitCost;
+        const tooltipHtml = `${currentYear}&nbsp;Cost&nbsp;<i class="fa-solid fa-arrow-up"></i>: $${pricingUnitCost.toFixed(2)}<br>
+                             Increase: $${increase.toFixed(2)}`;
 
         unitCostCellContent += `
             <i class="fa-solid fa-chart-line text-danger ms-2"

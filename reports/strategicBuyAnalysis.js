@@ -257,7 +257,7 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
 
                     // Pricing check
                     const pricingEntry = pricingData.find(row => String(row.Product).trim() === prodName);
-                    const discountCost = pricingEntry ? parseNumber(pricingEntry["DISCOUNT UNIT COST"]) : 0;
+                    const discountCost = pricingEntry ? parseNumber(pricingEntry["Unit Cost"]) : 0;
                     const hasDiscount = discountCost > 0;
 
                     let recentPurchasePrice = 0;
@@ -274,12 +274,6 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                         else if (qty !== 0) recentPurchasePrice = total / qty;
                     }
 
-                    let july9thPrice = 0;
-                    const raiseInfo = priceRaiseData[prodName];
-                    if (raiseInfo && raiseInfo.July9thIncrease) {
-                        july9thPrice = parseNumber(raiseInfo.July9thIncrease);
-                    }
-
                     let hasPriceWarning = false;
                     let priceWarningMessage = "";
 
@@ -287,9 +281,6 @@ window.buildStrategicBuyReport = function(modalEl, reportId) {
                         if (recentPurchasePrice > 0 && discountCost > recentPurchasePrice) {
                             hasPriceWarning = true;
                             priceWarningMessage = `Discount cost (${moneyFmt.format(discountCost)}) is higher than most recent purchase price (${moneyFmt.format(recentPurchasePrice)})`;
-                        } else if (july9thPrice > 0 && discountCost === july9thPrice) {
-                            hasPriceWarning = true;
-                            priceWarningMessage = `Discount cost (${moneyFmt.format(discountCost)}) is equal to the July 9th increase price`;
                         }
                     }
 

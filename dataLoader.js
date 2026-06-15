@@ -226,22 +226,6 @@ async function processFiles() {
           continue;
         }
 
-        if (key === "PriceRaise") {
-          const map = {};
-          frame.forEach(r => {
-            if (r.Product) map[String(r.Product).trim()] = {
-              COO: r.COO || "N/A",
-              July9thIncrease: r.July9thIncrease || "N/A",
-              AddedCost: r.AddedCost || "N/A"
-            };
-          });
-          const stored = { dataframe: map, metadata: md };
-          ds["PriceRaise"] = stored;
-          await idbUtil.setDataset(storageKey, stored);
-          console.log(`[PriceRaise] ${Object.keys(map).length} rows loaded.`);
-          continue;
-        }
-
         if (key === "Equivalents") {
           const map = normalizeEquivalents(frame);
           const stored = { dataframe: map, metadata: md };
@@ -295,7 +279,7 @@ async function processFiles() {
 
 /* helper: convert raw sheet rows → trimmed pricing rows */
 function slimPriceRows(frame) {
-  const KEEP = ["Product", "Units per Box", "DISCOUNT UNIT COST", "USER FB", "USER HB", "USER LTB", "DISTR FB", "DISTR HB", "DISTR LTB"];
+  const KEEP = ["Product", "Units per Box", "Unit Cost", "USER FB", "USER HB", "USER LTB", "DISTR FB", "DISTR HB", "DISTR LTB"];
   return frame.flatMap(r => {
     if (!r.Product) return [];
     const slim = {};

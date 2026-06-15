@@ -39,7 +39,7 @@
   {
     "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
     "filenamePrefix": "Quote Maker and Calculator",
-    "columns": ["Product", "Note", "Units per Box", "D", "E", "2024 Unit Cost", "2024 FB Cost", "H", "I", "DISCOUNT UNIT COST", "K", "L", "USER FB", "USER FB PROFIT", "USER HB", "USER LTB", "USER LTB PROFIT", "R", "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
+    "columns": ["Product", "Note", "Units per Box", "D", "E", "2024 Unit Cost", "2024 FB Cost", "H", "I", "Unit Cost", "K", "L", "USER FB", "USER FB PROFIT", "USER HB", "USER LTB", "USER LTB PROFIT", "R", "DISTR FB", "DISTR FB PROFIT", "DISTR HB", "DISTR LTB"]    ,
     "skipRows": 3,
     "sheetName": "Medmix_Sulzer Master",
     "dataKey": "Pricing"	
@@ -59,14 +59,6 @@
     "skipRows": 1,
     "sheetName": "Nordson Top Items Pricing",
     "dataKey": "Pricing"	
-  },
-  {
-    "directory": "Brandywine Collaborate Team Site Folder/Quoting and Price Lists",
-    "filenamePrefix": "Quote Maker and Calculator",
-    "columns": ["A", "B", "C", "Product", "COO", "F","G", "H", "July9thIncrease", "AddedCost"],
-    "skipRows": 1,
-    "sheetName": "COO",
-    "dataKey": "PriceRaise"	
   },
   {
     "directory": "Brandywine Collaborate Team Site Folder/Customers, Orders",
