@@ -4,6 +4,8 @@
  */
 
 const quoteCalculator = {
+  manualTierOverride: false, // Tracks if the user manually clicked the tier toggle
+  
   // Default Settings Matrix
   settings: {
     Nordson: {
@@ -42,9 +44,17 @@ const quoteCalculator = {
   },
 
   bindEvents: function() {
-    // Listen for Toggle Changes to recalculate
+    // Listen for Brand/Type Toggle Changes to recalculate
     document.querySelectorAll('input[name="calcBrandToggle"], input[name="calcTypeToggle"]').forEach(el => {
       el.addEventListener('change', () => this.recalculateAllRows());
+    });
+
+    // Listen for Tier Toggle Changes
+    document.querySelectorAll('input[name="calcTierToggle"]').forEach(el => {
+      el.addEventListener('change', () => {
+        this.manualTierOverride = true; // User actively forced the tier
+        this.recalculateAllRows();
+      });
     });
 
     // Horizontal Stretch Logic
@@ -76,10 +86,16 @@ const quoteCalculator = {
    * Main entry point for any manual edits in the table
    * @param {HTMLElement} rowElement 
    * @param {string} overrideSource - 'price', 'margin', or null (defaults to standard auto-calc)
+   * @param {boolean} isRecalc - true if triggered by a toggle instead of a direct cell edit
    */
-  onInputUpdate: function(rowElement, overrideSource = null) {
+  onInputUpdate: function(rowElement, overrideSource = null, isRecalc = false) {
     if (rowElement.classList.contains('placeholder-row')) {
       rowElement.classList.remove('placeholder-row');
+    }
+
+    // If user types directly in Qty/Cost/FBQ, clear the manual tier override to auto-sync again
+    if (!isRecalc && !overrideSource) {
+      this.manualTierOverride = false;
     }
 
     const qty = this.getNumeric(rowElement, 'quantity');
@@ -91,6 +107,27 @@ const quoteCalculator = {
     let margin = parseFloat(marginStr.replace(/[^0-9.-]/g, '')) || 0;
 
     let tooltipHtml = "";
+
+    // --- TIER DETECTION & SYNC ---
+    let activeTier = 'Less';
+    
+    if (this.manualTierOverride) {
+      // Use the forced toggle value
+      const checkedTier = document.querySelector('input[name="calcTierToggle"]:checked');
+      if (checkedTier) activeTier = checkedTier.value;
+    } else {
+      // Auto-calculate based on qty
+      if (fbq > 0) {
+        if (qty >= fbq) activeTier = 'Full';
+        else if (qty >= (fbq / 2)) activeTier = 'Half';
+      }
+      
+      // Sync the UI toggle to match this row's auto-tier
+      const tierInput = document.querySelector(`input[name="calcTierToggle"][value="${activeTier}"]`);
+      if (tierInput && !tierInput.checked) {
+        tierInput.checked = true;
+      }
+    }
 
     // --- LOGIC GATE ---
     if (overrideSource === 'margin') {
@@ -130,13 +167,8 @@ const quoteCalculator = {
       const brand = document.querySelector('input[name="calcBrandToggle"]:checked').value;
       const type = document.querySelector('input[name="calcTypeToggle"]:checked').value;
 
-      let tier = 'Less';
-      if (fbq > 0) {
-        if (qty >= fbq) tier = 'Full';
-        else if (qty >= (fbq / 2)) tier = 'Half';
-      }
-
-      const rule = this.settings[brand][tier];
+      // Use the activeTier we established above
+      const rule = this.settings[brand][activeTier];
       
       // Calculate User Price first (always the baseline)
       let userPrice = unitCost / (1 - (rule.userMargin / 100));
@@ -154,7 +186,7 @@ const quoteCalculator = {
       tooltipHtml = `
         <div class="text-start" style="font-size: 0.85rem; min-width: 200px;">
           <div class="fw-bold border-bottom border-secondary pb-1 mb-1">
-            <i class="fas fa-calculator me-1"></i>${brand} (${tier} Box)
+            <i class="fas fa-calculator me-1"></i>${brand} (${activeTier} Box)
           </div>
           <div class="d-flex justify-content-between"><span>Unit Cost:</span> <strong>$${unitCost.toFixed(2)}</strong></div>
           <div class="d-flex justify-content-between"><span>Base Margin:</span> <strong>${rule.userMargin}%</strong></div>
@@ -223,7 +255,7 @@ const quoteCalculator = {
     const tableBody = document.getElementById('quoteCalculatorBody');
     Array.from(tableBody.rows).forEach(row => {
       if (!row.classList.contains('placeholder-row') && this.getNumeric(row, 'quantity') > 0) {
-        this.onInputUpdate(row); // Auto-recalc without overrides
+        this.onInputUpdate(row, null, true); // True indicates it's a mass recalculation (won't clear manual override)
       }
     });
   },
@@ -244,6 +276,8 @@ const quoteCalculator = {
 
   populate: function(productInfo) {
     if (!productInfo || !productInfo.PartNumber) return;
+    
+    this.manualTierOverride = false; // Reset manual override for new products
 
     const tableBody = document.getElementById('quoteCalculatorBody');
     const firstRow = tableBody.rows[0];
