@@ -106,7 +106,7 @@ const quoteCalculator = {
     if (!lblFB || !lblHB || !lblLTB) return;
 
     // If it's the Medmix Other Dispensers, change to unit counts
-    if (category === 'MedmixOther') {
+    if (category === 'MedmixOther' || category === 'MedmixDMA') {
       lblFB.textContent = '5+'; 
       lblFB.title = '5 or more units';
       
