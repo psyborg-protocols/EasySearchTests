@@ -10,13 +10,29 @@ const quoteCalculator = {
   settings: {
     Nordson: {
       Full: { userMargin: 40, b2bDiscount: 10 },
-      Half: { userMargin: 45, b2bDiscount: 15 }, // Requires stock check logic internally if needed
+      Half: { userMargin: 45, b2bDiscount: 10 },
+      Less: { userMargin: 50, b2bDiscount: 10 }
+    },
+    MedmixMixers: {
+      Full: { userMargin: 45, b2bDiscount: 10 },
+      Half: { userMargin: 55, b2bDiscount: 15 },
       Less: { userMargin: 60, b2bDiscount: 18 }
     },
-    Medmix: {
-      Full: { userMargin: 45, b2bDiscount: 10 },
-      Half: { userMargin: 45, b2bDiscount: 10 },
-      Less: { userMargin: 60, b2bDiscount: 10 }
+    MedmixCartridges: {
+      Full: { userMargin: 42, b2bDiscount: 10 },
+      Half: { userMargin: 55, b2bDiscount: 12 },
+      Less: { userMargin: 60, b2bDiscount: 15 }
+    },
+    MedmixDMA: {
+      Full: { userMargin: 40, b2bDiscount: 10 },
+      Half: { userMargin: 55, b2bDiscount: 12 },
+      Less: { userMargin: 60, b2bDiscount: 15 }
+    },
+    MedmixOther: {
+      // Mapped to qty tiers for UI compatibility: Full (5 unit), Half (3 unit), Less (1 unit)
+      Full: { userMargin: 36, b2bDiscount: 8 },
+      Half: { userMargin: 40, b2bDiscount: 9 },
+      Less: { userMargin: 45, b2bDiscount: 10 }
     }
   },
 
@@ -44,15 +60,21 @@ const quoteCalculator = {
   },
 
   bindEvents: function() {
-    // Listen for Brand/Type Toggle Changes to recalculate
-    document.querySelectorAll('input[name="calcBrandToggle"], input[name="calcTypeToggle"]').forEach(el => {
+    // Listen for Category Dropdown Change
+    const categorySelect = document.getElementById('calcCategorySelect');
+    if (categorySelect) {
+      categorySelect.addEventListener('change', () => this.recalculateAllRows());
+    }
+
+    // Listen for Type Toggle Changes (B2C/B2B)
+    document.querySelectorAll('input[name="calcTypeToggle"]').forEach(el => {
       el.addEventListener('change', () => this.recalculateAllRows());
     });
 
-    // Listen for Tier Toggle Changes
+    // Listen for Tier Toggle Changes (FB/HB/LTB)
     document.querySelectorAll('input[name="calcTierToggle"]').forEach(el => {
       el.addEventListener('change', () => {
-        this.manualTierOverride = true; // User actively forced the tier
+        this.manualTierOverride = true; 
         this.recalculateAllRows();
       });
     });
@@ -62,15 +84,8 @@ const quoteCalculator = {
     const wrapper = document.getElementById('quoteCalculatorRow');
 
     if (accordion && wrapper) {
-      accordion.addEventListener('show.bs.collapse', () => {
-        // Apply the CSS stretch class when opening
-        wrapper.classList.add('expanded-full-width');
-      });
-
-      accordion.addEventListener('hide.bs.collapse', () => {
-        // Remove it when closing
-        wrapper.classList.remove('expanded-full-width');
-      });
+      accordion.addEventListener('show.bs.collapse', () => wrapper.classList.add('expanded-full-width'));
+      accordion.addEventListener('hide.bs.collapse', () => wrapper.classList.remove('expanded-full-width'));
     }
   },
 
@@ -164,7 +179,7 @@ const quoteCalculator = {
         
     } else {
       // Auto-calculate based on Toggles and Tiers
-      const brand = document.querySelector('input[name="calcBrandToggle"]:checked').value;
+      const brand = document.getElementById('calcCategorySelect').value;
       const type = document.querySelector('input[name="calcTypeToggle"]:checked').value;
 
       // Use the activeTier we established above
@@ -288,10 +303,20 @@ const quoteCalculator = {
     
     // Attempt to guess brand from string (fallback to Nordson)
     const desc = productInfo.Description ? productInfo.Description.toLowerCase() : '';
+    const categorySelect = document.getElementById('calcCategorySelect');
+    
     if (desc.includes('medmix')) {
-      document.getElementById('calcMedmix').checked = true;
+      if (desc.includes('mixer') || desc.includes('nozzle')) {
+        categorySelect.value = 'MedmixMixers';
+      } else if (desc.includes('cartridge')) {
+        categorySelect.value = 'MedmixCartridges';
+      } else if (desc.includes('dma') || desc.includes('dmb')) {
+        categorySelect.value = 'MedmixDMA';
+      } else {
+        categorySelect.value = 'MedmixOther';
+      }
     } else {
-      document.getElementById('calcNordson').checked = true;
+      categorySelect.value = 'Nordson';
     }
 
     // Populate Row 1

@@ -246,12 +246,13 @@
                           </div>
 
                           <div class="d-flex align-items-center gap-3 z-3">
-                            <div class="btn-group btn-group-sm shadow-sm" role="group">
-                              <input type="radio" class="btn-check" name="calcBrandToggle" id="calcNordson" value="Nordson" checked>
-                              <label class="btn btn-outline-primary" for="calcNordson">Nordson</label>
-                              <input type="radio" class="btn-check" name="calcBrandToggle" id="calcMedmix" value="Medmix">
-                              <label class="btn btn-outline-primary" for="calcMedmix">Medmix</label>
-                            </div>
+                            <select id="calcCategorySelect" class="form-select form-select-sm shadow-sm text-primary fw-bold" style="width: auto; border-color: var(--bs-primary); cursor: pointer;">
+                              <option value="MedmixMixers">Medmix Mixers</option>
+                              <option value="MedmixCartridges">Medmix Cartridges</option>
+                              <option value="MedmixDMA">Medmix DMA / DMB Dispensers</option>
+                              <option value="MedmixOther">Medmix Other Dispensers</option>
+                              <option value="Nordson" selected>Nordson</option>
+                            </select>
 
                             <div class="btn-group btn-group-sm shadow-sm" role="group">
                               <input type="radio" class="btn-check" name="calcTypeToggle" id="calcB2C" value="B2C" checked>
