@@ -63,7 +63,10 @@ const quoteCalculator = {
     // Listen for Category Dropdown Change
     const categorySelect = document.getElementById('calcCategorySelect');
     if (categorySelect) {
-      categorySelect.addEventListener('change', () => this.recalculateAllRows());
+      categorySelect.addEventListener('change', () => {
+        this.updateTierLabels(); // Update the UI text
+        this.recalculateAllRows(); // Run the math
+      });
     }
 
     // Listen for Type Toggle Changes (B2C/B2B)
@@ -86,6 +89,42 @@ const quoteCalculator = {
     if (accordion && wrapper) {
       accordion.addEventListener('show.bs.collapse', () => wrapper.classList.add('expanded-full-width'));
       accordion.addEventListener('hide.bs.collapse', () => wrapper.classList.remove('expanded-full-width'));
+    }
+  },
+
+  updateTierLabels: function() {
+    const categorySelect = document.getElementById('calcCategorySelect');
+    if (!categorySelect) return;
+
+    const category = categorySelect.value;
+    
+    // Grab the labels linked to the tier radio buttons
+    const lblFB = document.querySelector('label[for="calcTierFB"]');
+    const lblHB = document.querySelector('label[for="calcTierHB"]');
+    const lblLTB = document.querySelector('label[for="calcTierLTB"]');
+
+    if (!lblFB || !lblHB || !lblLTB) return;
+
+    // If it's the Medmix Other Dispensers, change to unit counts
+    if (category === 'MedmixOther') {
+      lblFB.textContent = '5+'; 
+      lblFB.title = '5 or more units';
+      
+      lblHB.textContent = '3+'; 
+      lblHB.title = '3 to 4 units';
+      
+      lblLTB.textContent = '1+'; 
+      lblLTB.title = '1 to 2 units';
+    } else {
+      // Revert to standard box terminology for everything else
+      lblFB.textContent = 'FB'; 
+      lblFB.title = 'Full Box';
+      
+      lblHB.textContent = 'HB'; 
+      lblHB.title = 'Half Box';
+      
+      lblLTB.textContent = 'LTB'; 
+      lblLTB.title = 'Less Than Box';
     }
   },
 
@@ -318,6 +357,8 @@ const quoteCalculator = {
     } else {
       categorySelect.value = 'Nordson';
     }
+    // Update between HB/FB/LTB and 1/3/5+ unit tiers based on the selected category
+    this.updateTierLabels();
 
     // Populate Row 1
     const firstProdCell = firstRow.querySelector('[data-col="product"]');

@@ -231,39 +231,51 @@
                   <div class="col-12">
                     <div class="accordion" id="quoteAccordion">
                       <div class="accordion-item shadow-sm">
-                        <h2 class="accordion-header d-flex align-items-center bg-light px-3" id="quoteAccordionHeader" style="gap: 15px;">
-                          <button class="accordion-button collapsed bg-transparent border-0 shadow-none px-0" type="button" data-bs-toggle="collapse" data-bs-target="#quoteCalculatorCollapse" style="width: auto; flex-grow: 1;">
-                            <strong>Quote &amp; Profit Calculator</strong>
+                        <h2 class="accordion-header d-flex align-items-center bg-white border-bottom px-3 py-2" id="quoteAccordionHeader" style="gap: 12px;">
+                          
+                          <!-- Accordion Title Button -->
+                          <button class="accordion-button collapsed bg-transparent border-0 shadow-none p-0 m-0 text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#quoteCalculatorCollapse" style="width: auto; flex-grow: 1;">
+                            <span class="fw-bold fs-6"><i class="fas fa-calculator text-muted me-2"></i>Quote &amp; Profit</span>
                           </button>
                           
-                          <div class="btn-group btn-group-sm shadow-sm" role="group">
-                            <input type="radio" class="btn-check" name="calcTierToggle" id="calcTierFB" value="Full">
-                            <label class="btn btn-outline-info" for="calcTierFB" title="Full Box">FB</label>
-                            <input type="radio" class="btn-check" name="calcTierToggle" id="calcTierHB" value="Half">
-                            <label class="btn btn-outline-info" for="calcTierHB" title="Half Box">HB</label>
-                            <input type="radio" class="btn-check" name="calcTierToggle" id="calcTierLTB" value="Less" checked>
-                            <label class="btn btn-outline-info" for="calcTierLTB" title="Less Than Box">LTB</label>
-                          </div>
-
-                          <div class="d-flex align-items-center gap-3 z-3">
-                            <select id="calcCategorySelect" class="form-select form-select-sm shadow-sm text-primary fw-bold" style="width: auto; border-color: var(--bs-primary); cursor: pointer;">
+                          <!-- Toolbar Area -->
+                          <div class="d-flex align-items-center gap-2 z-3">
+                            
+                            <!-- Category Dropdown -->
+                            <select id="calcCategorySelect" class="form-select form-select-sm text-secondary border-secondary" style="width: auto; cursor: pointer; box-shadow: none;">
                               <option value="MedmixMixers">Medmix Mixers</option>
                               <option value="MedmixCartridges">Medmix Cartridges</option>
-                              <option value="MedmixDMA">Medmix DMA / DMB Dispensers</option>
-                              <option value="MedmixOther">Medmix Other Dispensers</option>
+                              <option value="MedmixDMA">Medmix DMA / DMB</option>
+                              <option value="MedmixOther">Medmix Other</option>
                               <option value="Nordson" selected>Nordson</option>
                             </select>
 
-                            <div class="btn-group btn-group-sm shadow-sm" role="group">
+                            <!-- Tier Toggles -->
+                            <div class="btn-group btn-group-sm" role="group">
+                              <input type="radio" class="btn-check" name="calcTierToggle" id="calcTierFB" value="Full">
+                              <label class="btn btn-outline-secondary" for="calcTierFB" title="Full Box">FB</label>
+                              
+                              <input type="radio" class="btn-check" name="calcTierToggle" id="calcTierHB" value="Half">
+                              <label class="btn btn-outline-secondary" for="calcTierHB" title="Half Box">HB</label>
+                              
+                              <input type="radio" class="btn-check" name="calcTierToggle" id="calcTierLTB" value="Less" checked>
+                              <label class="btn btn-outline-secondary" for="calcTierLTB" title="Less Than Box">LTB</label>
+                            </div>
+
+                            <!-- Type Toggles -->
+                            <div class="btn-group btn-group-sm" role="group">
                               <input type="radio" class="btn-check" name="calcTypeToggle" id="calcB2C" value="B2C" checked>
                               <label class="btn btn-outline-secondary" for="calcB2C">B2C</label>
+                              
                               <input type="radio" class="btn-check" name="calcTypeToggle" id="calcB2B" value="B2B">
                               <label class="btn btn-outline-secondary" for="calcB2B">B2B</label>
                             </div>
 
-                            <button type="button" class="btn btn-sm btn-light text-muted" onclick="quoteCalculator.openSettings(event)" title="Edit Default Margins">
+                            <!-- Settings Button -->
+                            <button type="button" class="btn btn-sm btn-link text-muted p-1 border-0 ms-1" onclick="quoteCalculator.openSettings(event)" title="Edit Default Margins">
                               <i class="fas fa-cog"></i>
                             </button>
+
                           </div>
                         </h2>
                         <div id="quoteCalculatorCollapse" class="accordion-collapse collapse" aria-labelledby="quoteAccordionHeader">
