@@ -215,7 +215,7 @@
     });
     banner.innerHTML =
       '<div><strong>Inventory transition in progress.</strong> ' +
-      'Live on-hand counts now live in Odoo &mdash; this tool no longer shows inventory numbers. ' +
+      'Live on-hand counts now live in Odoo' +
       'Moves that were still pending in the old system are tracked below.</div>' +
       '<div class="mt-1"><span id="transitionOpenCount" class="badge bg-warning text-dark me-2"></span>' +
       '<a href="#transitionPanel" class="alert-link">View pending adjustments</a></div>';
