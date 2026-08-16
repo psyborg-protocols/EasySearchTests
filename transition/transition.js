@@ -49,7 +49,7 @@
     // column inventoryColumnIndex are replaced.
     tableSelector: "#productTable",
     partColumnIndex: 0,
-    inventoryColumnIndex: 1
+    inventoryColumnIndex: 2
   };
 
   var GRAPH_BASE = "https://graph.microsoft.com/v1.0";
