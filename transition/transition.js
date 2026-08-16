@@ -210,7 +210,7 @@
   function buildBanner() {
     var banner = el("div", {
       id: "transitionBanner",
-      class: "alert alert-warning d-flex justify-content-between align-items-center flex-wrap",
+      class: "alert alert-warning d-flex justify-content-between align-items-center flex-wrap mb-0",
       role: "alert"
     });
     banner.innerHTML =
